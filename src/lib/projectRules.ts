@@ -28,20 +28,36 @@ export function isEmptyAppRow(app: NewProjectApp): boolean {
  * environment names required and unique; at least one environment.
  */
 export function validateNewProject(form: NewProjectForm, existingNames: string[] = []): NewProjectErrors {
-  const errors: NewProjectErrors = { environmentNames: {}, appNames: {} };
+  const errors: NewProjectErrors = validateAppsEnvironments(form.environments, form.apps);
   const nameError = projectNameError(form.name, existingNames);
   if (nameError) errors.name = nameError;
-  if (form.environments.length === 0) errors.environments = 'Add at least one environment.';
+  return errors;
+}
+
+/**
+ * The apps × environments grid (1.3 New project, 2.1 Knowledge): environment names required and unique
+ * (case and spaces ignored); at least one environment; an app with a URL needs a name.
+ */
+export function validateAppsEnvironments(environments: NewProjectEnvironment[], apps: NewProjectApp[]): NewProjectErrors {
+  const errors: NewProjectErrors = { environmentNames: {}, appNames: {} };
+  if (environments.length === 0) errors.environments = 'Add at least one environment.';
   const seen = new Map<string, number>();
-  for (const env of form.environments) seen.set(norm(env.name), (seen.get(norm(env.name)) ?? 0) + 1);
-  for (const env of form.environments) {
+  for (const env of environments) seen.set(norm(env.name), (seen.get(norm(env.name)) ?? 0) + 1);
+  for (const env of environments) {
     if (env.name.trim() === '') errors.environmentNames[env.id] = 'Enter an environment name.';
     else if ((seen.get(norm(env.name)) ?? 0) > 1) errors.environmentNames[env.id] = 'Environment names must be different.';
   }
-  for (const app of form.apps) {
+  for (const app of apps) {
     if (!isEmptyAppRow(app) && app.name.trim() === '') errors.appNames[app.id] = 'Enter an app name.';
   }
   return errors;
+}
+
+/** Grid rows → project apps: empty rows dropped, names trimmed, empty URLs stored as null (07: URL may be empty). */
+export function toProjectApps(environments: NewProjectEnvironment[], apps: NewProjectApp[]): { id: string; name: string; urls: Record<string, string | null> }[] {
+  return apps
+    .filter((a) => !isEmptyAppRow(a))
+    .map((a) => ({ id: a.id, name: a.name.trim(), urls: Object.fromEntries(environments.map((e) => [e.id, a.urls[e.id]?.trim() || null])) }));
 }
 
 export function hasErrors(e: NewProjectErrors): boolean {

@@ -1,4 +1,4 @@
-import type { Mode, TestCase } from '@/data/types';
+import type { EnvironmentSnapshot, ID, Mode, Project, TestCase } from '@/data/types';
 
 export interface ModeInput {
   scriptState: TestCase['script']['state'];
@@ -11,4 +11,14 @@ export interface ModeInput {
 export function modeFor(test: ModeInput, forceAi: boolean): Mode {
   if (test.hasTestData) return 'data_rows';
   return test.scriptState === 'recorded' && !forceAi ? 'script' : 'ai';
+}
+
+/**
+ * BR-ENV-04: a run stores a snapshot of its environment (name + every app's URL in it) when it starts,
+ * so history shows what was used even after the environment is renamed or deleted, or a URL changes.
+ */
+export function snapshotEnvironment(project: Pick<Project, 'environments' | 'apps'>, environmentId: ID): EnvironmentSnapshot {
+  const env = project.environments.find((e) => e.id === environmentId);
+  if (!env) throw new Error(`Environment not found: ${environmentId}`);
+  return { name: env.name, apps: project.apps.map((a) => ({ appId: a.id, name: a.name, url: a.urls[environmentId] ?? null })) };
 }

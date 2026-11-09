@@ -34,7 +34,7 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 - **BR-RUN-09** Pre-flight check after Start run: AI key/model valid (block), environment URL reachable (warn), browser launches (block). [DEV-CONFIRM feasibility]
 - **BR-RUN-10** Progress saved after each test; interrupted runs can resume from the next test. [DEV-CONFIRM]
 - **BR-RUN-11** (Proposed) Auto-pause when the AI provider stays unavailable after retries, or the environment fails N consecutive tests; user resumes. [DEV-CONFIRM: today the run continues and fails tests]
-- **BR-RUN-12** Max AI steps per test: default 40 (project default, run Advanced). Max actions per step default 10.
+- **BR-RUN-12** Max AI steps per test: default 40, allowed 1–500, warning above 100 ("Higher values increase AI cost per test"). Max actions per step: default 10, allowed 1–50. Parallel workers: default 2, allowed 1–8. (Project default, run Advanced; D38.)
 
 ## Scripts and versions (BR-SCRIPT, BR-VERSION)
 - **BR-SCRIPT-01** A script is only created from a passing AI run.
@@ -117,4 +117,5 @@ Flag when any: passed using ≥ 90% of max AI steps; agent and judge disagree; l
 ## Environments (BR-ENV)
 - **BR-ENV-01** Environment differences are handled by **separate test cases** (clone), not variants.
 - **BR-ENV-02** App URL resolves from the run's environment; an app with no URL for that environment → affected tests are Not run with note "No URL for <environment>".
-- **BR-ENV-03** Accounts are resolved by role + app + environment.
+- **BR-ENV-03** Accounts are resolved by role + app + environment, so that combination is unique per project.
+- **BR-ENV-04** A run stores a snapshot of its environment when it starts: the environment name and every app's URL in it. Run history shows the snapshot even if the environment is later renamed or deleted, or a URL changes. (D36)

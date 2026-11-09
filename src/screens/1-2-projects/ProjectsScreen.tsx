@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link, Outlet } from 'react-router-dom';
-import { exportProject, importProject, InvalidFileError, ProjectExistsError, type ExistingProjectChoice } from '@/data/api';
+import { importProject, InvalidFileError, ProjectExistsError, type ExistingProjectChoice } from '@/data/api';
 import { copyName } from '@/lib/projectRules';
 import { ImportExistingDialog } from './ImportExistingDialog';
 import type { Project } from '@/data/types';
@@ -12,9 +12,9 @@ import { ErrorState, LoadingState } from '@/components/StateViews';
 import { useAsync } from '@/app/hooks/useAsync';
 import { to } from '@/app/routes';
 import { runStateLabels } from '@/lib/labels';
-import { downloadBlob, safeFileName } from '@/app/download';
+import { ExportProjectDialog } from '@/components/ExportProjectDialog';
 import { loadProjectRows, type ProjectRow } from './loadProjectRows';
-import { DeleteProjectDialog, RenameProjectDialog } from './ProjectDialogs';
+import { DeleteProjectDialog, RenameProjectDialog } from '@/components/ProjectDialogs';
 
 type Notice = { tone: 'ok' | 'error'; text: string } | null;
 
@@ -57,14 +57,7 @@ export function ProjectsScreen() {
     if (file) await runImport(file);
   }
 
-  async function onExport(project: Project) {
-    try {
-      downloadBlob(await exportProject(project.id), `${safeFileName(project.name)}.qai-project.json`);
-      setNotice({ tone: 'ok', text: `Exported ${project.name}.` });
-    } catch (e) {
-      setNotice({ tone: 'error', text: `Couldn't export ${project.name}: ${e instanceof Error ? e.message : String(e)}` });
-    }
-  }
+  const [exporting, setExporting] = useState<Project | null>(null);
 
   const actions = (
     <>
@@ -127,7 +120,7 @@ export function ProjectsScreen() {
                 <ProjectTableRow
                   key={row.project.id}
                   row={row}
-                  onExport={() => void onExport(row.project)}
+                  onExport={() => setExporting(row.project)}
                   onRename={() => setRenaming(row.project)}
                   onDelete={() => setDeleting(row.project)}
                 />
@@ -157,6 +150,16 @@ export function ProjectsScreen() {
             setNotice({ tone: 'ok', text: `Deleted ${deleting.name}.` });
             setDeleting(null);
             rows.retry();
+          }}
+        />
+      )}
+      {exporting && (
+        <ExportProjectDialog
+          project={exporting}
+          onClose={() => setExporting(null)}
+          onDone={(text) => {
+            setExporting(null);
+            setNotice({ tone: 'ok', text });
           }}
         />
       )}

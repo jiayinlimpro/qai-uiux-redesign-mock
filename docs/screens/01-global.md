@@ -15,7 +15,7 @@
 ## 1.2 Projects
 **Purpose** Choose, create, import projects.
 **Layout** App sidebar (QAI brand top; "Projects" active; Global settings bottom-left) + content max-width 1100 px.
-**Content** Title "Projects", subtitle "One project per client system. All data stays on this computer." Buttons: Import project, New project (primary). Table: Project (link) · Apps · Suites · Last run (number + state) · Needs attention (failed / couldn't complete chips of the last completed run, or "All passed") · actions (Open, Export, More: rename, delete).
+**Content** Title "Projects", subtitle "One project per client system. All data stays on this computer." Buttons: Import project, New project (primary). Table: Project (link) · Apps · Suites · Last run (number + state) · Needs attention (failed / couldn't complete chips of the last completed run, or "All passed") · actions (Open, Export, More: rename, delete). Export opens the export dialog with "Include account passwords" (screens/02-project.md § 2.2 Data, D37).
 **Rename** Dialog with the project name; a name another project already uses is blocked inline (BR-PROJECT-01, D35).
 **Import project** If the project in the file is already on this computer, a dialog **"This project already exists on this computer"** offers: **Replace it** (warning: runs and changes made here since the export are lost) · **Import as a copy** (added as "<name> (copy)", "(copy 2)"… with new IDs) · **Cancel** (BR-PROJECT-02, D34). A different project whose name is taken is imported as "<name> (2)".
 **States** Empty: illustration-free empty state "No projects yet" + New project + Import project. Delete asks for confirmation (typed project name).

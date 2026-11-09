@@ -27,10 +27,11 @@ import type {
   TestCase,
 } from '../types';
 import { contentToSteps, idPrefixOf, parseBrowserList, readTemplateCsv } from '@/lib/importRules';
+import { snapshotEnvironment } from '@/lib/runRules';
 import { modeFor } from '@/lib/runRules';
 import { sumCost } from '@/lib/status';
 
-export const SEED_VERSION = 4;
+export const SEED_VERSION = 6;
 
 export interface MockDb {
   seedVersion: number;
@@ -43,6 +44,8 @@ export interface MockDb {
   runs: Run[];
   results: Result[];
   chats: Chat[];
+  /** Mock-only secret store: account passwords by account ID. Never part of a domain type (07: hasPassword only). */
+  accountPasswords: Record<ID, string>;
 }
 
 // ---------- ids and constants ----------
@@ -143,6 +146,19 @@ for (const row of parsed.rows) {
   suiteIdByName.set(name, id);
   suites.push({ id, projectId: P_QC, name, idPrefix: idPrefixOf(row.task_id ?? '') });
 }
+const suiteIdOf = (prefix: string): ID => suites.find((s) => s.idPrefix === prefix)!.id;
+
+// ---------- knowledge (2.1) ----------
+// The Contact form FRS covers the enquiry form only (fields, validation, confirmation), not how the phone number is
+// linked, so CNT-04 stays "Needs confirmation": no linked document confirms which link is right (BR-REASON-05).
+const K_CONTACT_FRS = 'k-contact-frs';
+const knowledge: KnowledgeItem[] = [
+  { id: K_CONTACT_FRS, projectId: P_QC, kind: 'document', docType: 'frs', name: 'Contact form FRS.pdf', scope: { kind: 'suite', suiteId: suiteIdOf('CNT') }, uploadedAt: '2026-09-01T11:00:00.000Z' },
+  { id: 'k-user-stories', projectId: P_QC, kind: 'document', docType: 'user_stories', name: 'Customer website user stories.docx', scope: { kind: 'project' }, uploadedAt: '2026-09-01T11:05:00.000Z' },
+  { id: 'k-testing-rules', projectId: P_QC, kind: 'skill', skillKind: 'instructions', name: 'testing-rules.md', scope: { kind: 'project' }, usedBy: ['runs', 'ai_explore'], uploadedAt: '2026-09-01T11:10:00.000Z' },
+  { id: 'k-codebase', projectId: P_QC, kind: 'skill', skillKind: 'codebase', name: 'qcfixer-web', scope: { kind: 'suite', suiteId: suiteIdOf('NAV') }, usedBy: ['ai_explore'], uploadedAt: '2026-09-01T11:15:00.000Z' },
+];
+const accountPasswords: Record<ID, string> = { 'acc-admin': 'Uat-Admin-2026!', 'acc-customer': 'Uat-Customer-2026!' };
 
 const tests: TestCase[] = parsed.rows.map((row) => {
   const displayId = row.task_id ?? '';
@@ -337,6 +353,7 @@ function simulateRun(spec: RunSpec): void {
     environmentId: spec.environmentId,
     browsers,
     viewport: { ...DEFAULT_VIEWPORT },
+    environment: snapshotEnvironment(projects[0]!, spec.environmentId), // BR-ENV-04
     model: DEFAULT_MODEL,
     forceAi: false,
     state,
@@ -566,7 +583,7 @@ const chats: Chat[] = [
     running: false,
     messages: [
       { kind: 'user', text: 'Explore the Contact Us page on UAT and propose tests for the form and the contact details.' },
-      { kind: 'plan', suites: 2, scenarios: 5, pagesExplored: 4, usedKnowledge: [] },
+      { kind: 'plan', suites: 2, scenarios: 5, pagesExplored: 4, usedKnowledge: [K_CONTACT_FRS] },
       {
         kind: 'tests_ready',
         proposals: [
@@ -614,7 +631,8 @@ export function createSeed(): MockDb {
     globalSettings,
     projects,
     accounts,
-    knowledge: [] as KnowledgeItem[],
+    knowledge,
+    accountPasswords,
     suites,
     tests,
     runs,

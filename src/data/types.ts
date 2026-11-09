@@ -52,8 +52,11 @@ export type CcReason = 'environment_down'|'service_problem'|'ai_couldnt_finish';
 export type Mode = 'ai'|'script'|'data_rows';
 
 export interface Viewport { width: number; height: number }
+/** What the run's environment was when the run started (BR-ENV-04). */
+export interface EnvironmentSnapshot { name: string; apps: { appId: ID; name: string; url: string | null }[] }
 export interface Run { id: ID; projectId: ID; number: number; environmentId: ID; browsers: Browser[];
   viewport: Viewport;                   // default 1920×1080; target = browser + viewport (BR-VISUAL-02)
+  environment: EnvironmentSnapshot;     // name + app URLs as used by this run; history shows it even after a rename/delete (BR-ENV-04, D36)
   model: string; forceAi: boolean;
   state: RunState; scopeLabel: string; testIds: ID[];
   progress: { done: number; total: number; currentTestId?: ID };

@@ -30,7 +30,7 @@ export function ExploreWorkspace() {
         <p className="text-h3">AI explore</p>
         <p className="truncate text-text-muted">{project.status === 'ready' ? project.data.name : 'Loading…'}</p>
       </header>
-      <main id="main" tabIndex={-1} className="min-h-0 flex-1 overflow-auto bg-bg focus:outline-none">
+      <main id="main" tabIndex={-1} className="relative min-h-0 flex-1 overflow-auto bg-bg focus:outline-none">
         {project.status === 'ready' ? (
           <ProjectContext.Provider value={project.data}>
             <Outlet />

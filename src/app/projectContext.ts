@@ -13,6 +13,13 @@ export function useProject(): Project {
   return project;
 }
 
+/** Re-reads the project after a screen changed it (Knowledge grid, Project settings), so the shell and screens update. */
+export const ProjectReloadContext = createContext<() => Promise<Project | void>>(async () => {});
+
+export function useReloadProject(): () => Promise<Project | void> {
+  return useContext(ProjectReloadContext);
+}
+
 /** Lets a screen add the last breadcrumb item when it depends on data, e.g. "Run #12". */
 export const ItemCrumbContext = createContext<(label: string | undefined) => void>(() => {});
 

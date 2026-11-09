@@ -9,13 +9,18 @@ export type AsyncState<T> =
  * Runs an async data-layer call and tracks loading / error / ready (CLAUDE.md rule 6).
  * Re-runs when `deps` change or `retry()` is called; ignores answers that arrive after a newer call started.
  */
-export function useAsync<T>(fn: () => Promise<T>, deps: DependencyList): AsyncState<T> & { retry: () => void } {
+export function useAsync<T>(
+  fn: () => Promise<T>,
+  deps: DependencyList,
+  /** keepPrevious: a re-run (e.g. retry() after a save) keeps showing the last data instead of "loading". */
+  opts: { keepPrevious?: boolean } = {},
+): AsyncState<T> & { retry: () => void } {
   const [state, setState] = useState<AsyncState<T>>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let current = true;
-    setState({ status: 'loading' });
+    setState((prev) => (opts.keepPrevious && prev.status === 'ready' ? prev : { status: 'loading' }));
     fn().then(
       (data) => current && setState({ status: 'ready', data }),
       (error: unknown) => current && setState({ status: 'error', error: error instanceof Error ? error : new Error(String(error)) }),

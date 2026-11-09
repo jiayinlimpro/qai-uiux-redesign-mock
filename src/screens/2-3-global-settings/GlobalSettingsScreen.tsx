@@ -7,6 +7,7 @@ import { Button, buttonClasses } from '@/components/ui/button';
 import { Checkbox, RadioGroup } from '@/components/ui/field';
 import { Table, Td, Th, Tr } from '@/components/ui/table';
 import { CostSavingFields } from '@/components/CostSavingFields';
+import { StatusLine, type SaveStatus } from '@/components/StatusLine';
 import { useGlobalSettings } from '@/app/settings';
 import { to } from '@/app/routes';
 import { canRemoveProvider, isCostSavingComplete, type CostSavingForm } from '@/lib/providers';
@@ -15,7 +16,6 @@ import { RemoveProviderDialog } from './RemoveProviderDialog';
 import { DataActions } from './DataActions';
 import { SampleDataAction } from './SampleDataAction';
 
-export type SaveStatus = { tone: 'ok' | 'error' | 'info'; text: string } | null;
 type Save = (change: (current: GlobalSettings) => GlobalSettings, secrets?: { typeSafeKey?: string }) => Promise<SaveStatus>;
 
 /**
@@ -61,7 +61,7 @@ export function GlobalSettingsScreen() {
         <h1 className="text-h3">Global settings</h1>
         <p className="text-text-muted">Applies to all projects</p>
       </header>
-      <main id="main" tabIndex={-1} className="min-h-0 flex-1 overflow-auto bg-bg focus:outline-none">
+      <main id="main" tabIndex={-1} className="relative min-h-0 flex-1 overflow-auto bg-bg focus:outline-none">
         <div className="mx-auto flex max-w-[900px] flex-col gap-5 p-6">
           <Section
             title="AI providers"
@@ -224,14 +224,6 @@ function AutoSave({ children }: { children: (report: (s: SaveStatus) => void) =>
   );
 }
 
-export function StatusLine({ status }: { status: SaveStatus }) {
-  const tone = status?.tone === 'error' ? 'text-failed-text' : status?.tone === 'info' ? 'text-cc-text' : 'text-passed-text';
-  return (
-    <p role="status" aria-live="polite" className={`mt-2 min-h-5 text-label font-normal ${tone}`}>
-      {status?.text ?? ''}
-    </p>
-  );
-}
 
 /**
  * Browser Use + Jev (D32). The on/off box saves at once when that leaves a working setup:

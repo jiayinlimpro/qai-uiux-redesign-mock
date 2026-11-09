@@ -270,3 +270,38 @@ describe('deriveSteps (AI-derived steps, simulated)', () => {
     ]);
   });
 });
+
+describe('knowledge and accounts sample data (Slice 3)', () => {
+  it('scopes point at existing suites and tests', () => {
+    for (const k of db.knowledge) {
+      if (k.scope.kind === 'suite') expect(db.suites.some((s) => s.id === (k.scope as { suiteId: string }).suiteId)).toBe(true);
+      if (k.scope.kind === 'test') expect(db.tests.some((t) => t.id === (k.scope as { testId: string }).testId)).toBe(true);
+    }
+  });
+  it('documents have a type, skills a kind and where they are used', () => {
+    expect(db.knowledge.filter((k) => k.kind === 'document').every((k) => k.docType && !k.skillKind)).toBe(true);
+    expect(db.knowledge.filter((k) => k.kind === 'skill').every((k) => k.skillKind && (k.usedBy?.length ?? 0) > 0)).toBe(true);
+  });
+  it('every account with hasPassword has a stored password, and no other passwords exist', () => {
+    expect(Object.keys(db.accountPasswords).sort()).toEqual(db.accounts.filter((a) => a.hasPassword).map((a) => a.id).sort());
+  });
+  it('BR-ENV-03: account role + app + environment is unique', () => {
+    const keys = db.accounts.map((a) => `${a.projectId}|${a.role.toLowerCase()}|${a.appId}|${a.environmentId}`);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+  it('AI explore plans only cite knowledge that exists', () => {
+    const ids = new Set(db.knowledge.map((k) => k.id));
+    for (const c of db.chats) for (const m of c.messages) if (m.kind === 'plan') expect(m.usedKnowledge.every((id) => ids.has(id))).toBe(true);
+  });
+});
+
+describe('BR-ENV-04 run environment snapshot', () => {
+  it('every run stores its environment name and the app URLs it used', () => {
+    for (const r of db.runs) {
+      const env = qc.environments.find((e) => e.id === r.environmentId)!;
+      expect(r.environment.name).toBe(env.name);
+      expect(r.environment.apps).toEqual(qc.apps.map((a) => ({ appId: a.id, name: a.name, url: a.urls[r.environmentId] ?? null })));
+    }
+    expect(run(7).environment).toMatchObject({ name: 'Prod', apps: [{ name: 'Customer website', url: 'https://www.qcfixer.com' }, { name: 'Admin portal', url: null }] });
+  });
+});

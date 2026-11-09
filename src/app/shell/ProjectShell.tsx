@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, Outlet, useLocation, useMatches, useParams } from 'react-router-dom';
 import { BookOpen, ChevronLeft, ChevronRight, House, List, Play, SlidersHorizontal, Sparkles, type LucideIcon } from 'lucide-react';
 import { getProject } from '@/data/api';
@@ -8,7 +8,7 @@ import { Breadcrumb, type Crumb } from '@/components/ui/breadcrumb';
 import { LoadingState } from '@/components/StateViews';
 import { useAsync } from '@/app/hooks/useAsync';
 import { useSidebarCollapsed } from '@/app/hooks/useSidebarCollapsed';
-import { ItemCrumbContext, ProjectContext } from '@/app/projectContext';
+import { ItemCrumbContext, ProjectContext, ProjectReloadContext } from '@/app/projectContext';
 import { resolveHandle, sectionLabels, type ProjectSection } from '@/app/routeHandle';
 import { to } from '@/app/routes';
 import { cn } from '@/lib/utils';
@@ -31,6 +31,13 @@ const sectionNav: { section: ProjectSection; icon: LucideIcon; to: (projectId: s
 export function ProjectShell() {
   const { projectId = '' } = useParams();
   const project = useAsync(() => getProject(projectId), [projectId]);
+  // After an edit (Knowledge, Project settings) screens call reload; the current project stays on screen meanwhile.
+  const [latest, setLatest] = useState<Project | null>(null);
+  const reload = useCallback(async () => {
+    const next = await getProject(projectId);
+    setLatest(next);
+    return next;
+  }, [projectId]);
   const [collapsed, toggleCollapsed] = useSidebarCollapsed();
   const [itemCrumb, setItemCrumb] = useState<string | undefined>();
   const { section, crumb } = resolveHandle(useMatches().map((m) => m.handle));
@@ -38,7 +45,8 @@ export function ProjectShell() {
 
   if (project.status === 'error') return <ProjectLoadError error={project.error} onRetry={project.retry} />;
 
-  const loaded: Project | undefined = project.status === 'ready' ? project.data : undefined;
+  const fresh = project.status === 'ready' ? project.data : undefined;
+  const loaded: Project | undefined = latest && fresh && latest.id === fresh.id ? latest : fresh;
 
   const crumbs: Crumb[] = [{ label: loaded?.name ?? 'Loading…', to: to.overview(projectId) }];
   if (section) crumbs.push({ label: sectionLabels[section], to: sectionNav.find((n) => n.section === section)!.to(projectId) });
@@ -96,12 +104,14 @@ export function ProjectShell() {
             AI explore
           </Link>
         </header>
-        <main id="main" tabIndex={-1} className="min-h-0 flex-1 overflow-auto bg-bg focus:outline-none">
+        <main id="main" tabIndex={-1} className="relative min-h-0 flex-1 overflow-auto bg-bg focus:outline-none">
           {loaded ? (
             <ProjectContext.Provider value={loaded}>
+            <ProjectReloadContext.Provider value={reload}>
               <ItemCrumbContext.Provider value={setItemCrumb}>
                 <Outlet />
               </ItemCrumbContext.Provider>
+            </ProjectReloadContext.Provider>
             </ProjectContext.Provider>
           ) : (
             <LoadingState label="Loading project…" />

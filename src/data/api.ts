@@ -28,6 +28,7 @@ import { delay, getDb, mutate, replaceDb } from './mock/store';
 import { createSeed, type MockDb } from './mock/seed';
 import { copyName, isProjectNameTaken, uniqueProjectName } from '@/lib/projectRules';
 import { canRemoveProvider, projectsToSwitch } from '@/lib/providers';
+import { duplicateAccount } from '@/lib/knowledge';
 
 export class NotFoundError extends Error {
   constructor(what: string, id: ID) {
@@ -204,7 +205,8 @@ export async function restoreFromBackup(file: File): Promise<void> {
   if (!isRecord(parsed) || parsed.format !== BACKUP_FORMAT || !isRecord(parsed.data) || !Array.isArray(parsed.data.projects)) {
     throw new InvalidFileError('This file is not a QAI backup.');
   }
-  replaceDb(parsed.data as unknown as Omit<MockDb, 'seedVersion'>);
+  const data = parsed.data as unknown as Omit<MockDb, 'seedVersion' | 'accountPasswords'> & { accountPasswords?: MockDb['accountPasswords'] };
+  replaceDb({ ...data, accountPasswords: data.accountPasswords ?? {} }); // older backups have no password store
 }
 /** Global settings back to defaults (AI providers removed, so QAI shows Welcome). Projects are kept. */
 export async function resetSettings(): Promise<GlobalSettings> {
@@ -229,6 +231,7 @@ export async function factoryReset(): Promise<void> {
     runs: [],
     results: [],
     chats: [],
+    accountPasswords: {},
   });
 }
 
@@ -271,6 +274,13 @@ export async function updateProject(project: Project): Promise<Project> {
       find(db.projects, project.id, 'Project');
       assertNameFree(db, project.name, project.id);
       const next = { ...structuredClone(project), name: project.name.trim() };
+      const envIds = new Set(next.environments.map((e) => e.id));
+      const appIds = new Set(next.apps.map((a) => a.id));
+      next.apps = next.apps.map((a) => ({ ...a, urls: Object.fromEntries(Object.entries(a.urls).filter(([envId]) => envIds.has(envId))) }));
+      // Removing an environment or app removes its accounts (2.1 asks for confirmation first). Runs keep their record.
+      const gone = db.accounts.filter((a) => a.projectId === project.id && (!envIds.has(a.environmentId) || !appIds.has(a.appId)));
+      for (const a of gone) delete db.accountPasswords[a.id];
+      db.accounts = db.accounts.filter((a) => !gone.includes(a));
       db.projects = db.projects.map((p) => (p.id === project.id ? next : p));
       return next;
     }),
@@ -286,6 +296,7 @@ export async function deleteProject(projectId: ID): Promise<void> {
 }
 function removeProjectData(db: MockDb, projectId: ID): void {
   const runIds = new Set(db.runs.filter((r) => r.projectId === projectId).map((r) => r.id));
+  for (const a of db.accounts) if (a.projectId === projectId) delete db.accountPasswords[a.id];
   db.projects = db.projects.filter((p) => p.id !== projectId);
   db.accounts = db.accounts.filter((x) => x.projectId !== projectId);
   db.knowledge = db.knowledge.filter((x) => x.projectId !== projectId);
@@ -300,8 +311,12 @@ function assertNameFree(db: MockDb, name: string, exceptProjectId?: ID): void {
   const others = db.projects.filter((p) => p.id !== exceptProjectId).map((p) => p.name);
   if (isProjectNameTaken(name, others)) throw new DuplicateProjectNameError(name.trim());
 }
-/** One file with the project's suites, tests, scripts, knowledge, accounts, runs, results and AI chats (2.2 › Data). */
-export async function exportProject(projectId: ID): Promise<Blob> {
+/**
+ * One file with the project's suites, tests, scripts, knowledge, accounts, runs, results and AI chats (2.2 › Data).
+ * includePasswords (default true, D37): account passwords in readable form; without them the accounts arrive with no password.
+ */
+export async function exportProject(projectId: ID, opts: { includePasswords?: boolean } = {}): Promise<Blob> {
+  const includePasswords = opts.includePasswords ?? true;
   await delay();
   const db = getDb();
   const project = find(db.projects, projectId, 'Project');
@@ -311,13 +326,16 @@ export async function exportProject(projectId: ID): Promise<Blob> {
     version: 1,
     exportedAt: new Date().toISOString(),
     project,
-    accounts: db.accounts.filter((x) => x.projectId === projectId),
+    accounts: db.accounts.filter((x) => x.projectId === projectId).map((a) => (includePasswords ? a : { ...a, hasPassword: false })),
     knowledge: db.knowledge.filter((x) => x.projectId === projectId),
     suites: db.suites.filter((x) => x.projectId === projectId),
     tests: db.tests.filter((x) => x.projectId === projectId),
     runs: db.runs.filter((x) => x.projectId === projectId),
     results: db.results.filter((x) => runIds.has(x.runId)),
     chats: db.chats.filter((x) => x.projectId === projectId),
+    accountPasswords: db.accounts
+      .filter((a) => includePasswords && a.projectId === projectId && db.accountPasswords[a.id] !== undefined)
+      .map((a) => ({ accountId: a.id, password: db.accountPasswords[a.id]! })),
   });
 }
 /**
@@ -357,6 +375,7 @@ export async function importProject(file: File, onExisting?: ExistingProjectChoi
       db.runs.push(...(x.runs ?? []));
       db.results.push(...(x.results ?? []));
       db.chats.push(...(x.chats ?? []));
+      for (const ap of x.accountPasswords ?? []) db.accountPasswords[ap.accountId] = ap.password;
       return x.project;
     }),
   );
@@ -370,6 +389,7 @@ interface ProjectExport {
   runs: Run[];
   results: Result[];
   chats: Chat[];
+  accountPasswords?: { accountId: ID; password: string }[];
 }
 /** A copy needs its own IDs: every entity ID is replaced everywhere it is referenced. */
 function withNewIds(x: ProjectExport): ProjectExport {
@@ -439,20 +459,78 @@ function newId(prefix: string): ID {
 export async function listAccounts(projectId: ID): Promise<Account[]> {
   return respond(() => getDb().accounts.filter((a) => a.projectId === projectId));
 }
-export async function saveAccount(_account: Account, _password?: string): Promise<Account> {
-  return notBuilt('saveAccount', 3);
+export type AccountInput = Omit<Account, 'id' | 'hasPassword'> & { id?: ID };
+/**
+ * Adds (no id) or updates an account. `password` is write-only; empty keeps the saved one.
+ * BR-ENV-03: role + app + environment must be unique (DuplicateAccountError). Shape to confirm.
+ */
+export async function saveAccount(input: AccountInput, password?: string): Promise<Account> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const existing = input.id ? find(db.accounts, input.id, 'Account') : undefined;
+      const clash = duplicateAccount(db.accounts.filter((a) => a.projectId === input.projectId), { ...input, id: existing?.id });
+      if (clash) throw new DuplicateAccountError();
+      const id = existing?.id ?? newId('acc');
+      if (password?.trim()) db.accountPasswords[id] = password;
+      const account: Account = { ...input, role: input.role.trim(), username: input.username.trim(), id, hasPassword: db.accountPasswords[id] !== undefined };
+      db.accounts = existing ? db.accounts.map((a) => (a.id === id ? account : a)) : [...db.accounts, account];
+      return account;
+    }),
+  );
 }
-export async function deleteAccount(_accountId: ID): Promise<void> {
-  return notBuilt('deleteAccount', 3);
+export async function deleteAccount(accountId: ID): Promise<void> {
+  await delay();
+  mutate((db) => {
+    find(db.accounts, accountId, 'Account');
+    db.accounts = db.accounts.filter((a) => a.id !== accountId);
+    delete db.accountPasswords[accountId];
+  });
+}
+/** Password shown on an explicit "Show password" click only (2.1); never part of listAccounts. Shape to confirm. */
+export async function revealAccountPassword(accountId: ID): Promise<string> {
+  await delay();
+  find(getDb().accounts, accountId, 'Account');
+  return getDb().accountPasswords[accountId] ?? '';
+}
+export class DuplicateAccountError extends Error {
+  constructor() {
+    super('An account for this role, app and environment already exists.');
+    this.name = 'DuplicateAccountError';
+  }
 }
 export async function listKnowledge(projectId: ID): Promise<KnowledgeItem[]> {
   return respond(() => getDb().knowledge.filter((k) => k.projectId === projectId));
 }
-export async function saveKnowledge(_item: KnowledgeItem, _file?: File): Promise<KnowledgeItem> {
-  return notBuilt('saveKnowledge', 3);
+export type KnowledgeInput = Omit<KnowledgeItem, 'id' | 'uploadedAt'> & { id?: ID };
+/**
+ * Adds (no id) or updates a document or skill. A new `file` (upload, Replace, Load skill) sets uploadedAt to now;
+ * the mock keeps metadata only. Shape to confirm.
+ */
+export async function saveKnowledge(input: KnowledgeInput, file?: File | { name: string }): Promise<KnowledgeItem> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const existing = input.id ? find(db.knowledge, input.id, 'Knowledge item') : undefined;
+      const item: KnowledgeItem = {
+        ...input,
+        name: input.name.trim(),
+        id: existing?.id ?? newId('k'),
+        uploadedAt: file || !existing ? new Date().toISOString() : existing.uploadedAt,
+      };
+      db.knowledge = existing ? db.knowledge.map((k) => (k.id === item.id ? item : k)) : [...db.knowledge, item];
+      return item;
+    }),
+  );
 }
-export async function deleteKnowledge(_itemId: ID): Promise<void> {
-  return notBuilt('deleteKnowledge', 3);
+/** Deletes a document or skill and unlinks it from tests. */
+export async function deleteKnowledge(itemId: ID): Promise<void> {
+  await delay();
+  mutate((db) => {
+    find(db.knowledge, itemId, 'Knowledge item');
+    db.knowledge = db.knowledge.filter((k) => k.id !== itemId);
+    for (const t of db.tests) t.linkedKnowledge = t.linkedKnowledge.filter((id) => id !== itemId);
+  });
 }
 
 // ---------- suites and tests ----------

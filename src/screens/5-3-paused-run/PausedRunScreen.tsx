@@ -9,7 +9,7 @@ export function PausedRunScreen({ run }: { run: Run }) {
       screenId="5.3"
       title={`${runStateLabels[run.state]} run · Run #${run.number}`}
       slice={6}
-      details={`Stopped at test ${run.progress.done} of ${run.progress.total}`}
+      details={`Stopped at test ${run.progress.done} of ${run.progress.total} · ${run.environment.name}`}
     />
   );
 }

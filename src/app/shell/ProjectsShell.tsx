@@ -19,7 +19,7 @@ export function ProjectsShell() {
           <NavItem to={to.projects()} icon={LayoutGrid} label="Projects" active current={onProjects} />
         </nav>
       </SidebarFrame>
-      <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto bg-bg focus:outline-none">
+      <main id="main" tabIndex={-1} className="relative min-w-0 flex-1 overflow-auto bg-bg focus:outline-none">
         <Outlet />
       </main>
     </div>

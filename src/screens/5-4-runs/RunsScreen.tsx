@@ -13,7 +13,7 @@ export function RunsScreen() {
         what="runs"
         load={() => listRuns(project.id)}
         deps={[project.id]}
-        toLinks={(runs) => runs.map((r) => ({ label: `Run #${r.number} · ${runStateLabels[r.state]}`, to: to.run(project.id, r.id) }))}
+        toLinks={(runs) => runs.map((r) => ({ label: `Run #${r.number} · ${runStateLabels[r.state]} · ${r.environment.name}`, to: to.run(project.id, r.id) }))}
       />
     </PlaceholderScreen>
   );

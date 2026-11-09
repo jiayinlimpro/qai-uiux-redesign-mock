@@ -12,7 +12,7 @@ export function RunResultsScreen({ run }: { run: Run }) {
       screenId="6.1"
       title={`Run results · Run #${run.number}`}
       slice={7}
-      details={resultId ? `Selected result: ${resultId}` : 'No result selected'}
+      details={`${run.environment.name} · ${resultId ? `Selected result: ${resultId}` : 'No result selected'}`}
     >
       <AsyncPlaceholderLinks
         what="results"
