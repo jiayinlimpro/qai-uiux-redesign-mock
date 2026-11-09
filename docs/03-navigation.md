@@ -3,7 +3,7 @@
 ## Two shells
 ### A. Outside a project (Welcome, Projects, Global settings)
 - **Welcome** has no shell (centered card).
-- **Projects** has a slim app sidebar: QAI brand (top), "Projects" (active), Global settings pinned **bottom-left**.
+- **Projects** has a slim app sidebar: QAI brand (top), "Projects" (active), Global settings pinned **bottom-left**. It has **no collapse toggle** (collapse is only in the project shell).
 - **Global settings** page: header with "← Back" (returns to Projects) and title.
 
 ### B. Inside a project (every project screen except AI explore)
@@ -34,10 +34,17 @@
 
 **Top bar (above content only)**
 - Left: breadcrumb `project name / section / item` (e.g. `qcfixer.com / Runs / Run #12`). Each crumb except the last is a link.
+  **The breadcrumb shows pages, not selections inside a page** (D31). Pages such as `Run #12`, `Edit test`, `New test` are items (`qcfixer.com / Suites / New test`). Selecting a test in Suites or a result in Run results does **not** change the breadcrumb; the detail header shows the selection. Dialogs (New project, Import) do not change it either.
 - Right: **AI explore** primary button (sparkle icon). Nothing else (no project switcher, no settings, no theme).
 
 ### C. AI explore workspace (focused)
 Replaces the whole window: header `← Back to project · AI explore · <project name>`; left = chat list of this project; right = chat. No project sidebar.
+**Back to project** returns to the project screen AI explore was opened from (still true after switching chats); if AI explore was opened directly (no previous screen), it goes to the project's Overview.
+
+### Not found and error screens
+- **Project not found** (deleted project, out-of-date link): message + **All projects**.
+- **Something inside a project not found** (e.g. a deleted test or run), or an unknown address / crashed screen while the project still exists: message + link to **that project's Overview**. If the project no longer exists: **All projects**.
+- **Retry** is shown only for loading errors (data could not be loaded), never for "not found" or a crashed screen.
 
 ## Screens and routes
 **Hash addresses** (D26): every route below is served after `#`, e.g. `#/p/:projectId/suites`, so the app works in the browser and when Electron loads it as a local file, with no extra setup. All route paths are defined in one file (`src/app/routes.ts`) and every link is built from it, never written as a string, so switching to normal addresses later is a one-line change.

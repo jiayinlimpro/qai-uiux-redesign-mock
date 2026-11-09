@@ -2,7 +2,7 @@
 
 **Purpose** Create tests with AI by exploring an app or planning from documents. Agents (planner / generator / validator) are invisible to the user.
 **Layout** Focused workspace (no project sidebar):
-- Header: ← Back to project · "AI explore" · project name.
+- Header: ← Back to project · "AI explore" · project name. **Back to project** returns to the project screen AI explore was opened from (also after switching chats); opened directly → the project's Overview (03 § C).
 - Left (chat list): New chat (primary) · "This project" list; each chat: title, date, **Running** badge if an AI turn is active (BR-EXPLORE-02).
 - Right: conversation, composer at bottom.
 

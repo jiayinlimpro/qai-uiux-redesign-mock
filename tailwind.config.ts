@@ -18,6 +18,7 @@ export default {
           DEFAULT: 'var(--accent)',
           soft: 'var(--accent-soft)',
           'soft-text': 'var(--accent-soft-text)',
+          contrast: 'var(--accent-contrast)',
         },
         passed: {
           fill: 'var(--passed-fill)',

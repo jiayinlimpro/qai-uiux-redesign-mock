@@ -12,6 +12,7 @@ The visual design phase has not happened yet. Use these interim tokens so the pr
 | `--text` | #1F2328 | Body text |
 | `--text-muted` | #5B6370 | Secondary text (passes 4.5:1 on white) |
 | `--accent` | #1F5FBF | Primary buttons, links, active nav, focus ring |
+| `--accent-contrast` | #FFFFFF | Text and icons on accent (primary buttons, brand mark) |
 | `--accent-soft` | #E8F0FB / text #1A4C99 | Selected rows, active nav background, info chips |
 | `--passed` | fill #E6F2E9 · border #B9DCC2 · text #1F5E2E · dot #2B8A4B | Passed |
 | `--failed` | fill #FBEAE3 · border #F0C3B2 · text #8E3414 · dot #C2410C | Failed |
