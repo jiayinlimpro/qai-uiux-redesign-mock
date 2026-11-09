@@ -31,6 +31,7 @@
   --cc-dot: #b07a0a;
 
   --notrun: #8a919c;
+  --backdrop: rgba(31, 35, 40, 0.45); /* behind dialogs */
 }
 
 @layer base {

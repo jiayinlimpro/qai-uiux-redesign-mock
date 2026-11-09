@@ -89,6 +89,15 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 - **BR-EXPLORE-05** "Add N tests to Suites" is the only approval, and it approves **each test once**, not the whole card (D30). Decided proposals record an outcome (added / replaced / skipped); unticked proposals stay **pending** (no outcome) and can be added later with "Add N more tests to Suites". Added tests go to **Not in a suite**, marked New. A status only comes from a run, so Likely bug tests start **Not run** with a **"Likely bug" badge** (same pattern as New) in Suites and the test detail: tooltip "Found during AI explore, not yet confirmed by a run" and a link "View in AI explore" that opens the chat at its tests-ready message. The badge disappears after the test's first real run. It never counts as failed (pass rate, Overview, suite counts). Stored as `TestCase.aiExploreFinding` (07). (Changed: D25.)
 - **BR-EXPLORE-06** Validated tests keep their generated script, so their first run can replay. [DEV-CONFIRM script format]
 
+## AI providers (BR-PROVIDER)
+- **BR-PROVIDER-01** Secrets (API keys, access keys, TypeSafe key) are write-only: the UI never reads them back, and a partial secret is never saved (both AWS access keys together or neither). Editing with empty secret fields keeps the saved ones. (D32)
+- **BR-PROVIDER-02** The last AI provider cannot be removed. (D33)
+- **BR-PROVIDER-03** Removing a provider: projects whose default model only that provider offers switch to the default model of the first remaining provider; the confirmation lists them and the user is told afterwards. (D33)
+
+## Projects (BR-PROJECT)
+- **BR-PROJECT-01** Project names are unique on this computer, compared case-insensitively and ignoring surrounding spaces. Create and rename block a taken name inline. On import, a different project whose name is taken is added as "<name> (2)". (D35)
+- **BR-PROJECT-02** Importing a project that is already on this computer (same project): Replace it (runs and changes made here since the export are lost) · Import as a copy ("<name> (copy)", "(copy 2)"…, new IDs) · Cancel. (D34)
+
 ## Results actions (BR-ACTION)
 - **BR-ACTION-01** Override: single result only; new status Passed/Failed; reason (required) and proof file (required); shows "Overridden by <user> · <date>" and the AI verdict.
 - **BR-ACTION-02** Known issue: single or bulk; optional ticket reference text.

@@ -18,6 +18,7 @@ The visual design phase has not happened yet. Use these interim tokens so the pr
 | `--failed` | fill #FBEAE3 · border #F0C3B2 · text #8E3414 · dot #C2410C | Failed |
 | `--cc` | fill #FBF1DC · border #EDD39A · text #6E4A00 · dot #B07A0A | Couldn't complete, warnings |
 | `--notrun` | hollow ring #8A919C | Not run |
+| `--backdrop` | rgba(31,35,40,0.45) | Behind dialogs |
 - Font: Inter (fallback system-ui), base 14 px; headings 18–22 px semibold; labels 12 px semibold muted.
 - Spacing scale 4/8/12/16/20/24/32; radius 8 (controls), 10 (cards), 999 (chips, round toggle).
 - Status never by colour alone: dot/icon + accessible label; failed/passed differ in lightness too.

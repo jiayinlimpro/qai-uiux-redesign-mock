@@ -88,8 +88,14 @@ interface Proposal { id: ID; title: string; steps: string[]; expectedResult: str
 
 ## Data layer (`src/data/api.ts`) — the only functions screens use
 ```
-getGlobalSettings / saveGlobalSettings
-listProjects / getProject / createProject / updateProject / deleteProject / exportProject / importProject
+getGlobalSettings / saveGlobalSettings(settings, { typeSafeKey? })   // secrets are write-only (BR-PROVIDER-01)
+saveProvider(provider, { apiKey?, accessKeyId?, secretAccessKey? }) / removeProvider(id) → { switched[] } / listModels(providerKind)
+                                                                     // Slice 2, shape to confirm (BR-PROVIDER-02/03)
+backUpEverything / restoreFromBackup(file) / resetSettings / factoryReset                         // Slice 2, shape to confirm (2.3 › Data)
+listProjects / getProject / createProject / updateProject / deleteProject / exportProject
+importProject(file, onExisting?: 'replace' | 'copy')                 // rejects ProjectExistsError when no choice given (BR-PROJECT-02)
+                                                                     // create/update/import reject DuplicateProjectNameError (BR-PROJECT-01)
+loadSampleData()                                                     // PROTOTYPE ONLY (Global settings › Advanced, developer mode); remove with the mock
 listAccounts / saveAccount / deleteAccount
 listKnowledge / saveKnowledge / deleteKnowledge
 listSuites / createSuite / renameSuite

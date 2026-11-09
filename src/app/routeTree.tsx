@@ -7,6 +7,7 @@ import { ExploreWorkspace } from './shell/ExploreWorkspace';
 import { RunRoute } from './RunRoute';
 import { NotFound } from './NotFound';
 import { RouteError } from './RouteError';
+import { FirstLaunchGate, SettingsRoot } from './settings';
 import { WelcomeScreen } from '@/screens/1-1-welcome/WelcomeScreen';
 import { ProjectsScreen } from '@/screens/1-2-projects/ProjectsScreen';
 import { NewProjectDialog } from '@/screens/1-3-new-project/NewProjectDialog';
@@ -26,10 +27,10 @@ const handle = (h: RouteHandle) => h;
 /**
  * Screens and routes from docs/03-navigation.md. Paths come only from routes.ts (D26).
  * Dialog routes (1.3 New project, 3.3 Import) are children of the screen they open over.
- * The pathless root only adds an error view so a crashing screen never leaves a blank window.
+ * Pathless roots: SettingsRoot loads global settings (+ error view so a crashing screen never leaves a blank window);
+ * FirstLaunchGate sends every screen to Welcome while no AI provider exists (03 · First launch).
  */
 const screens: RouteObject[] = [
-  // First-launch redirect to Welcome (no AI provider) is Slice 2.
   { path: '/', element: <Navigate to={to.projects()} replace /> },
   { path: paths.welcome, element: <WelcomeScreen /> },
   { path: paths.globalSettings, element: <GlobalSettingsScreen /> },
@@ -76,4 +77,6 @@ const screens: RouteObject[] = [
   { path: '*', element: <NotFound /> },
 ];
 
-export const routeTree: RouteObject[] = [{ errorElement: <RouteError />, children: screens }];
+export const routeTree: RouteObject[] = [
+  { element: <SettingsRoot />, errorElement: <RouteError />, children: [{ element: <FirstLaunchGate />, children: screens }] },
+];

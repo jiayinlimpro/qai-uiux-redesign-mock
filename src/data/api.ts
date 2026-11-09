@@ -7,6 +7,7 @@
  * naming that slice. Parameter/return shapes not defined in 07 are marked "shape to confirm".
  */
 import type {
+  AiProvider,
   Account,
   Browser,
   CcReason,
@@ -23,7 +24,10 @@ import type {
   Suite,
   TestCase,
 } from './types';
-import { delay, getDb } from './mock/store';
+import { delay, getDb, mutate, replaceDb } from './mock/store';
+import { createSeed, type MockDb } from './mock/seed';
+import { copyName, isProjectNameTaken, uniqueProjectName } from '@/lib/projectRules';
+import { canRemoveProvider, projectsToSwitch } from '@/lib/providers';
 
 export class NotFoundError extends Error {
   constructor(what: string, id: ID) {
@@ -84,34 +88,351 @@ export type RunEvent =
   | { kind: 'result'; result: Result };
 
 // ---------- global ----------
+/** Secrets go in, never come out (07: "secrets never exposed to UI"). The mock only records that one was given. Shape to confirm. */
+export interface ProviderSecrets { apiKey?: string; accessKeyId?: string; secretAccessKey?: string }
+export type ProviderInput = Omit<AiProvider, 'id' | 'hasSecret'> & { id?: ID };
+
 export async function getGlobalSettings(): Promise<GlobalSettings> {
   return respond(() => getDb().globalSettings);
 }
-export async function saveGlobalSettings(_settings: GlobalSettings): Promise<GlobalSettings> {
-  return notBuilt('saveGlobalSettings', 2);
+/**
+ * Saves cost saving, theme and developer mode. Providers are saved with saveProvider (they carry secrets).
+ * `typeSafeKey` (Browser Use + Jev) is write-only. Shape to confirm.
+ */
+export async function saveGlobalSettings(settings: GlobalSettings, secrets: { typeSafeKey?: string } = {}): Promise<GlobalSettings> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const hasKey = db.globalSettings.costSaving.hasKey || Boolean(secrets.typeSafeKey?.trim());
+      db.globalSettings = {
+        providers: db.globalSettings.providers,
+        costSaving: { ...settings.costSaving, hasKey },
+        theme: settings.theme,
+        developerMode: settings.developerMode,
+      };
+      return db.globalSettings;
+    }),
+  );
+}
+/** Adds a provider (no id) or updates one. Empty secrets keep the saved ones. Shape to confirm. */
+export async function saveProvider(input: ProviderInput, secrets: ProviderSecrets): Promise<AiProvider> {
+  await delay();
+  const given = Object.values(secrets).some((s) => Boolean(s?.trim()));
+  // Never save partial secrets: AWS Bedrock access key ID and secret access key are saved together or not at all.
+  if (input.kind === 'aws_bedrock' && Boolean(secrets.accessKeyId?.trim()) !== Boolean(secrets.secretAccessKey?.trim())) {
+    throw new Error('Enter both the access key ID and the secret access key.');
+  }
+  return structuredClone(
+    mutate((db) => {
+      const existing = input.id ? find(db.globalSettings.providers, input.id, 'Provider') : undefined;
+      const provider: AiProvider = { ...input, id: existing?.id ?? newId('prov'), hasSecret: given || Boolean(existing?.hasSecret) };
+      db.globalSettings.providers = existing
+        ? db.globalSettings.providers.map((p) => (p.id === provider.id ? provider : p))
+        : [...db.globalSettings.providers, provider];
+      return provider;
+    }),
+  );
+}
+export interface ModelSwitch { projectId: ID; projectName: string; from: string; to: string }
+/**
+ * Removes a provider (with its secrets). BR-PROVIDER-02: never the last one.
+ * BR-PROVIDER-03: projects whose default model only that provider offered switch to the first remaining provider's
+ * default model; the switches are returned so the UI can tell the user. Shape to confirm.
+ */
+export async function removeProvider(providerId: ID): Promise<{ switched: ModelSwitch[] }> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const removed = find(db.globalSettings.providers, providerId, 'Provider');
+      const remaining = db.globalSettings.providers.filter((p) => p.id !== providerId);
+      if (!canRemoveProvider(db.globalSettings.providers.length)) throw new LastProviderError();
+      const withModels = (p: AiProvider) => ({ provider: p, models: MOCK_MODELS[p.kind] });
+      const switches = projectsToSwitch(db.projects, withModels(removed), remaining.map(withModels));
+      const switched = switches.map(({ project, newModel }) => {
+        const from = project.defaultModel;
+        project.defaultModel = newModel;
+        return { projectId: project.id, projectName: project.name, from, to: newModel };
+      });
+      db.globalSettings.providers = remaining;
+      return { switched };
+    }),
+  );
+}
+export class LastProviderError extends Error {
+  constructor() {
+    super('The last AI provider cannot be removed.');
+    this.name = 'LastProviderError';
+  }
+}
+/**
+ * Models offered by a provider. Real app: asked from the provider. Mock: a fixed list per provider.
+ * AWS Bedrock uses a typed model id instead (1.1). Shape to confirm.
+ */
+export async function listModels(kind: AiProvider['kind']): Promise<string[]> {
+  return respond(() => MOCK_MODELS[kind]);
+}
+const MOCK_MODELS: Record<AiProvider['kind'], string[]> = {
+  openai: ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4o'],
+  anthropic: ['claude-sonnet-5-5', 'claude-opus-5-5', 'claude-haiku-5-5'],
+  gemini: ['gemini-2.5-pro', 'gemini-2.5-flash'],
+  deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+  kimi: ['kimi-k2'],
+  siraya: ['siraya-chat'],
+  openai_compatible: ['gpt-4.1', 'llama-3.3-70b-instruct', 'qwen2.5-72b-instruct'],
+  aws_bedrock: [],
+};
+
+// ---------- data on this computer (2.3 › Data) — shape to confirm ----------
+const BACKUP_FORMAT = 'qai-backup';
+const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
+  providers: [],
+  costSaving: { enabled: false, typeSafeModel: 'jev-latest', reasoning: 'none', hasKey: false },
+  theme: 'system',
+  developerMode: false,
+};
+
+/** Everything on this computer: settings and all projects. */
+export async function backUpEverything(): Promise<Blob> {
+  await delay();
+  const { seedVersion: _v, ...data } = getDb();
+  return jsonBlob({ format: BACKUP_FORMAT, version: 1, createdAt: new Date().toISOString(), data });
+}
+/** Replaces everything with the backup's contents. */
+export async function restoreFromBackup(file: File): Promise<void> {
+  await delay();
+  const parsed = await readJson(file);
+  if (!isRecord(parsed) || parsed.format !== BACKUP_FORMAT || !isRecord(parsed.data) || !Array.isArray(parsed.data.projects)) {
+    throw new InvalidFileError('This file is not a QAI backup.');
+  }
+  replaceDb(parsed.data as unknown as Omit<MockDb, 'seedVersion'>);
+}
+/** Global settings back to defaults (AI providers removed, so QAI shows Welcome). Projects are kept. */
+export async function resetSettings(): Promise<GlobalSettings> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      db.globalSettings = structuredClone(DEFAULT_GLOBAL_SETTINGS);
+      return db.globalSettings;
+    }),
+  );
+}
+/** Removes all projects and settings, like a fresh install. */
+export async function factoryReset(): Promise<void> {
+  await delay();
+  replaceDb({
+    globalSettings: structuredClone(DEFAULT_GLOBAL_SETTINGS),
+    projects: [],
+    accounts: [],
+    knowledge: [],
+    suites: [],
+    tests: [],
+    runs: [],
+    results: [],
+    chats: [],
+  });
 }
 
 // ---------- projects ----------
+const PROJECT_FORMAT = 'qai-project';
+const DEFAULT_PROJECT_SETTINGS: Project['settings'] = {
+  visualComparison: true, // BR-VISUAL-01 default on
+  runDefaults: { headless: false, parallel: false, workers: 2, maxAiSteps: 40, maxActionsPerStep: 10 }, // 2.2, BR-RUN-12
+};
+
 export async function listProjects(): Promise<Project[]> {
   return respond(() => getDb().projects);
 }
 export async function getProject(projectId: ID): Promise<Project> {
   return respond(() => find(getDb().projects, projectId, 'Project'));
 }
-export async function createProject(_input: Pick<Project, 'name' | 'environments' | 'apps' | 'defaultModel'>): Promise<Project> {
-  return notBuilt('createProject', 2);
+export async function createProject(input: Pick<Project, 'name' | 'environments' | 'apps' | 'defaultModel'>): Promise<Project> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      assertNameFree(db, input.name);
+      const project: Project = {
+        id: newId('p'),
+        name: input.name.trim(),
+        createdAt: new Date().toISOString(),
+        defaultModel: input.defaultModel,
+        environments: input.environments.map((e) => ({ ...e, name: e.name.trim() })),
+        apps: input.apps.map((a) => ({ ...a, name: a.name.trim() })),
+        settings: structuredClone(DEFAULT_PROJECT_SETTINGS),
+      };
+      db.projects.push(project);
+      return project;
+    }),
+  );
 }
-export async function updateProject(_project: Project): Promise<Project> {
-  return notBuilt('updateProject', 3);
+export async function updateProject(project: Project): Promise<Project> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      find(db.projects, project.id, 'Project');
+      assertNameFree(db, project.name, project.id);
+      const next = { ...structuredClone(project), name: project.name.trim() };
+      db.projects = db.projects.map((p) => (p.id === project.id ? next : p));
+      return next;
+    }),
+  );
 }
-export async function deleteProject(_projectId: ID): Promise<void> {
-  return notBuilt('deleteProject', 2);
+/** Deletes the project and everything in it. */
+export async function deleteProject(projectId: ID): Promise<void> {
+  await delay();
+  mutate((db) => {
+    find(db.projects, projectId, 'Project');
+    removeProjectData(db, projectId);
+  });
 }
-export async function exportProject(_projectId: ID): Promise<Blob> {
-  return notBuilt('exportProject', 2);
+function removeProjectData(db: MockDb, projectId: ID): void {
+  const runIds = new Set(db.runs.filter((r) => r.projectId === projectId).map((r) => r.id));
+  db.projects = db.projects.filter((p) => p.id !== projectId);
+  db.accounts = db.accounts.filter((x) => x.projectId !== projectId);
+  db.knowledge = db.knowledge.filter((x) => x.projectId !== projectId);
+  db.suites = db.suites.filter((x) => x.projectId !== projectId);
+  db.tests = db.tests.filter((x) => x.projectId !== projectId);
+  db.runs = db.runs.filter((x) => x.projectId !== projectId);
+  db.results = db.results.filter((x) => !runIds.has(x.runId));
+  db.chats = db.chats.filter((x) => x.projectId !== projectId);
 }
-export async function importProject(_file: File): Promise<Project> {
-  return notBuilt('importProject', 2);
+/** BR-PROJECT-01: project names are unique on this computer (case-insensitive). */
+function assertNameFree(db: MockDb, name: string, exceptProjectId?: ID): void {
+  const others = db.projects.filter((p) => p.id !== exceptProjectId).map((p) => p.name);
+  if (isProjectNameTaken(name, others)) throw new DuplicateProjectNameError(name.trim());
+}
+/** One file with the project's suites, tests, scripts, knowledge, accounts, runs, results and AI chats (2.2 › Data). */
+export async function exportProject(projectId: ID): Promise<Blob> {
+  await delay();
+  const db = getDb();
+  const project = find(db.projects, projectId, 'Project');
+  const runIds = new Set(db.runs.filter((r) => r.projectId === projectId).map((r) => r.id));
+  return jsonBlob({
+    format: PROJECT_FORMAT,
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    project,
+    accounts: db.accounts.filter((x) => x.projectId === projectId),
+    knowledge: db.knowledge.filter((x) => x.projectId === projectId),
+    suites: db.suites.filter((x) => x.projectId === projectId),
+    tests: db.tests.filter((x) => x.projectId === projectId),
+    runs: db.runs.filter((x) => x.projectId === projectId),
+    results: db.results.filter((x) => runIds.has(x.runId)),
+    chats: db.chats.filter((x) => x.projectId === projectId),
+  });
+}
+/**
+ * What to do when the exported project is already on this computer (BR-PROJECT-02):
+ * 'replace' overwrites it (its local runs and changes are lost) · 'copy' adds it as "<name> (copy)" with new IDs.
+ */
+export type ExistingProjectChoice = 'replace' | 'copy';
+
+/**
+ * Adds an exported project (handover). If the project is already here and no choice is given, rejects with
+ * ProjectExistsError so the UI can ask (BR-PROJECT-02). A different project whose name is taken gets "<name> (2)" (BR-PROJECT-01).
+ */
+export async function importProject(file: File, onExisting?: ExistingProjectChoice): Promise<Project> {
+  await delay();
+  const parsed = await readJson(file);
+  if (!isRecord(parsed) || parsed.format !== PROJECT_FORMAT || !isRecord(parsed.project) || typeof parsed.project.id !== 'string') {
+    throw new InvalidFileError('This file is not a QAI project export.');
+  }
+  let x = parsed as unknown as ProjectExport;
+  return structuredClone(
+    mutate((db) => {
+      const existing = db.projects.find((p) => p.id === x.project.id);
+      if (existing && !onExisting) throw new ProjectExistsError(existing.name);
+      if (existing && onExisting === 'replace') {
+        removeProjectData(db, existing.id);
+      } else if (existing && onExisting === 'copy') {
+        x = withNewIds(x);
+        x.project.name = copyName(x.project.name, db.projects.map((p) => p.name));
+      }
+      const names = db.projects.map((p) => p.name);
+      if (isProjectNameTaken(x.project.name, names)) x.project.name = uniqueProjectName(x.project.name, names);
+      db.projects.push(x.project);
+      db.accounts.push(...(x.accounts ?? []));
+      db.knowledge.push(...(x.knowledge ?? []));
+      db.suites.push(...(x.suites ?? []));
+      db.tests.push(...(x.tests ?? []));
+      db.runs.push(...(x.runs ?? []));
+      db.results.push(...(x.results ?? []));
+      db.chats.push(...(x.chats ?? []));
+      return x.project;
+    }),
+  );
+}
+interface ProjectExport {
+  project: Project;
+  accounts: Account[];
+  knowledge: KnowledgeItem[];
+  suites: Suite[];
+  tests: TestCase[];
+  runs: Run[];
+  results: Result[];
+  chats: Chat[];
+}
+/** A copy needs its own IDs: every entity ID is replaced everywhere it is referenced. */
+function withNewIds(x: ProjectExport): ProjectExport {
+  const suffix = crypto.randomUUID().slice(0, 6);
+  const ids = new Map<string, string>();
+  const entities = [[x.project], x.accounts ?? [], x.knowledge ?? [], x.suites ?? [], x.tests ?? [], x.runs ?? [], x.results ?? [], x.chats ?? []].flat() as { id: ID }[];
+  for (const e of entities) ids.set(e.id, `${e.id}-${suffix}`);
+  for (const chat of x.chats ?? []) {
+    for (const m of chat.messages) if (m.kind === 'tests_ready') for (const pr of m.proposals) ids.set(pr.id, `${pr.id}-${suffix}`);
+  }
+  const remap = (v: unknown): unknown => {
+    if (typeof v === 'string') return ids.get(v) ?? v;
+    if (Array.isArray(v)) return v.map(remap);
+    if (isRecord(v)) return Object.fromEntries(Object.entries(v).map(([k, val]) => [k, remap(val)]));
+    return v;
+  };
+  return remap(x) as ProjectExport;
+}
+
+/**
+ * Prototype only (Global settings > Advanced, developer mode on): replaces all projects with the sample data.
+ * Keeps global settings (AI providers etc.). Developers remove this together with the mock.
+ */
+export async function loadSampleData(): Promise<void> {
+  await delay();
+  const { seedVersion: _v, globalSettings: _g, ...sample } = createSeed();
+  replaceDb({ ...sample, globalSettings: structuredClone(getDb().globalSettings) });
+}
+
+// ---------- file helpers ----------
+export class InvalidFileError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidFileError';
+  }
+}
+export class DuplicateProjectNameError extends Error {
+  constructor(public projectName: string) {
+    super('A project with this name already exists. Choose another name.');
+    this.name = 'DuplicateProjectNameError';
+  }
+}
+export class ProjectExistsError extends Error {
+  constructor(public projectName: string) {
+    super(`"${projectName}" is already on this computer.`);
+    this.name = 'ProjectExistsError';
+  }
+}
+function jsonBlob(value: unknown): Blob {
+  return new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });
+}
+async function readJson(file: File): Promise<unknown> {
+  try {
+    return JSON.parse(await file.text()) as unknown;
+  } catch {
+    throw new InvalidFileError('This file could not be read.');
+  }
+}
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+function newId(prefix: string): ID {
+  return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
 // ---------- accounts and knowledge ----------

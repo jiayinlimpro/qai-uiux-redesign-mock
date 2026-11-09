@@ -40,6 +40,12 @@ export function mutate<T>(change: (db: MockDb) => T): T {
   return out;
 }
 
+/** Replace everything (restore from backup, factory reset) and persist. */
+export function replaceDb(next: Omit<MockDb, 'seedVersion'>): void {
+  db = { ...structuredClone(next), seedVersion: SEED_VERSION };
+  storage()?.setItem(STORAGE_KEY, JSON.stringify(db));
+}
+
 /** Back to the seed (dev helper; also used by tests). */
 export function resetMockDb(): void {
   db = createSeed();

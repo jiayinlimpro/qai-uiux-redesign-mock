@@ -39,6 +39,7 @@ export default {
           dot: 'var(--cc-dot)',
         },
         notrun: 'var(--notrun)',
+        backdrop: 'var(--backdrop)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
