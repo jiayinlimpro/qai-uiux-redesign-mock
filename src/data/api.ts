@@ -32,6 +32,10 @@ import { canRemoveProvider, projectsToSwitch } from '@/lib/providers';
 import { duplicateAccount } from '@/lib/knowledge';
 import { changeEffect, cloneTestCase, idAfterMove, matchesFilters, nextTestId, prefixOf, validateSuite } from '@/lib/suiteRules';
 import { suggestRows, type Technique } from './mock/suggestRows';
+import { readImportFile, sampleImportFile } from './mock/importFile';
+export { UnsupportedImportFileError } from './mock/importFile';
+import { contentToSteps, normaliseHeader, parseBrowserList, planImport, readTemplateCsv, recognisedColumns, templateCsv, updateFromRow, type ImportPlan, type TemplateRow } from '@/lib/importRules';
+import { defaultTitle } from '@/lib/editorRules';
 
 export class NotFoundError extends Error {
   constructor(what: string, id: ID) {
@@ -67,7 +71,31 @@ function find<T extends { id: ID }>(list: T[], id: ID, what: string): T {
 // ---------- parameter types (shape to confirm in the slice that uses them) ----------
 export interface TestListFilters { search?: string; latestStatus?: Status }
 export type ImportDuplicateChoice = 'update' | 'skip' | 'import_as_new'; // BR-IMPORT-06
-export interface ImportCheck { rowsRead: number; recognised: string[]; ignored: string[]; duplicates: string[] }
+/** Import file check (3.3 step 2). Shape to confirm. */
+export interface ImportCheck {
+  fileName: string;
+  /** Prototype: an Excel file was read as the sample test set (no spreadsheet library in the prototype). */
+  simulatedExcel: boolean;
+  rowsRead: number;
+  recognised: string[];
+  ignored: string[];
+  /** No task_content column → blocking error (BR-IMPORT-03). */
+  missingRequired: boolean;
+  /** Test IDs that already exist in the project (BR-IMPORT-06). */
+  duplicates: string[];
+  repeatedInFile: string[];
+  rowsWithoutSteps: number;
+  /** What each duplicate choice would do (step 3 Review). */
+  previews: Record<ImportDuplicateChoice, ImportPreview>;
+}
+export interface ImportPreview {
+  /** One line per suite (new or existing), then Not in a suite (name null). */
+  suites: { name: string | null; isNew: boolean; create: number; update: number }[];
+  skipped: number;
+  /** Update only: fields that have a value now and an empty cell in the file, so they will be cleared (D50). */
+  fieldsCleared: number;
+}
+export interface ImportResult { created: number; updated: number; skipped: number; suitesCreated: number }
 export interface RunOptions {
   projectId: ID;
   testIds: ID[];
@@ -606,23 +634,57 @@ export async function getTest(testId: ID): Promise<TestCase> {
 export async function saveTest(test: TestCase): Promise<TestCase> {
   await delay();
   return structuredClone(
+    mutate((db) => applySave(db, test)),
+  );
+}
+/** Version and script follow from what changed (shared by saveTest and import Update). */
+function applySave(db: MockDb, test: TestCase): TestCase {
+  const before = find(db.tests, test.id, 'Test');
+  if (test.steps.every((s) => !s.trim())) throw new Error('A test needs at least one step.');
+  assertTestIdFree(db, test.projectId, test.testId, test.id);
+  const effect = changeEffect(before, test);
+  const next: TestCase = {
+    ...structuredClone(test),
+    testId: test.testId.trim(),
+    title: test.title.trim() || defaultTitle(test.steps), // BR-TEST-02
+    version: before.version + (effect.bumpVersion ? 1 : 0),
+    script: effect.resetScript && before.script.state === 'recorded' ? { state: 'reset' } : before.script,
+    updatedAt: effect.bumpVersion ? new Date().toISOString() : before.updatedAt,
+  };
+  db.tests = db.tests.map((t) => (t.id === next.id ? next : t));
+  return next;
+}
+function assertTestIdFree(db: MockDb, projectId: ID, testId: string, exceptId?: ID): void {
+  if (db.tests.some((t) => t.projectId === projectId && t.id !== exceptId && t.testId.toLowerCase() === testId.trim().toLowerCase())) {
+    throw new DuplicateTestIdError(testId.trim());
+  }
+}
+export type NewTestInput = Pick<TestCase, 'projectId' | 'suiteId' | 'testId' | 'title' | 'steps' | 'linkedKnowledge'> &
+  Partial<Pick<TestCase, 'description' | 'preconditions' | 'expectedResult' | 'expectedKeywords' | 'startPage' | 'browserPreference' | 'testData'>>;
+/** New test written in QAI (3.2): v1, source Written, no script. ID unique (BR-TEST-01), steps required (BR-TEST-02). Shape to confirm. */
+export async function createTest(input: NewTestInput): Promise<TestCase> {
+  await delay();
+  return structuredClone(
     mutate((db) => {
-      const before = find(db.tests, test.id, 'Test');
-      if (test.steps.every((s) => !s.trim())) throw new Error('A test needs at least one step.');
-      if (db.tests.some((t) => t.projectId === test.projectId && t.id !== test.id && t.testId.toLowerCase() === test.testId.trim().toLowerCase())) {
-        throw new DuplicateTestIdError(test.testId.trim());
-      }
-      const effect = changeEffect(before, test);
-      const next: TestCase = {
-        ...structuredClone(test),
-        testId: test.testId.trim(),
-        title: test.title.trim() || (test.steps[0] ?? '').slice(0, 40), // BR-TEST-02
-        version: before.version + (effect.bumpVersion ? 1 : 0),
-        script: effect.resetScript && before.script.state === 'recorded' ? { state: 'reset' } : before.script,
-        updatedAt: effect.bumpVersion ? new Date().toISOString() : before.updatedAt,
+      if (input.steps.every((s) => !s.trim())) throw new Error('A test needs at least one step.');
+      assertTestIdFree(db, input.projectId, input.testId);
+      const now = new Date().toISOString();
+      const test: TestCase = {
+        ...structuredClone(input),
+        id: newId('t'),
+        testId: input.testId.trim(),
+        title: input.title.trim() || defaultTitle(input.steps),
+        steps: input.steps.map((x) => x.trim()).filter(Boolean),
+        version: 1,
+        source: 'written',
+        isNew: false,
+        script: { state: 'none' },
+        visual: { excluded: false, ignoreAreas: [] },
+        createdAt: now,
+        updatedAt: now,
       };
-      db.tests = db.tests.map((t) => (t.id === next.id ? next : t));
-      return next;
+      db.tests.push(test);
+      return test;
     }),
   );
 }
@@ -749,12 +811,141 @@ export async function suggestTestDataRows(testId: ID, techniques: Technique[], h
   return structuredClone({ rows: suggestRows(test.testData, techniques, () => newId('row')), basedOn: frs?.name ?? (hint?.trim() ? 'your hint' : null) });
 }
 
-// ---------- import ----------
-export async function importCheck(_file: File): Promise<ImportCheck> {
-  return notBuilt('importCheck', 5);
+// ---------- import (BR-IMPORT) ----------
+async function readPlanInput(projectId: ID, file: File) {
+  const { text, simulatedExcel } = await readImportFile(file);
+  const parsed = readTemplateCsv(text);
+  const db = getDb();
+  return {
+    parsed,
+    simulatedExcel,
+    tests: db.tests.filter((t) => t.projectId === projectId),
+    suites: db.suites.filter((x) => x.projectId === projectId),
+  };
 }
-export async function importCommit(_file: File, _duplicateChoice: ImportDuplicateChoice): Promise<TestCase[]> {
-  return notBuilt('importCommit', 5);
+/** Fields an Update clears: empty cells over existing values, and an empty category cell over a suite (D50). */
+function clearedBy(plan: ImportPlan, tests: TestCase[]): number {
+  let n = 0;
+  for (const r of plan.rows) {
+    if (r.action !== 'update') continue;
+    const current = tests.find((t) => t.id === r.existingId);
+    if (!current) continue;
+    n += updateFromRow(current, r.row).cleared.length;
+    if (r.categoryInFile && r.suite === null && current.suiteId !== null) n++;
+  }
+  return n;
+}
+function previewOf(plan: ImportPlan, suites: Suite[], tests: TestCase[] = []): ImportPreview {
+  const lines = new Map<string, ImportPreview['suites'][number]>();
+  const key = (name: string | null) => (name === null ? '' : name.toLowerCase());
+  for (const r of plan.rows) {
+    if (r.action === 'skip') continue;
+    const k = key(r.suite);
+    const existing = r.suite ? suites.find((x) => x.name.toLowerCase() === k) : undefined;
+    const line = lines.get(k) ?? { name: existing?.name ?? r.suite, isNew: r.suite !== null && !existing, create: 0, update: 0 };
+    if (r.action === 'create') line.create++;
+    else line.update++;
+    lines.set(k, line);
+  }
+  const sorted = [...lines.values()].sort((a, b) => (a.name === null ? 1 : b.name === null ? -1 : a.name.localeCompare(b.name, undefined, { numeric: true })));
+  return { suites: sorted, skipped: plan.rows.filter((r) => r.action === 'skip').length, fieldsCleared: clearedBy(plan, tests) };
+}
+/** Step 2 file check: columns, rows, duplicates, and what each duplicate choice would do. Wrong type → UnsupportedImportFileError. */
+export async function importCheck(projectId: ID, file: File): Promise<ImportCheck> {
+  await delay();
+  const { parsed, simulatedExcel, tests, suites } = await readPlanInput(projectId, file);
+  const recognised = recognisedColumns(parsed.header);
+  const missingRequired = !parsed.header.some((h) => normaliseHeader(h) === 'task_content');
+  const plan = (choice: ImportDuplicateChoice) => planImport(parsed.rows, tests, suites, choice);
+  const base = plan('update');
+  return {
+    fileName: file.name,
+    simulatedExcel,
+    rowsRead: parsed.rowsRead,
+    recognised,
+    ignored: parsed.ignoredColumns,
+    missingRequired,
+    duplicates: [...new Set(base.duplicates)],
+    repeatedInFile: base.repeatedInFile,
+    rowsWithoutSteps: base.rowsWithoutSteps,
+    previews: {
+      update: previewOf(base, suites, tests),
+      skip: previewOf(plan('skip'), suites),
+      import_as_new: previewOf(plan('import_as_new'), suites),
+    },
+  };
+}
+/** Step 3 Import: creates suites from categories, creates / updates / skips tests per the duplicate choice (BR-IMPORT-05/06). */
+export async function importCommit(projectId: ID, file: File, duplicateChoice: ImportDuplicateChoice): Promise<ImportResult> {
+  await delay();
+  const { parsed } = await readPlanInput(projectId, file);
+  if (!parsed.header.some((h) => normaliseHeader(h) === 'task_content')) throw new InvalidFileError('The file has no task_content column.');
+  return mutate((db) => {
+    const suites = db.suites.filter((x) => x.projectId === projectId);
+    const plan = planImport(parsed.rows, db.tests.filter((t) => t.projectId === projectId), suites, duplicateChoice);
+    const suiteIdByName = new Map(suites.map((x) => [x.name.toLowerCase(), x.id]));
+    for (const ns of plan.newSuites) {
+      const suite: Suite = { id: newId('suite'), projectId, name: ns.name, idPrefix: ns.idPrefix };
+      db.suites.push(suite);
+      suiteIdByName.set(ns.name.toLowerCase(), suite.id);
+    }
+    const suiteIdOf = (name: string | null) => (name ? (suiteIdByName.get(name.toLowerCase()) ?? null) : null);
+    const fields = (row: TemplateRow) => {
+      const steps = contentToSteps(row.task_content ?? '');
+      const browsers = parseBrowserList(row.browser_type);
+      return {
+        steps,
+        ...(row.title ? { title: row.title } : {}),
+        ...(row.description ? { description: row.description } : {}),
+        ...(row.preconditions ? { preconditions: row.preconditions } : {}),
+        ...(row.expected_result ? { expectedResult: row.expected_result } : {}),
+        ...(row.expected_keywords ? { expectedKeywords: row.expected_keywords } : {}),
+        ...(row.base_url ? { startPage: row.base_url } : {}),
+        ...(browsers ? { browserPreference: browsers } : {}),
+      };
+    };
+    let created = 0;
+    let updated = 0;
+    const now = new Date().toISOString();
+    for (const r of plan.rows) {
+      if (r.action === 'create') {
+        const f = fields(r.row);
+        db.tests.push({
+          id: newId('t'),
+          projectId,
+          suiteId: suiteIdOf(r.suite),
+          testId: r.testId,
+          title: f.title ?? defaultTitle(f.steps),
+          ...f,
+          linkedKnowledge: [],
+          version: 1,
+          source: 'import',
+          isNew: false,
+          script: { state: 'none' },
+          visual: { excluded: false, ignoreAreas: [] },
+          createdAt: now,
+          updatedAt: now,
+        });
+        created++;
+      } else if (r.action === 'update') {
+        const current = find(db.tests, r.existingId, 'Test');
+        // Update (D50): a missing column keeps the value, an empty cell clears it; same for the category (→ Not in a suite).
+        const { next } = updateFromRow(current, r.row);
+        const suiteId = r.suite ? suiteIdOf(r.suite) : r.categoryInFile ? null : current.suiteId;
+        applySave(db, { ...next, steps: contentToSteps(r.row.task_content ?? ''), suiteId });
+        updated++;
+      }
+    }
+    return { created, updated, skipped: plan.rows.filter((r) => r.action === 'skip').length, suitesCreated: plan.newSuites.length };
+  });
+}
+/** The import template as a CSV file (BR-IMPORT-01). */
+export async function importTemplate(): Promise<Blob> {
+  return new Blob([templateCsv()], { type: 'text/csv' });
+}
+/** Prototype only: the sample CSV, to try Import without a file of your own. */
+export function sampleImportFileForPrototype(): File {
+  return sampleImportFile();
 }
 
 // ---------- runs ----------

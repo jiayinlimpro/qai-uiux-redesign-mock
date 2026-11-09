@@ -18,7 +18,7 @@ export const paths = {
   suiteTest: '/p/:projectId/suites/:testId', // 3.1 with a test selected (?tab=)
   importTests: '/p/:projectId/suites/import', // 3.3
   newTest: '/p/:projectId/tests/new', // 3.2
-  editTest: '/p/:projectId/tests/:testId/edit', // 3.2
+  editTest: '/p/:projectId/tests/:testId/edit', // 3.2 (?from=resultId)
   explore: '/p/:projectId/explore', // 3.4
   exploreChat: '/p/:projectId/explore/:chatId', // 3.4 (?message=)
   runs: '/p/:projectId/runs', // 5.4
@@ -47,7 +47,8 @@ export const to = {
   suiteTest: (projectId: ID, testId: ID, tab?: TestTab) => `${p(projectId)}/suites/${seg(testId)}${query({ tab })}`,
   importTests: (projectId: ID) => `${p(projectId)}/suites/import`,
   newTest: (projectId: ID) => `${p(projectId)}/tests/new`,
-  editTest: (projectId: ID, testId: ID) => `${p(projectId)}/tests/${seg(testId)}/edit`,
+  /** `fromResultId`: opened from a run result → shows "Opened from Run #N result" and "Save and re-run" (3.2). */
+  editTest: (projectId: ID, testId: ID, fromResultId?: ID) => `${p(projectId)}/tests/${seg(testId)}/edit${query({ from: fromResultId })}`,
   explore: (projectId: ID) => `${p(projectId)}/explore`,
   /** `messageIndex` scrolls to a message, e.g. the tests-ready card for a Likely bug test (BR-EXPLORE-05). */
   exploreChat: (projectId: ID, chatId: ID, messageIndex?: number) =>

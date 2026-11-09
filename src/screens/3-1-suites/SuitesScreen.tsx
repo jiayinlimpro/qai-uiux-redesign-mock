@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Link, Outlet } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { cloneTests, deleteTests, listKnowledge, listLatestResults, listRuns, listSuites, listTests } from '@/data/api';
 import type { ID } from '@/data/types';
 import { buttonClasses } from '@/components/ui/button';
@@ -44,6 +44,18 @@ export function SuitesScreen() {
 
   const showToast = useCallback((t: Omit<ToastMessage, 'id'>) => setToast({ ...t, id: Date.now() }), []);
   const closeToast = useCallback(() => setToast(null), []);
+
+  // A screen that saved and came back (Edit test, Import) passes a one-time message: show it and reload.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const retry = data.retry;
+  useEffect(() => {
+    const flash = (location.state as { flash?: string } | null)?.flash;
+    if (!flash) return;
+    showToast({ text: flash });
+    retry();
+    navigate(location.pathname + location.search, { replace: true, state: null });
+  }, [location, navigate, retry, showToast]);
 
   const ctx = useMemo<SuitesContextValue | null>(() => {
     if (data.status !== 'ready') return null;

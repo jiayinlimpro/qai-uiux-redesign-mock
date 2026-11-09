@@ -27,6 +27,7 @@ describe('routes (D26)', () => {
     expect(to.run('p-1', 'run-12', 'res-1')).toBe('/p/p-1/runs/run-12?result=res-1');
     expect(to.suiteTest('p-1', 't-1', 'test-data')).toBe('/p/p-1/suites/t-1?tab=test-data');
     expect(to.exploreChat('p-1', 'chat-3', 2)).toBe('/p/p-1/explore/chat-3?message=2');
+    expect(to.editTest('p-1', 't-1', 'res-1')).toBe('/p/p-1/tests/t-1/edit?from=res-1');
   });
 
   it('encodes ids', () => {

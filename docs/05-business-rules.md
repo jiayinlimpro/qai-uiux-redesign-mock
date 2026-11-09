@@ -59,6 +59,7 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 - **BR-DATA-05** Rejected rows pass when the flow is stopped after the data is entered (and "page shows" text is visible, if given).
 - **BR-DATA-06** Suggest rows: techniques Boundary values, Equivalence classes, Pairwise; uses linked FRS if present, else an optional hint. Regenerating replaces generated rows, keeps manual rows.
 - **BR-DATA-08** When a row-1 value changes, ask "Also update <n> rows that used the old value '<value>'?" (default Yes) so rows 2+ keep varying only their intended field; rows varying more than one field get a gentle note. (D47)
+- **BR-DATA-09** Saving a test keeps the test data fields in sync with the steps' {placeholders}: a new placeholder adds a text field (empty in every row; the first one creates test data with an empty row 1); a removed placeholder removes its field and values; renaming = remove + add. The editor says so before saving ("Test data: removes {email} and its values in <n> rows"). (D49)
 - **BR-DATA-07** Saving test data (D44): add/remove a field or change row 1 (recorded row) → new version + script reset (reset warning shown); add/edit/delete rows 2+ or Suggest rows → new version, no script reset; toggling "Use" → no new version, no reset, saved at once. Other test data edits are a draft saved with "Save as vN+1 · Cancel".
 
 ## Visual comparison (BR-VISUAL)
@@ -85,9 +86,11 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 - **BR-IMPORT-03** Template columns (only `task_content` required):
   `task_id`, `title`, `description`, `category` (→ suite), `preconditions`, `task_content` (→ steps; numbered lines become steps), `expected_result`, `expected_keywords`, `base_url` (→ start page, optional), `browser_type` (comma list). Unknown columns are ignored and listed. [Legacy columns Copilot Mode, credentials, Skill, extension_path, llm_provider, model_name are NOT in the template: replaced by run dialog, Accounts, linked knowledge, project settings and run model.]
 - **BR-IMPORT-04** Completely blank rows are removed.
-- **BR-IMPORT-05** Category creates or reuses a suite; rows without category → Not in a suite.
+- **BR-IMPORT-05** Category creates or reuses a suite (name compared case-insensitively); rows without category → Not in a suite. A new suite's ID prefix comes from its tests' IDs (LOG-01 → LOG), made unique and never "T" (D50).
 - **BR-IMPORT-06** Rows whose test ID already exists: user chooses once for all: Update (new version; script reset per BR-SCRIPT-02) · Skip · Import as new (new IDs).
 - **BR-IMPORT-07** No column mapping UI.
+- **BR-IMPORT-08** Rows without steps (empty task_content) are skipped; a test ID used more than once in the file gives later rows new IDs. Both are listed in the file check. New tests keep their task_id when free, else get the suite prefix + next number (D50).
+- **BR-IMPORT-09** Update (D50): a column missing from the file keeps the current value; a column present with an empty cell clears it (an empty category cell → Not in a suite; an empty title → the first step). The file check shows "<n> fields will be cleared".
 
 ## AI explore (BR-EXPLORE)
 - **BR-EXPLORE-01** Chats belong to one project; the chat list shows only this project's chats.

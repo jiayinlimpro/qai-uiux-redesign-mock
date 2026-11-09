@@ -24,4 +24,5 @@ The prototype assumes the answers in "Assumed". Each links to the rules that dep
 | 18 | Where is cost computed and can it be shown live during a run? | Yes | BR-RUN-05 |
 | 20 | Will users choose the screen size (viewport) for a run, and which sizes? | No: every run is 1920×1080; `Run.viewport` exists and is shown read-only (D27) | BR-VISUAL-02 |
 | 21 | Should exported project files be encrypted (they can contain account passwords in readable form)? | No: plain file; "Include account passwords" option with a warning (D37) | D37 |
+| 22 | How does the real app read Excel (.xlsx) imports: a spreadsheet library in the app, or the engine? | Prototype reads CSV only; .xlsx is simulated with the seed CSV (D48) | BR-IMPORT-01 |
 | 19 | Result storage: keep Allure only as an optional export; QAI stores results in its own model (07). | Own model | 07 |

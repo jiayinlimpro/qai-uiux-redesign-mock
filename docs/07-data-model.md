@@ -112,7 +112,11 @@ deleteTests(ids) → deleted tests / restoreTests(tests)                // Undo 
 saveTest(test)                                                      // the data layer sets version + script from what changed (BR-VERSION-01, BR-SCRIPT-02, BR-DATA-07)
 getLatestResult(testId) / getTestHistory(testId) / listLatestResults(projectId) → { testId: Result }   // listLatestResults: Slice 4, shape to confirm
 suggestTestDataRows(testId, techniques, hint?) → { rows, basedOn }  // simulated AI (BR-DATA-06), rows go to the caller's draft; shape to confirm
-importCheck(file) → { rowsRead, recognised[], ignored[], duplicates[] } / importCommit(file, duplicateChoice)
+importCheck(projectId, file) → { fileName, rowsRead, recognised[], ignored[], missingRequired, duplicates[], repeatedInFile[],
+                                 rowsWithoutSteps, previews: { update | skip | import_as_new → per-suite create/update counts } }
+importCommit(projectId, file, duplicateChoice) → { created, updated, skipped, suitesCreated }   // BR-IMPORT-05/06; Slice 5, shape to confirm
+importTemplate() → CSV file (BR-IMPORT-01)
+createTest(input) → TestCase                                         // 3.2 New test: v1, source Written, no script; Slice 5, shape to confirm
 planRun(selection, options) → per-test { mode, reason }      // BR-RUN-02, used by the run dialog
 startRun(options) → Run / pauseRun / resumeRun / stopRun / skipTest
 listRuns / getRun / listResults(runId, filters) / getResult

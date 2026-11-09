@@ -29,7 +29,12 @@ export function RunResultsScreen({ run }: { run: Run }) {
             const name = `${label.testId} ${label.title}${label.deleted ? ' (deleted)' : ''}`;
             return [
               { label: `Select result: ${name}`, to: to.run(run.projectId, run.id, r.id) },
-              ...(label.deleted ? [] : [{ label: `Open test ${label.testId}`, to: to.suiteTest(run.projectId, r.testId) }]),
+              ...(label.deleted
+                ? []
+                : [
+                    { label: `Open test ${label.testId}`, to: to.suiteTest(run.projectId, r.testId) },
+                    { label: `Edit ${label.testId} (opened from this result)`, to: to.editTest(run.projectId, r.testId, r.id) },
+                  ]),
             ];
           })
         }
