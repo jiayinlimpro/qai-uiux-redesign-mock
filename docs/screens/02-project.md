@@ -4,7 +4,7 @@
 **Purpose** Daily starting point: what needs attention.
 **Content (top to bottom)**
 1. Header: project name, "<n> apps · <environment names>"; buttons New test, Import, Run… (primary).
-2. **Interrupted run banner** (only if a run is Interrupted/Paused): "Run #13 was interrupted at test 34 of 83 · All suites · UAT" → Resume (→ 5.3) · Discard.
+2. **Interrupted run banner** (only if a run is Interrupted/Paused): "Run #13 was interrupted at test 34 of 83 · All tests · UAT" → Resume (→ 5.3) · Discard.
 3. Three cards: **New from AI explore** ("<n> tests not in a suite" → Organise in Suites; hidden if 0) · **Last completed run** (number, date, passed/failed/couldn't complete chips) · **Needs attention** (failed + couldn't complete count; [PROPOSAL] worth-a-look count) → Open run.
 4. Suites table: Suite · Tests · Latest status chips (passed/failed/couldn't complete/not run) · Last run · Run button.
 5. Recent runs table: Run · Scope · Environment · State · Cost.

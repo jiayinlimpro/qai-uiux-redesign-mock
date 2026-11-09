@@ -31,7 +31,13 @@ import { snapshotEnvironment } from '@/lib/runRules';
 import { modeFor } from '@/lib/runRules';
 import { sumCost } from '@/lib/status';
 
-export const SEED_VERSION = 7;
+export const SEED_VERSION = 9;
+
+/**
+ * Mock engine pace for seeded demo runs: timer ticks per work tick (normal runs: 1). Run #14 has 14 work ticks left
+ * (CNT-03 Data rows 5, CNT-04 AI run 9), so 14 × 260 × 0.5 s ≈ 30 minutes until it completes.
+ */
+export const SEED_RUN_PACE: Record<string, number> = { 'run-14': 260 };
 
 export interface MockDb {
   seedVersion: number;
@@ -368,7 +374,7 @@ function simulateRun(spec: RunSpec): void {
     ...(spec.pauseReason ? { pauseReason: spec.pauseReason } : {}),
     startedAt: spec.startedAt,
     ...(state === 'completed' ? { finishedAt: addMs(spec.startedAt, durationMs) } : {}),
-    ...(state === 'running' ? {} : { durationMs }),
+    durationMs, // active time so far (running) or in total
     cost: sumCost(runResults.map((r) => r.cost)), // computed (CLAUDE.md rule 5)
   });
   results.push(...runResults);
@@ -421,7 +427,7 @@ simulateRun({
 
 // #8: CNT-04 re-run. AI said Needs confirmation; the tester overrode it to Passed. No script (AI verdict not passed).
 simulateRun({
-  number: 8, startedAt: '2026-10-14T09:00:00.000Z', environmentId: ENV.uat, scopeLabel: 'CNT-04', testIds: ['CNT-04'],
+  number: 8, startedAt: '2026-10-14T09:00:00.000Z', environmentId: ENV.uat, scopeLabel: 'CNT-04 only', testIds: ['CNT-04'],
   outcomes: {
     'CNT-04': {
       status: 'passed',
@@ -468,12 +474,12 @@ const CNT04_FAIL: Outcome = {
     ],
   },
 };
-simulateRun({ number: 11, startedAt: '2026-10-28T09:00:00.000Z', environmentId: ENV.uat, scopeLabel: 'CNT-04', testIds: ['CNT-04'], outcomes: { 'CNT-04': { ...CNT04_FAIL, cost: 0.08, durationMs: 171_000 } } });
+simulateRun({ number: 11, startedAt: '2026-10-28T09:00:00.000Z', environmentId: ENV.uat, scopeLabel: 'CNT-04 only', testIds: ['CNT-04'], outcomes: { 'CNT-04': { ...CNT04_FAIL, cost: 0.08, durationMs: 171_000 } } });
 
 // #12: all suites, UAT, 83 tests → 72 passed · 8 failed · 3 couldn't complete, $3.47.
 // AI-run costs are set so the total is $3.47 (script replays cost $0.02 each).
 simulateRun({
-  number: 12, startedAt: '2026-11-03T08:30:00.000Z', environmentId: ENV.uat, scopeLabel: 'All suites', testIds: csvIds,
+  number: 12, startedAt: '2026-11-03T08:30:00.000Z', environmentId: ENV.uat, scopeLabel: 'All tests', testIds: csvIds,
   outcomes: {
     'NAV-01': { status: 'passed', visualChanges: { 2: 3 } }, // hero word, counters and carousel changed vs Run #9
     'CNT-03': { status: 'passed', cost: 0.51, worthALook: 'Passed using 38 of 40 AI steps' },
@@ -525,7 +531,7 @@ editTest('CNT-03', '2026-11-03T15:00:00.000Z', (t) => {
 // #13: all suites again, interrupted when QAI closed at 34/83 → 31 passed · 3 failed · 49 not run, $1.12.
 // The 3 failed replays cost more because the failure is classified by AI.
 simulateRun({
-  number: 13, startedAt: '2026-11-04T08:30:00.000Z', environmentId: ENV.uat, scopeLabel: 'All suites', testIds: csvIds,
+  number: 13, startedAt: '2026-11-04T08:30:00.000Z', environmentId: ENV.uat, scopeLabel: 'All tests', testIds: csvIds,
   state: 'interrupted', pauseReason: 'app_closed', done: 34,
   outcomes: {
     'SVC-17': { status: 'failed', reason: 'product_bug', cost: 0.17, expected: "Page about 'Brand Collaterals Design'", found: '404 Page not found' },
@@ -569,7 +575,8 @@ tests.push(
   aiExploreTest('T-02', T02, { aiExploreFinding: { kind: 'likely_bug', chatId: CHAT_T_TESTS, messageIndex: CHAT_T_TESTS_READY_INDEX } }),
 );
 
-// #14: running now, 09 Contact Us on UAT, on test 3 of 4 (CNT-03 as Data rows).
+// #14: running now, 09 Contact Us on UAT, on test 3 of 4 (CNT-03 as Data rows). It runs slowly (SEED_RUN_PACE) so the
+// Running state stays visible for demos.
 simulateRun({
   number: 14, startedAt: '2026-11-05T08:50:00.000Z', environmentId: ENV.uat, scopeLabel: '09 Contact Us',
   testIds: idsOfSuites('CNT'), state: 'running', done: 2,

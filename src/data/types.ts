@@ -63,7 +63,9 @@ export interface Run { id: ID; projectId: ID; number: number; environmentId: ID;
   state: RunState; scopeLabel: string; testIds: ID[];
   progress: { done: number; total: number; currentTestId?: ID };
   pauseReason?: 'app_closed'|'provider_unavailable'|'environment_unresponsive'|'preflight_blocked';
-  startedAt: string; finishedAt?: string; durationMs?: number; cost: number }
+  advanced?: { headless: boolean; parallel: boolean; workers: number; maxAiSteps: number; maxActionsPerStep: number }; // run dialog › Advanced
+  stoppedAt?: { done: number; total: number; at: string };   // Stop: state Completed, shown "Stopped at done/total"; cannot resume (D55)
+  startedAt: string; finishedAt?: string; durationMs?: number; cost: number }   // durationMs: active time (pauses excluded)
 export interface Result { id: ID; runId: ID; testId: ID; testVersion: number; mode: Mode;
   testSnapshot: { testId: string; title: string };   // display ID + title when it ran; shown if the test is deleted (D46)
   status: Status;                       // effective status (after override)
@@ -74,6 +76,7 @@ export interface Result { id: ID; runId: ID; testId: ID; testVersion: number; mo
   failure?: { stepIndex: number; expected: string; found: string };
   steps: ResultStep[]; cost: number; durationMs: number;
   flags: { worthALook?: string; scriptReRecorded?: boolean; visualChanges?: number };
+  note?: string;                        // e.g. "Skipped by user", "No allowed browser selected (test allows Chrome, Safari)"
   override?: { status: 'passed'|'failed'; reason: string; proofName: string; by: string; at: string } }
 export interface ResultStep { index: number; text: string; status: Status; durationMs: number; screenshotId?: ID;
   actions: { text: string; raw: string }[]; check?: { expected: string; found: string; ok: boolean };

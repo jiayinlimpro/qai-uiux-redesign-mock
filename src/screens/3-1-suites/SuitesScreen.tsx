@@ -6,7 +6,7 @@ import { buttonClasses } from '@/components/ui/button';
 import { SplitPane } from '@/components/ui/split-pane';
 import { Toast, type ToastMessage } from '@/components/ui/toast';
 import { ErrorState, LoadingState } from '@/components/StateViews';
-import { RunDialogPlaceholder } from '@/components/RunDialogPlaceholder';
+import { RunDialog } from '@/components/RunDialog';
 import { errorText } from '@/components/StatusLine';
 import { useAsync } from '@/app/hooks/useAsync';
 import { useProject } from '@/app/projectContext';
@@ -127,7 +127,6 @@ export function SuitesScreen() {
     );
   }
 
-  const testsById = new Map(ctx.tests.map((t) => [t.id, t]));
   return (
     <SuitesContext.Provider value={ctx}>
       <SplitPane label="Resize test list" left={<SuiteList />} right={<div className="relative h-full overflow-auto">{<Outlet />}</div>} />
@@ -143,7 +142,7 @@ export function SuitesScreen() {
           }}
         />
       )}
-      {running && <RunDialogPlaceholder tests={running.map((id) => testsById.get(id)).filter((t): t is NonNullable<typeof t> => Boolean(t))} onClose={() => setRunning(null)} />}
+      {running && <RunDialog testIds={running} onClose={() => setRunning(null)} />}
       <Toast toast={toast} onClose={closeToast} />
     </SuitesContext.Provider>
   );

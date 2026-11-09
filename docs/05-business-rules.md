@@ -24,17 +24,20 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 
 ## Runs (BR-RUN)
 - **BR-RUN-01** A run has exactly one environment, ≥1 browser, one model, a frozen list of tests (with their versions) and creates a new run number. Re-runs always create a new run.
-- **BR-RUN-02** Mode per test: if the test has a valid script and Force AI is off → **Script replay**; otherwise → **AI run**. The run dialog shows the mode and the reason for every test before starting.
+- **BR-RUN-02** Mode per test: if the test has a valid script and Force AI is off → **Script replay**; otherwise → **AI run** (a test with test data → **Data rows**, BR-DATA). The run dialog shows the mode and the reason for every test before starting ("Valid script from run #9", "No script yet", "Edited after last run (v3), script reset", "Last AI run failed, so no valid script", "Force AI is on"); Force AI for all updates the table at once. Implemented in `src/lib/runPlan.ts` (`planTest`).
 - **BR-RUN-03** AI runs always use Chrome (product behaviour, not configurable). Selected other browsers replay the script once one exists. If the AI run fails, the other browsers are `not_run` for that result. [DEV-CONFIRM same-run replay]
 - **BR-RUN-04** Parallel: if enabled (project default / advanced), tests run in parallel automatically; otherwise they queue.
 - **BR-RUN-05** Cost: shown per result, per run and "so far" during a run. **No cost or time estimates anywhere.**
 - **BR-RUN-06** Auto-retry only for system causes (rate limit, timeout, provider error); never for real app failures. [DEV-CONFIRM: today "Retry after failed" retries everything]
 - **BR-RUN-07** If a script replay cannot find an element, the system re-runs that test with AI automatically and records a new script; the result is flagged "Script re-recorded". [DEV-CONFIRM]
 - **BR-RUN-08** Automatic repair of a script may change locators and waits, **never** expected values or checks.
-- **BR-RUN-09** Pre-flight check after Start run: AI key/model valid (block), environment URL reachable (warn), browser launches (block). [DEV-CONFIRM feasibility]
-- **BR-RUN-10** Progress saved after each test; interrupted runs can resume from the next test. [DEV-CONFIRM]
+- **BR-RUN-09** Pre-flight check after Start run: AI key/model valid (block), environment URL reachable (warn), browser launches (block). A block stops the start; warnings offer "Start anyway" (D57). [DEV-CONFIRM feasibility]
+- **BR-RUN-10** Progress saved after each test; paused and interrupted runs can resume from the next test ("Resume from test 35"). [DEV-CONFIRM]
 - **BR-RUN-11** (Proposed) Auto-pause when the AI provider stays unavailable after retries, or the environment fails N consecutive tests; user resumes. [DEV-CONFIRM: today the run continues and fails tests]
 - **BR-RUN-12** Max AI steps per test: default 40, allowed 1–500, warning above 100 ("Higher values increase AI cost per test"). Max actions per step: default 10, allowed 1–50. Parallel workers: default 2, allowed 1–8. (Project default, run Advanced; D38.)
+- **BR-RUN-13** Browsers per test (D53): a test replays in the run's browsers that it allows (browser preference; none = all). If none is allowed, the test is Not run in this run with the note "No allowed browser selected (test allows …)"; Start run is disabled when no test can run. AI runs still use Chrome (BR-RUN-03).
+- **BR-RUN-14** Skip test (D54): the current test ends at once as Not run with the note "Skipped by user"; the run continues with the next test. There is no Stop test.
+- **BR-RUN-15** Stop run (D55): with confirmation; the run becomes Completed with `stoppedAt` ("Stopped at done/total"), cannot be resumed, and the tests not run yet are Not run (re-run them from the results).
 
 ## Scripts and versions (BR-SCRIPT, BR-VERSION)
 - **BR-SCRIPT-01** A script is only created from a passing AI run.

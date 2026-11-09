@@ -33,6 +33,10 @@ import { duplicateAccount } from '@/lib/knowledge';
 import { changeEffect, cloneTestCase, idAfterMove, matchesFilters, nextTestId, prefixOf, validateSuite } from '@/lib/suiteRules';
 import { suggestRows, type Technique } from './mock/suggestRows';
 import { readImportFile, sampleImportFile } from './mock/importFile';
+import * as engine from './mock/runEngine';
+import type { EngineEvent, Narration } from './mock/runEngine';
+import { planTest, preflight, scopeLabel, type PreflightCheck, type TestPlan } from '@/lib/runPlan';
+import { snapshotEnvironment } from '@/lib/runRules';
 export { UnsupportedImportFileError } from './mock/importFile';
 import { contentToSteps, normaliseHeader, parseBrowserList, planImport, readTemplateCsv, recognisedColumns, templateCsv, updateFromRow, type ImportPlan, type TemplateRow } from '@/lib/importRules';
 import { defaultTitle } from '@/lib/editorRules';
@@ -103,8 +107,11 @@ export interface RunOptions {
   browsers: Browser[];
   model: string;
   forceAi: boolean;
+  /** Run dialog › Advanced, prefilled from Project settings › Run defaults. */
+  advanced: NonNullable<Run['advanced']>;
 }
-export interface PlannedTest { testId: ID; mode: Mode; reason: string } // BR-RUN-02
+/** BR-RUN-02 + D53: mode, reason and browsers per test; notRunReason when the test won't run. Shape to confirm. */
+export type PlannedTest = TestPlan;
 export interface ResultFilters {
   status?: Status;
   reason?: FailReason | CcReason;
@@ -114,10 +121,9 @@ export interface ResultFilters {
 }
 export interface OverrideInput { status: 'passed' | 'failed'; reason: string; proofName: string }
 export interface KnownIssueInput { note?: string; ticketRef?: string }
-export type RunEvent =
-  | { kind: 'progress'; run: Run }
-  | { kind: 'narration'; text: string }
-  | { kind: 'result'; result: Result };
+/** Live run events: progress (the run), narration (what the AI is doing now, 5.2), result (a test finished). */
+export type RunEvent = EngineEvent;
+export type { Narration };
 
 // ---------- global ----------
 /** Secrets go in, never come out (07: "secrets never exposed to UI"). The mock only records that one was given. Shape to confirm. */
@@ -949,32 +955,96 @@ export function sampleImportFileForPrototype(): File {
 }
 
 // ---------- runs ----------
-export async function planRun(_selection: ID[], _options: Omit<RunOptions, 'testIds'>): Promise<PlannedTest[]> {
-  return notBuilt('planRun', 6);
+/** How each test will run (BR-RUN-02, D53). Shape to confirm. */
+export async function planRun(testIds: ID[], options: { forceAi: boolean; browsers: Browser[] }): Promise<PlannedTest[]> {
+  return respond(() => {
+    const db = getDb();
+    const number = (id: ID) => db.runs.find((r) => r.id === id)?.number;
+    return testIds.map((id) => planTest(find(db.tests, id, 'Test'), { forceAi: options.forceAi, browsers: options.browsers, runNumber: number }));
+  });
 }
-export async function startRun(_options: RunOptions): Promise<Run> {
-  return notBuilt('startRun', 6);
+/** Pre-flight check after Start run (BR-RUN-09) [DEV-CONFIRM]. Simulated; shape to confirm. */
+export async function runPreflight(projectId: ID, environmentId: ID, model: string): Promise<PreflightCheck[]> {
+  await delay();
+  await delay();
+  const db = getDb();
+  const project = find(db.projects, projectId, 'Project');
+  const providers = db.globalSettings.providers;
+  const offered = providers.flatMap((p) => [p.defaultModel, ...MOCK_MODELS[p.kind]]);
+  return structuredClone(preflight(project, environmentId, model, providers, offered));
 }
-export async function pauseRun(_runId: ID): Promise<Run> {
-  return notBuilt('pauseRun', 6);
+/** Starts a run: new run number, frozen test list, environment snapshot (BR-RUN-01, BR-ENV-04). */
+export async function startRun(options: RunOptions): Promise<Run> {
+  await delay();
+  const run = mutate((db) => {
+    const project = find(db.projects, options.projectId, 'Project');
+    if (options.testIds.length === 0) throw new Error('Select at least one test.');
+    if (options.browsers.length === 0) throw new Error('Select at least one browser.');
+    const projectRuns = db.runs.filter((r) => r.projectId === options.projectId);
+    const tests = db.tests.filter((t) => t.projectId === options.projectId);
+    const suites = db.suites.filter((x) => x.projectId === options.projectId);
+    const r: Run = {
+      id: newId('run'),
+      projectId: options.projectId,
+      number: projectRuns.reduce((n, x) => Math.max(n, x.number), 0) + 1,
+      environmentId: options.environmentId,
+      browsers: [...options.browsers],
+      viewport: { width: 1920, height: 1080 }, // D27
+      environment: snapshotEnvironment(project, options.environmentId),
+      model: options.model,
+      forceAi: options.forceAi,
+      state: 'running',
+      scopeLabel: scopeLabel(options.testIds, tests, suites),
+      testIds: [...options.testIds],
+      progress: { done: 0, total: options.testIds.length },
+      advanced: { ...options.advanced },
+      startedAt: new Date().toISOString(),
+      durationMs: 0,
+      cost: 0,
+    };
+    db.runs.push(r);
+    return r;
+  });
+  engine.ensureEngine();
+  return structuredClone(run);
 }
-export async function resumeRun(_runId: ID): Promise<Run> {
-  return notBuilt('resumeRun', 6);
+export async function pauseRun(runId: ID): Promise<Run> {
+  await delay();
+  engine.pause(runId);
+  return structuredClone(find(getDb().runs, runId, 'Run'));
 }
-export async function stopRun(_runId: ID): Promise<Run> {
-  return notBuilt('stopRun', 6);
+/** Resume a paused or interrupted run from the next test (BR-RUN-10). A stopped run cannot be resumed (D55). */
+export async function resumeRun(runId: ID): Promise<Run> {
+  await delay();
+  engine.resume(runId);
+  return structuredClone(find(getDb().runs, runId, 'Run'));
 }
-export async function skipTest(_runId: ID, _testId: ID): Promise<Run> {
-  return notBuilt('skipTest', 6);
+/** Stop: Completed with stoppedAt; remaining tests Not run (D55). */
+export async function stopRun(runId: ID): Promise<Run> {
+  await delay();
+  engine.stop(runId);
+  return structuredClone(find(getDb().runs, runId, 'Run'));
 }
-/** Live progress + narration events. Returns an unsubscribe function. */
-export function subscribeRun(_runId: ID, _cb: (event: RunEvent) => void): () => void {
-  throw new NotBuiltYetError('subscribeRun', 6);
+/** Skip the running test: Not run, "Skipped by user"; the run continues (D54). */
+export async function skipTest(runId: ID, testId: ID): Promise<Run> {
+  await delay();
+  engine.skip(runId, testId);
+  return structuredClone(find(getDb().runs, runId, 'Run'));
+}
+/** Live progress + narration + result events. Returns an unsubscribe function. */
+export function subscribeRun(runId: ID, cb: (event: RunEvent) => void): () => void {
+  return engine.subscribe(runId, cb);
+}
+/** Tests only: speed of the simulated run. */
+export function setRunSpeedForTests(ms: number): void {
+  engine.setMockRunSpeed(ms);
 }
 export async function listRuns(projectId: ID): Promise<Run[]> {
+  engine.ensureEngine(); // a run that was running keeps going after a reload
   return respond(() => getDb().runs.filter((r) => r.projectId === projectId).sort((a, b) => b.number - a.number));
 }
 export async function getRun(runId: ID): Promise<Run> {
+  engine.ensureEngine();
   return respond(() => find(getDb().runs, runId, 'Run'));
 }
 export async function listResults(runId: ID, filters?: ResultFilters): Promise<Result[]> {

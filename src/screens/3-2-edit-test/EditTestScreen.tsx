@@ -7,7 +7,7 @@ import { Button, buttonClasses } from '@/components/ui/button';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { SplitPane } from '@/components/ui/split-pane';
 import { ErrorState, LoadingState } from '@/components/StateViews';
-import { RunDialogPlaceholder } from '@/components/RunDialogPlaceholder';
+import { RunDialog } from '@/components/RunDialog';
 import { errorText } from '@/components/StatusLine';
 import { useConfirm } from '@/components/useConfirm';
 import { useAsync } from '@/app/hooks/useAsync';
@@ -370,7 +370,8 @@ function EditorForm({ test, data }: { test?: TestCase; data: Data }) {
         </p>
       )}
       {confirmDialog}
-      {rerun && <RunDialogPlaceholder tests={[rerun]} onClose={() => navigate(to.suiteTest(project.id, rerun.id), { state: { flash: `Saved as v${rerun.version}` } })} />}
+      {/* Save and re-run: the run dialog with this test (5.1). Closing without starting goes to the test. */}
+      {rerun && <RunDialog testIds={[rerun.id]} presetModel={fromRun?.run.model} presetEnvironmentId={fromRun?.run.environmentId} onClose={() => navigate(to.suiteTest(project.id, rerun.id), { state: { flash: `Saved as v${rerun.version}` } })} />}
     </form>
   );
 }

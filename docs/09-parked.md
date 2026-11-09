@@ -11,7 +11,7 @@ Kept for later, after the core is stable. Do not add UI for these unless marked 
 | More filters | Suite, source, overridden, known issue, browser; multi-select |
 | Overview metrics | Pass-rate trend per run, coverage per suite, slowest tests |
 | Pin a reference (visual) | Optional signed-off screenshot set as a third comparison (display-only card exists) |
-| "Run on one browser only" per test | For data-creating tests (multi-browser side effects) |
+| "Run on one browser only" per test | For data-creating tests (multi-browser side effects). Covered by Browser preference: a test that allows one browser replays only there (D53) |
 | Release tags / run names | Free-text run note, later release comparison |
 | ClickUp integration | Ticket creation; export results for execution tasks (today: Copy bug report only) |
 | Scheduling / CI triggers | Runs are manual |
