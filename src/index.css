@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Interim tokens: docs/08-design-system.md. Dark theme values are defined in the design phase. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-muted: #fbfbfc;
+  --border: #d9dde3;
+  --text: #1f2328;
+  --text-muted: #5b6370;
+  --accent: #1f5fbf;
+  --accent-soft: #e8f0fb;
+  --accent-soft-text: #1a4c99;
+
+  --passed-fill: #e6f2e9;
+  --passed-border: #b9dcc2;
+  --passed-text: #1f5e2e;
+  --passed-dot: #2b8a4b;
+
+  --failed-fill: #fbeae3;
+  --failed-border: #f0c3b2;
+  --failed-text: #8e3414;
+  --failed-dot: #c2410c;
+
+  --cc-fill: #fbf1dc;
+  --cc-border: #edd39a;
+  --cc-text: #6e4a00;
+  --cc-dot: #b07a0a;
+
+  --notrun: #8a919c;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-bg font-sans text-base text-text antialiased;
+  }
+  /* Visible focus everywhere (CLAUDE.md rule 7). */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}

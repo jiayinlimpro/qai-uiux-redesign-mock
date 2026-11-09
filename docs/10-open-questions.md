@@ -22,4 +22,5 @@ The prototype assumes the answers in "Assumed". Each links to the rules that dep
 | 16 | Storage and retention of screenshots (local disk) | Keep latest 10 runs per test | BR-VISUAL-02 |
 | 17 | What exactly does Browser Use + Jev do and cost? Confirm settings (TypeSafe key, model, reasoning). | Optional cost saving | 1.1, 2.3 |
 | 18 | Where is cost computed and can it be shown live during a run? | Yes | BR-RUN-05 |
+| 20 | Will users choose the screen size (viewport) for a run, and which sizes? | No: every run is 1920×1080; `Run.viewport` exists and is shown read-only (D27) | BR-VISUAL-02 |
 | 19 | Result storage: keep Allure only as an optional export; QAI stores results in its own model (07). | Own model | 07 |

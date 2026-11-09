@@ -4,7 +4,7 @@ Implement rules as pure functions in `src/lib/` with the rule ID in a comment, a
 Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine behaviour must be confirmed (see 10).
 
 ## Status (BR-STATUS)
-- **BR-STATUS-01** Statuses: `passed`, `failed` (the app did not meet the expected result), `couldnt_complete` (no verdict: system, AI or environment problem), `not_run` (deselected, stopped, interrupted, or never executed).
+- **BR-STATUS-01** Statuses: `passed`, `failed` (the app did not meet the expected result), `couldnt_complete` (no verdict: system, AI or environment problem), `not_run` (deselected, stopped, interrupted, or never executed). A test that has never run shows **Not run**, never a blank status.
 - **BR-STATUS-02** Pass rate = passed / (passed + failed). `couldnt_complete` and `not_run` are excluded and shown separately.
 - **BR-STATUS-03** Multi-browser roll-up for one result: failed if any browser failed; else couldnt_complete if any couldn't complete; else passed if all passed; else not_run. Show a per-browser breakdown. Label WebKit as "Safari (WebKit)".
 - **BR-STATUS-04** Data rows roll-up: passed only if every row met its expectation; show "k/n rows".
@@ -16,7 +16,10 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 - **BR-REASON-02** Reasons for `couldnt_complete`: Environment down · QAI or AI service · AI couldn't finish.
 - **BR-REASON-03** Every failed/couldnt_complete result has exactly one reason, set by the system; users cannot edit it (they can override the status).
 - **BR-REASON-04** Each reason has one recommended action (see 04 · F5) shown in the result detail.
-- **BR-REASON-05** Product bug vs Needs confirmation: Product bug only when a linked document (or an explicit expected result) supports the expectation; otherwise Needs confirmation. [DEV-CONFIRM detection]
+- **BR-REASON-05** Product bug vs Needs confirmation (changed: D28):
+  - **Product bug**: the app is clearly broken (error, crash, missing element, wrong data), **or** a linked document confirms the expectation.
+  - **Needs confirmation**: the app behaves consistently but differently from the test, and no linked document confirms which is right.
+  [DEV-CONFIRM detection]
 - **BR-REASON-06** A low-confidence verdict gets a "Low confidence" note and counts as Worth a look [PROPOSAL].
 
 ## Runs (BR-RUN)
@@ -83,7 +86,7 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 - **BR-EXPLORE-02** One active AI turn per chat. Leaving the workspace does not stop it; the chat shows a "Running" badge.
 - **BR-EXPLORE-03** Proposed tests carry a validation badge: Validated · Likely bug · Needs attention. Needs attention is unticked by default.
 - **BR-EXPLORE-04** Duplicates (similar to an existing test) are resolved inline per proposed test: Keep both · Replace existing · Skip.
-- **BR-EXPLORE-05** "Add N tests to Suites" is the only approval. Added tests go to **Not in a suite**, marked New; Likely bug tests start with status Failed / Product bug (unconfirmed).
+- **BR-EXPLORE-05** "Add N tests to Suites" is the only approval, and it approves **each test once**, not the whole card (D30). Decided proposals record an outcome (added / replaced / skipped); unticked proposals stay **pending** (no outcome) and can be added later with "Add N more tests to Suites". Added tests go to **Not in a suite**, marked New. A status only comes from a run, so Likely bug tests start **Not run** with a **"Likely bug" badge** (same pattern as New) in Suites and the test detail: tooltip "Found during AI explore, not yet confirmed by a run" and a link "View in AI explore" that opens the chat at its tests-ready message. The badge disappears after the test's first real run. It never counts as failed (pass rate, Overview, suite counts). Stored as `TestCase.aiExploreFinding` (07). (Changed: D25.)
 - **BR-EXPLORE-06** Validated tests keep their generated script, so their first run can replay. [DEV-CONFIRM script format]
 
 ## Results actions (BR-ACTION)

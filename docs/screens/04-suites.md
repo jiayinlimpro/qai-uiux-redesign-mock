@@ -7,13 +7,13 @@
 ### Left: list
 - Header: "Suites" · New test · Import · (when selection) **Move to suite… · Clone · Run N selected** (primary).
 - Search (ID or title) · Latest status filter (All / Passed / Failed / Couldn't complete / Not run) · count text · Clear filters.
-- Tree: suite rows (checkbox selects visible tests, expand/collapse arrow, name, "<n> tests"); test rows (checkbox, ID, title, **New** badge if applicable, **status dot** with text label for screen readers and tooltip).
+- Tree: suite rows (checkbox selects visible tests, expand/collapse arrow, name, "<n> tests"); test rows (checkbox, ID, title, **New** badge if applicable, **Likely bug** badge if applicable (BR-EXPLORE-05), **status dot** with text label for screen readers and tooltip).
 - "Not in a suite" group last (tests from AI explore or imports without category).
 - With a filter active, suites with matches auto-expand and show "<n> match".
 Status dot colours: passed green, failed orange-red, couldn't complete amber, not run hollow grey ring.
 
 ### Right: test detail
-- Breadcrumb "<suite> › <ID>", title, chips: version (vN), Source (CSV import / Written / AI explore), Script (recorded / none yet / none: last AI run failed / reset after edit).
+- Breadcrumb "<suite> › <ID>", title, chips: version (vN), Source (CSV import / Written / AI explore), Script (recorded / none yet / none: last AI run failed / reset after edit). **Likely bug** badge until the test's first run, with tooltip "Found during AI explore, not yet confirmed by a run" and link "View in AI explore" (BR-EXPLORE-05).
 - Actions: Run (primary) · Edit · Clone · More (Move to suite, Mark known issue, Delete).
 - **Latest strip** (one line): "Latest" + status chip + reason chip + "Run #12 · UAT · Chrome · 16 Oct" + **Open result** link. (No full result here.)
 - Tabs:

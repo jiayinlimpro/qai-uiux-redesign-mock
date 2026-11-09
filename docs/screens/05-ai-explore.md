@@ -9,6 +9,7 @@
 **Conversation elements**
 - User messages; AI messages; **plan summary card** ("2 suites · 5 scenarios · View plan"; "Explored 4 pages on UAT · used: <knowledge items>").
 - **Tests ready card**: header "<n> tests ready · Created and validated"; one row per proposed test: checkbox · title · validation badge (Validated / Likely bug / Needs attention) · duplicate warning with inline Keep both / Replace existing / Skip · **View** (preview of steps and expected result in a side sheet). Needs attention unticked by default. Footer note "Ticked tests go to Suites under Not in a suite, marked New." Primary button **Add N tests to Suites** (N = ticked) → navigate to 3.1.
+  After Add, each decided proposal stores its outcome (`Proposal.outcome`, D29) and its row shows it instead of the checkbox: **Added as T-01** · **Replaced CNT-02** (duplicate resolved with Replace existing) · **Skipped** (duplicate resolved with Skip). Unticked proposals stay **pending** (no outcome): they keep their checkbox and can still be added. While any are pending, the button reads **Add N more tests to Suites** (N = ticked pending); when none are pending, the button is hidden (D30). Display built in Slice 8.
 - Composer: message textarea · starter chips (Explore · Plan from documents · Create tests) · knowledge chip ("Knowledge: n items") · Attach · Send.
 
 **Not built now** [PARKED]: environment selector, working state with Stop and live progress, plan checklist before creating tests, guided next-step buttons, context launches from suites/documents.

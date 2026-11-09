@@ -40,6 +40,8 @@
 Replaces the whole window: header `← Back to project · AI explore · <project name>`; left = chat list of this project; right = chat. No project sidebar.
 
 ## Screens and routes
+**Hash addresses** (D26): every route below is served after `#`, e.g. `#/p/:projectId/suites`, so the app works in the browser and when Electron loads it as a local file, with no extra setup. All route paths are defined in one file (`src/app/routes.ts`) and every link is built from it, never written as a string, so switching to normal addresses later is a one-line change.
+
 | ID | Screen | Route | Doc |
 |---|---|---|---|
 | 1.1 | Welcome setup (first launch only) | `/welcome` | screens/01-global.md |
@@ -77,4 +79,5 @@ Replaces the whole window: header `← Back to project · AI explore · <project
 | Overview | Resume | Paused/Interrupted run |
 | Overview | "Organise in Suites" | Suites, "Not in a suite" expanded |
 | AI explore | "Add N tests to Suites" | Suites, "Not in a suite" expanded, new tests highlighted |
+| Suites › test with "Likely bug" badge | "View in AI explore" | AI explore chat, scrolled to its tests-ready message: `explore/:chatId?message=<index>` (BR-EXPLORE-05) |
 | Any test/suite selection | Run | Run dialog → Live run |
