@@ -25,6 +25,7 @@
 
 ## 6.2 Visual compare (overlay)
 Header: "<ID> · Run #12 · Chrome 1920×1080" · "Step k of n · <step>" · Previous step / Next step / Close. Chip "<n> areas changed since the previous run". Two panels: **Previous run · Run #11** and **This run · Run #12** (changed areas outlined). (Third panel "Pinned reference" only if pinned — PARKED.) Footer note "A visual change is a flag, never a failure. Ignored areas are not compared." Actions: Mark as bug (→ 6.4) · Ignore an area… · **Looks fine** (dismisses the flag).
+**Drawing ignore areas** (D45): Ignore an area… draws the area on this step's screenshot. Suites › Visual check › **Add area** opens this view on the chosen step for the same purpose; until drawn, an area shows "Not drawn yet" there.
 
 ## 6.3 Override (dialog, 720 px)
 AI verdict (kept for audit) chips · New status radio Passed/Failed · Reason (required textarea) · Proof (required: drop or choose a file) · note "The result shows 'Overridden by <user>' with your reason and proof. The pass rate uses the new status." · Cancel / Save override (disabled until reason + proof).

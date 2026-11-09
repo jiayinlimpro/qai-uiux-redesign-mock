@@ -305,3 +305,13 @@ describe('BR-ENV-04 run environment snapshot', () => {
     expect(run(7).environment).toMatchObject({ name: 'Prod', apps: [{ name: 'Customer website', url: 'https://www.qcfixer.com' }, { name: 'Admin portal', url: null }] });
   });
 });
+
+describe('D46 result test snapshots', () => {
+  it('every result records the display ID and title the test had when it ran', () => {
+    for (const r of db.results) {
+      const t = db.tests.find((x) => x.id === r.testId)!;
+      expect(r.testSnapshot.testId).toBe(t.testId);
+      expect(typeof r.testSnapshot.title).toBe('string');
+    }
+  });
+});

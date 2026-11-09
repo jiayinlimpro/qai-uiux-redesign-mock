@@ -31,7 +31,7 @@ import { snapshotEnvironment } from '@/lib/runRules';
 import { modeFor } from '@/lib/runRules';
 import { sumCost } from '@/lib/status';
 
-export const SEED_VERSION = 6;
+export const SEED_VERSION = 7;
 
 export interface MockDb {
   seedVersion: number;
@@ -316,6 +316,7 @@ function simulateRun(spec: RunSpec): void {
       id: resultKey(spec.number, displayId),
       runId: runKey(spec.number),
       testId: t.id,
+      testSnapshot: { testId: t.testId, title: t.title }, // D46
       testVersion: t.version,
       mode,
       status: o.status,
@@ -491,10 +492,11 @@ simulateRun({
 });
 
 // After reviewing #12: ignore areas on NAV-01, and CNT-03 becomes data-driven (v3, script reset).
+// Drawn on the screenshot in Visual compare (rect = share of the screenshot, D45).
 T('NAV-01').visual.ignoreAreas = [
-  { id: 'ia-nav01-1', stepIndex: 2, label: 'Hero rotating word' },
-  { id: 'ia-nav01-2', stepIndex: 2, label: 'Statistics counters' },
-  { id: 'ia-nav01-3', stepIndex: 2, label: 'Team carousel' },
+  { id: 'ia-nav01-1', stepIndex: 2, label: 'Hero rotating word', rect: { x: 0.18, y: 0.3, width: 0.32, height: 0.08 } },
+  { id: 'ia-nav01-2', stepIndex: 2, label: 'Statistics counters', rect: { x: 0.1, y: 0.62, width: 0.8, height: 0.12 } },
+  { id: 'ia-nav01-3', stepIndex: 2, label: 'Team carousel', rect: { x: 0.05, y: 0.8, width: 0.9, height: 0.15 } },
 ];
 editTest('CNT-03', '2026-11-03T15:00:00.000Z', (t) => {
   t.steps = [

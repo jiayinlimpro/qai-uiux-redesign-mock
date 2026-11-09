@@ -15,7 +15,7 @@ import { GlobalSettingsScreen } from '@/screens/2-3-global-settings/GlobalSettin
 import { OverviewScreen } from '@/screens/1-4-overview/OverviewScreen';
 import { KnowledgeScreen } from '@/screens/2-1-knowledge/KnowledgeScreen';
 import { ProjectSettingsScreen } from '@/screens/2-2-project-settings/ProjectSettingsScreen';
-import { SuitesScreen } from '@/screens/3-1-suites/SuitesScreen';
+import { NoTestSelected, SuitesScreen } from '@/screens/3-1-suites/SuitesScreen';
 import { TestDetail } from '@/screens/3-1-suites/TestDetail';
 import { EditTestScreen } from '@/screens/3-2-edit-test/EditTestScreen';
 import { ImportDialog } from '@/screens/3-3-import/ImportDialog';
@@ -56,6 +56,7 @@ const screens: RouteObject[] = [
         element: <SuitesScreen />,
         handle: handle({ section: 'suites' }),
         children: [
+          { index: true, element: <NoTestSelected /> },
           { path: paths.importTests, element: <ImportDialog /> },
           { path: paths.suiteTest, element: <TestDetail /> },
         ],

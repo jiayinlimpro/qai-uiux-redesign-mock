@@ -1,8 +1,9 @@
 import { useSearchParams } from 'react-router-dom';
 import type { Run } from '@/data/types';
-import { listResults } from '@/data/api';
+import { listResults, listTests } from '@/data/api';
 import { AsyncPlaceholderLinks, PlaceholderScreen } from '@/components/PlaceholderScreen';
 import { to } from '@/app/routes';
+import { resultTestLabel } from '@/lib/suiteRules';
 
 /** 6.1 Run results + result detail: run route when Completed, `?result=` selects a result (screens/07-results.md). Built in Slice 7. */
 export function RunResultsScreen({ run }: { run: Run }) {
@@ -16,13 +17,21 @@ export function RunResultsScreen({ run }: { run: Run }) {
     >
       <AsyncPlaceholderLinks
         what="results"
-        load={() => listResults(run.id)}
+        load={async () => {
+          const [results, tests] = await Promise.all([listResults(run.id), listTests(run.projectId)]);
+          return { results, testsById: new Map(tests.map((t) => [t.id, t])) };
+        }}
         deps={[run.id]}
-        toLinks={(results) =>
-          results.slice(0, 3).flatMap((r) => [
-            { label: `Select result ${r.id}`, to: to.run(run.projectId, run.id, r.id) },
-            { label: `Open test of ${r.id}`, to: to.suiteTest(run.projectId, r.testId) },
-          ])
+        toLinks={({ results, testsById }) =>
+          results.slice(0, 4).flatMap((r) => {
+            // Current display ID while the test exists; the snapshot from the run once it is deleted (D46).
+            const label = resultTestLabel(r, testsById);
+            const name = `${label.testId} ${label.title}${label.deleted ? ' (deleted)' : ''}`;
+            return [
+              { label: `Select result: ${name}`, to: to.run(run.projectId, run.id, r.id) },
+              ...(label.deleted ? [] : [{ label: `Open test ${label.testId}`, to: to.suiteTest(run.projectId, r.testId) }]),
+            ];
+          })
         }
       />
     </PlaceholderScreen>

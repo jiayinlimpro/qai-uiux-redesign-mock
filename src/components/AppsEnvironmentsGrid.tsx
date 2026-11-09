@@ -56,7 +56,7 @@ export function AppsEnvironmentsGrid({ value, onChange, errors, heading, confirm
           </Button>
         </div>
       </div>
-      <div className="overflow-x-auto rounded-card border border-border">
+      <div className="relative overflow-x-auto rounded-card border border-border">
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-border">

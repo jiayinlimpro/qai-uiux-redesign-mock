@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { buttonClasses } from './button';
+import { buttonClasses, type ButtonVariant } from './button';
 import { cn } from '@/lib/utils';
 
 export interface MenuItem {
@@ -12,7 +12,7 @@ export interface MenuItem {
  * "More" button that reveals a short list of actions (disclosure pattern: plain buttons in a popup).
  * Escape or a click outside closes it and returns focus to the trigger.
  */
-export function Menu({ label, accessibleLabel, items }: { label: ReactNode; accessibleLabel?: string; items: MenuItem[] }) {
+export function Menu({ label, accessibleLabel, items, variant = 'secondary' }: { label: ReactNode; accessibleLabel?: string; items: MenuItem[]; variant?: ButtonVariant }) {
   const [open, setOpen] = useState(false);
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -47,7 +47,7 @@ export function Menu({ label, accessibleLabel, items }: { label: ReactNode; acce
         aria-controls={id}
         aria-label={accessibleLabel}
         onClick={() => setOpen((o) => !o)}
-        className={buttonClasses({ size: 'sm' })}
+        className={buttonClasses({ size: 'sm', variant })}
       >
         {label}
       </button>

@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 /** Plain semantic table inside a card. */
 export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="overflow-x-auto rounded-card border border-border bg-surface">
+    <div className="relative overflow-x-auto rounded-card border border-border bg-surface">
       <table className={cn('w-full border-collapse text-left text-base', className)} {...props} />
     </div>
   );

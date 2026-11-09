@@ -23,12 +23,15 @@ import type {
   Status,
   Suite,
   TestCase,
+  TestData,
 } from './types';
 import { delay, getDb, mutate, replaceDb } from './mock/store';
 import { createSeed, type MockDb } from './mock/seed';
 import { copyName, isProjectNameTaken, uniqueProjectName } from '@/lib/projectRules';
 import { canRemoveProvider, projectsToSwitch } from '@/lib/providers';
 import { duplicateAccount } from '@/lib/knowledge';
+import { changeEffect, cloneTestCase, idAfterMove, matchesFilters, nextTestId, prefixOf, validateSuite } from '@/lib/suiteRules';
+import { suggestRows, type Technique } from './mock/suggestRows';
 
 export class NotFoundError extends Error {
   constructor(what: string, id: ID) {
@@ -537,41 +540,213 @@ export async function deleteKnowledge(itemId: ID): Promise<void> {
 export async function listSuites(projectId: ID): Promise<Suite[]> {
   return respond(() => getDb().suites.filter((s) => s.projectId === projectId));
 }
-export async function createSuite(_projectId: ID, _name: string, _idPrefix: string): Promise<Suite> {
-  return notBuilt('createSuite', 4);
-}
-export async function renameSuite(_suiteId: ID, _name: string): Promise<Suite> {
-  return notBuilt('renameSuite', 4);
-}
-export async function listTests(projectId: ID, filters: TestListFilters = {}): Promise<TestCase[]> {
-  if (filters.latestStatus) return notBuilt('listTests (latestStatus filter)', 4);
-  const q = filters.search?.trim().toLowerCase();
-  return respond(() =>
-    getDb().tests.filter(
-      (t) => t.projectId === projectId && (!q || t.testId.toLowerCase().includes(q) || t.title.toLowerCase().includes(q)),
-    ),
+/** BR-SUITE-01: name and ID prefix validated (unique; prefix 1–6 capitals/digits, not "T"). Shape to confirm. */
+export async function createSuite(projectId: ID, name: string, idPrefix: string): Promise<Suite> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const errors = validateSuite({ name, idPrefix }, db.suites.filter((s) => s.projectId === projectId));
+      if (errors.name || errors.idPrefix) throw new InvalidSuiteError(errors);
+      const suite: Suite = { id: newId('suite'), projectId, name: name.trim(), idPrefix: idPrefix.trim() };
+      db.suites.push(suite);
+      return suite;
+    }),
   );
+}
+/** Rename a suite and/or change its prefix. Existing test IDs are kept; the prefix applies to new IDs (D43). */
+export async function renameSuite(suiteId: ID, name: string, idPrefix: string): Promise<Suite> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const suite = find(db.suites, suiteId, 'Suite');
+      const errors = validateSuite({ name, idPrefix }, db.suites.filter((s) => s.projectId === suite.projectId), suiteId);
+      if (errors.name || errors.idPrefix) throw new InvalidSuiteError(errors);
+      suite.name = name.trim();
+      suite.idPrefix = idPrefix.trim();
+      return suite;
+    }),
+  );
+}
+/** BR-SUITE-02: only an empty suite can be deleted ("Move or delete its tests first."). */
+export async function deleteSuite(suiteId: ID): Promise<void> {
+  await delay();
+  mutate((db) => {
+    find(db.suites, suiteId, 'Suite');
+    if (db.tests.some((t) => t.suiteId === suiteId)) throw new SuiteNotEmptyError();
+    db.suites = db.suites.filter((s) => s.id !== suiteId);
+  });
+}
+export class InvalidSuiteError extends Error {
+  constructor(public errors: { name?: string; idPrefix?: string }) {
+    super(errors.name ?? errors.idPrefix ?? 'Invalid suite');
+    this.name = 'InvalidSuiteError';
+  }
+}
+export class SuiteNotEmptyError extends Error {
+  constructor() {
+    super('Move or delete its tests first.');
+    this.name = 'SuiteNotEmptyError';
+  }
+}
+
+export async function listTests(projectId: ID, filters: TestListFilters = {}): Promise<TestCase[]> {
+  await delay();
+  const db = getDb();
+  const latest = latestResultsOf(db, projectId);
+  const f = { search: filters.search ?? '', status: filters.latestStatus ?? ('all' as const) };
+  return structuredClone(db.tests.filter((t) => t.projectId === projectId && matchesFilters(t, latest[t.id]?.status ?? 'not_run', f)));
 }
 export async function getTest(testId: ID): Promise<TestCase> {
   return respond(() => find(getDb().tests, testId, 'Test'));
 }
-export async function saveTest(_test: TestCase, _opts: { reason: 'edit' }): Promise<TestCase> {
-  return notBuilt('saveTest', 5);
+/**
+ * Saves a test. The data layer decides version and script from what changed (BR-VERSION-01, BR-SCRIPT-02, BR-DATA-07):
+ * callers never set `version` or `script`. Test ID unique within the project (BR-TEST-01); steps required (BR-TEST-02).
+ */
+export async function saveTest(test: TestCase): Promise<TestCase> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const before = find(db.tests, test.id, 'Test');
+      if (test.steps.every((s) => !s.trim())) throw new Error('A test needs at least one step.');
+      if (db.tests.some((t) => t.projectId === test.projectId && t.id !== test.id && t.testId.toLowerCase() === test.testId.trim().toLowerCase())) {
+        throw new DuplicateTestIdError(test.testId.trim());
+      }
+      const effect = changeEffect(before, test);
+      const next: TestCase = {
+        ...structuredClone(test),
+        testId: test.testId.trim(),
+        title: test.title.trim() || (test.steps[0] ?? '').slice(0, 40), // BR-TEST-02
+        version: before.version + (effect.bumpVersion ? 1 : 0),
+        script: effect.resetScript && before.script.state === 'recorded' ? { state: 'reset' } : before.script,
+        updatedAt: effect.bumpVersion ? new Date().toISOString() : before.updatedAt,
+      };
+      db.tests = db.tests.map((t) => (t.id === next.id ? next : t));
+      return next;
+    }),
+  );
 }
-export async function cloneTests(_testIds: ID[]): Promise<TestCase[]> {
-  return notBuilt('cloneTests', 4);
+export class DuplicateTestIdError extends Error {
+  constructor(public testId: string) {
+    super(`Another test already uses the ID ${testId}.`);
+    this.name = 'DuplicateTestIdError';
+  }
 }
-export async function moveTests(_testIds: ID[], _suiteId: ID | null): Promise<TestCase[]> {
-  return notBuilt('moveTests', 4);
+/** BR-CLONE: copies get the next IDs of their suite's prefix and the same title. Returned in the order given. */
+export async function cloneTests(testIds: ID[]): Promise<TestCase[]> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const now = new Date().toISOString();
+      return testIds.map((id) => {
+        const original = find(db.tests, id, 'Test');
+        const suite = original.suiteId ? find(db.suites, original.suiteId, 'Suite') : null;
+        const taken = db.tests.filter((t) => t.projectId === original.projectId).map((t) => t.testId);
+        const copy = cloneTestCase(original, newId('t'), nextTestId(prefixOf(suite), taken), now);
+        db.tests.push(copy);
+        return copy;
+      });
+    }),
+  );
 }
-export async function deleteTests(_testIds: ID[]): Promise<void> {
-  return notBuilt('deleteTests', 4);
+/** Moves tests to a suite or to Not in a suite (null). T- tests get the destination prefix (BR-TEST-05). No version change. */
+export async function moveTests(testIds: ID[], suiteId: ID | null): Promise<TestCase[]> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const suite = suiteId ? find(db.suites, suiteId, 'Suite') : null;
+      return testIds.map((id) => {
+        const t = find(db.tests, id, 'Test');
+        const taken = db.tests.filter((x) => x.projectId === t.projectId && x.id !== t.id).map((x) => x.testId);
+        t.testId = idAfterMove(t, suite, taken);
+        t.suiteId = suiteId;
+        return t;
+      });
+    }),
+  );
 }
-export async function getLatestResult(_testId: ID): Promise<Result | null> {
-  return notBuilt('getLatestResult', 4);
+/**
+ * Deletes tests and returns them (for Undo). Their past results stay in their runs and keep showing the test through
+ * the result's snapshot (BR-TEST-06). Knowledge scoped to a deleted test keeps its scope, so Undo restores everything.
+ */
+export async function deleteTests(testIds: ID[]): Promise<TestCase[]> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const ids = new Set(testIds);
+      const removed = db.tests.filter((t) => ids.has(t.id));
+      db.tests = db.tests.filter((t) => !ids.has(t.id));
+      return removed;
+    }),
+  );
 }
-export async function getTestHistory(_testId: ID): Promise<Result[]> {
-  return notBuilt('getTestHistory', 4);
+/** Undo of deleteTests: puts the tests back as they were. A display ID taken meanwhile gets the next free one. Shape to confirm. */
+export async function restoreTests(tests: TestCase[]): Promise<TestCase[]> {
+  await delay();
+  return structuredClone(
+    mutate((db) =>
+      tests.map((t) => {
+        if (db.tests.some((x) => x.id === t.id)) return find(db.tests, t.id, 'Test');
+        const suite = t.suiteId ? (db.suites.find((x) => x.id === t.suiteId) ?? null) : null;
+        const taken = db.tests.filter((x) => x.projectId === t.projectId).map((x) => x.testId);
+        const restored: TestCase = {
+          ...structuredClone(t),
+          suiteId: suite ? suite.id : null,
+          testId: taken.some((id) => id.toLowerCase() === t.testId.toLowerCase()) ? nextTestId(prefixOf(suite), taken) : t.testId,
+        };
+        db.tests.push(restored);
+        return restored;
+      }),
+    ),
+  );
+}
+/** Latest result of every test in the project, by test id (BR-STATUS-01: highest run number). Tests never run are absent. Shape to confirm. */
+export async function listLatestResults(projectId: ID): Promise<Record<ID, Result>> {
+  return respond(() => latestResultsOf(getDb(), projectId));
+}
+export async function getLatestResult(testId: ID): Promise<Result | null> {
+  return respond(() => {
+    const db = getDb();
+    const t = find(db.tests, testId, 'Test');
+    return latestResultsOf(db, t.projectId)[testId] ?? null;
+  });
+}
+/** Every result of a test, newest run first. */
+export async function getTestHistory(testId: ID): Promise<Result[]> {
+  return respond(() => {
+    const db = getDb();
+    const number = new Map(db.runs.map((r) => [r.id, r.number]));
+    return db.results.filter((r) => r.testId === testId).sort((a, b) => (number.get(b.runId) ?? 0) - (number.get(a.runId) ?? 0));
+  });
+}
+function latestResultsOf(db: MockDb, projectId: ID): Record<ID, Result> {
+  const number = new Map(db.runs.filter((r) => r.projectId === projectId).map((r) => [r.id, r.number]));
+  const out: Record<ID, Result> = {};
+  for (const r of db.results) {
+    const n = number.get(r.runId);
+    if (n === undefined) continue;
+    const prev = out[r.testId];
+    if (!prev || n > (number.get(prev.runId) ?? 0)) out[r.testId] = r;
+  }
+  return out;
+}
+/**
+ * Suggest test data rows (BR-DATA-06), simulated AI. Uses the linked FRS if the test has one in scope, else the hint.
+ * Returns new rows (generated: true) for the caller's draft; nothing is saved. Shape to confirm.
+ */
+export async function suggestTestDataRows(testId: ID, techniques: Technique[], hint?: string): Promise<{ rows: Omit<TestData['rows'][number], 'index'>[]; basedOn: string | null }> {
+  await delay();
+  await delay(); // AI takes a moment
+  const db = getDb();
+  const test = find(db.tests, testId, 'Test');
+  if (!test.testData) return { rows: [], basedOn: null };
+  const frs = db.knowledge.find(
+    (k) =>
+      k.projectId === test.projectId &&
+      k.docType === 'frs' &&
+      (test.linkedKnowledge.includes(k.id) || (k.scope.kind === 'suite' && k.scope.suiteId === test.suiteId) || (k.scope.kind === 'test' && k.scope.testId === test.id)),
+  );
+  return structuredClone({ rows: suggestRows(test.testData, techniques, () => newId('row')), basedOn: frs?.name ?? (hint?.trim() ? 'your hint' : null) });
 }
 
 // ---------- import ----------

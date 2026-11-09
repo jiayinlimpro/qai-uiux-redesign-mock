@@ -34,10 +34,12 @@ export interface TestCase { id: ID; projectId: ID; suiteId: ID | null;          
   linkedKnowledge: ID[];
   testData?: TestData;
   version: number; source: 'import'|'written'|'ai_explore'|'clone';
+  clonedFromId?: ID;             // source 'clone': the original (internal id), shown as "Clone of <ID>"; not used for ordering (D41)
   isNew: boolean;                // BR-TEST-04
   aiExploreFinding?: { kind: 'likely_bug'; chatId: ID; messageIndex: number }; // BR-EXPLORE-05: badge until the test's first run
   script: { state: 'none'|'recorded'|'reset'|'failed_ai'; fromRunId?: ID };
-  visual: { excluded: boolean; ignoreAreas: { id: ID; stepIndex: number; label: string }[] };
+  visual: { excluded: boolean; ignoreAreas: { id: ID; stepIndex: number; label: string;
+    rect?: { x: number; y: number; width: number; height: number } }[] };   // rect: share of the screenshot (0–1); absent = "Not drawn yet" (D45)
   knownIssue?: { note?: string; ticketRef?: string; markedAt: string };
   createdAt: string; updatedAt: string }
 export interface TestData { fields: { name: string; type: 'text'|'select'|'checkbox'|'date'; options?: string[] }[];
@@ -63,6 +65,7 @@ export interface Run { id: ID; projectId: ID; number: number; environmentId: ID;
   pauseReason?: 'app_closed'|'provider_unavailable'|'environment_unresponsive'|'preflight_blocked';
   startedAt: string; finishedAt?: string; durationMs?: number; cost: number }
 export interface Result { id: ID; runId: ID; testId: ID; testVersion: number; mode: Mode;
+  testSnapshot: { testId: string; title: string };   // display ID + title when it ran; shown if the test is deleted (D46)
   status: Status;                       // effective status (after override)
   reason?: FailReason | CcReason;
   aiVerdict: { status: Status; reason?: FailReason | CcReason; confidence: 'high'|'medium'|'low' };

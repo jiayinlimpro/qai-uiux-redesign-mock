@@ -29,8 +29,9 @@ export function Dialog({ title, onClose, children, footer, size = 'md', onSubmit
     // Remember the trigger ourselves: route dialogs mount after navigation, when the browser's own record may be gone.
     const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (!el.open) el.showModal();
-    // First field gets focus (else the first button), so typing can start right away.
+    // A marked default ([data-autofocus]) gets focus, else the first field, else the first button.
     const first =
+      el.querySelector<HTMLElement>('[data-autofocus]') ??
       el.querySelector<HTMLElement>('input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled])') ??
       el.querySelector<HTMLElement>('button:not([disabled])');
     first?.focus();

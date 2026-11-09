@@ -8,11 +8,15 @@ export interface ConfirmOptions {
   confirmLabel: string;
   /** Destructive actions use the danger button. */
   danger?: boolean;
+  /** Label of the "no" button (default "Cancel"). */
+  cancelLabel?: string;
+  /** Focus the confirm button, so Enter accepts the default (e.g. "Also update rows?" defaults to Yes). */
+  focusConfirm?: boolean;
 }
 
 /**
  * Awaitable confirmation: `if (await confirm({...})) …`. Render `dialog` once in the component.
- * Cancel, Close and Escape resolve false.
+ * Cancel (or cancelLabel), Close and Escape resolve false.
  */
 export function useConfirm(): [(opts: ConfirmOptions) => Promise<boolean>, ReactNode] {
   const [opts, setOpts] = useState<ConfirmOptions | null>(null);
@@ -38,8 +42,8 @@ export function useConfirm(): [(opts: ConfirmOptions) => Promise<boolean>, React
       onClose={() => finish(false)}
       footer={
         <>
-          <Button onClick={() => finish(false)}>Cancel</Button>
-          <Button variant={opts.danger ? 'danger' : 'primary'} onClick={() => finish(true)}>
+          <Button onClick={() => finish(false)}>{opts.cancelLabel ?? 'Cancel'}</Button>
+          <Button variant={opts.danger ? 'danger' : 'primary'} onClick={() => finish(true)} {...(opts.focusConfirm ? { 'data-autofocus': true } : {})}>
             {opts.confirmLabel}
           </Button>
         </>

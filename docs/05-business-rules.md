@@ -38,9 +38,9 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 
 ## Scripts and versions (BR-SCRIPT, BR-VERSION)
 - **BR-SCRIPT-01** A script is only created from a passing AI run.
-- **BR-SCRIPT-02** Editing steps, preconditions, expected result, expected keywords or test data **resets the script** (next run uses AI). Editing title, description or moving suites does not. The editor warns before saving.
+- **BR-SCRIPT-02** Editing steps, preconditions, expected result, expected keywords, test data fields, or test data row 1 (the recorded row) **resets the script** (next run uses AI). Editing title, description, linked knowledge, test data rows 2+, or moving suites does not. The editor warns before saving. (Refined: D44, see BR-DATA-07.)
 - **BR-SCRIPT-03** A script replay must verify the expected result, not only repeat actions. [DEV-CONFIRM — critical]
-- **BR-VERSION-01** Saving any change to a test's definition or test data increments its version (v1, v2…).
+- **BR-VERSION-01** Saving any change to a test's definition or test data increments its version (v1, v2…). Definition includes linked knowledge. Not a new version: "Use" on a data row, visual settings (exclude, ignore areas), known-issue marks, the New badge, moving suites. The data layer decides version and reset from what changed; callers never set them.
 - **BR-VERSION-02** Each result stores the test version it ran. Result detail shows "Ran on vN (current)" or "Ran on vN (old) · now vM".
 
 ## Test cases (BR-TEST)
@@ -48,6 +48,8 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 - **BR-TEST-02** Required: steps. Title defaults to the first 40 characters of the first step if empty.
 - **BR-TEST-03** `{name}` placeholders in steps define test data fields.
 - **BR-TEST-04** "New" badge on tests added from AI explore; cleared when the test is opened.
+- **BR-TEST-06** Deleting a test asks for confirmation listing what is affected (knowledge scoped to it, its results) and offers Undo. Its results stay in their runs; each result keeps a snapshot of the test's display ID and title, shown once the test is deleted (while it exists, the current ID and title are shown). (D46)
+- **BR-TEST-05** Moving tests to another suite keeps their IDs, except tests from Not in a suite ("T-" IDs), which get the destination prefix + next number (T-01 → CNT-05). Everything that refers to a test (AI explore outcomes, history, results) uses the internal test id, so it shows the current display ID after a move. (D42)
 
 ## Test data (BR-DATA)
 - **BR-DATA-01** Fields = placeholders in steps; types: text, select, checkbox, date. (File upload: parked.)
@@ -56,19 +58,25 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 - **BR-DATA-04** Convention shown in UI: negative rows change one field at a time; the field a row varies is highlighted.
 - **BR-DATA-05** Rejected rows pass when the flow is stopped after the data is entered (and "page shows" text is visible, if given).
 - **BR-DATA-06** Suggest rows: techniques Boundary values, Equivalence classes, Pairwise; uses linked FRS if present, else an optional hint. Regenerating replaces generated rows, keeps manual rows.
+- **BR-DATA-08** When a row-1 value changes, ask "Also update <n> rows that used the old value '<value>'?" (default Yes) so rows 2+ keep varying only their intended field; rows varying more than one field get a gentle note. (D47)
+- **BR-DATA-07** Saving test data (D44): add/remove a field or change row 1 (recorded row) → new version + script reset (reset warning shown); add/edit/delete rows 2+ or Suggest rows → new version, no script reset; toggling "Use" → no new version, no reset, saved at once. Other test data edits are a draft saved with "Save as vN+1 · Cancel".
 
 ## Visual comparison (BR-VISUAL)
 - **BR-VISUAL-01** Project setting, default on: compares screenshots of script replays only.
 - **BR-VISUAL-02** Comparison point: end of each step. Compared with the **previous replay of the same test, environment, browser and viewport**. No previous replay → "No previous run to compare".
 - **BR-VISUAL-03** A difference is a **flag**, never a failure.
-- **BR-VISUAL-04** Per test: Exclude this test; ignore areas.
+- **BR-VISUAL-04** Per test: Exclude this test; ignore areas. An ignore area is drawn on a step's screenshot (stored as a share of the screenshot); until drawn it shows "Not drawn yet" and leaves nothing out (D45).
 - **BR-VISUAL-05** Script reset (BR-SCRIPT-02) restarts visual history for that test.
 - **BR-VISUAL-06** Pin a reference: [PARKED, low priority].
+
+## Suites (BR-SUITE)
+- **BR-SUITE-01** A suite has a name (unique in the project, case-insensitive) and an ID prefix (1–6 capital letters or digits starting with a letter, unique, not "T", which is for Not in a suite). Created from "Move to suite… › New suite…" or by Import; renamed (name + prefix) from the suite row menu. Changing the prefix keeps existing test IDs; new tests use the new prefix. (D43)
+- **BR-SUITE-02** Only an empty suite can be deleted; otherwise: "Move or delete its tests first." (D43)
 
 ## Clone (BR-CLONE)
 - **BR-CLONE-01** Copies: title, description, preconditions, steps, expected result, expected keywords, start page, browser preference, test data, linked knowledge. (Linked knowledge: assumption, confirm with product owner.)
 - **BR-CLONE-02** Does not copy: script, results/history, visual history, overrides, known-issue marks. Copy starts at v1.
-- **BR-CLONE-03** Copy is placed directly after its original in the same suite (or Not in a suite), with a new ID (BR-TEST-01) and the **same title**. Naming and moving are the user's choice; no suffixes, no dialog.
+- **BR-CLONE-03** Copy is created in the same suite (or Not in a suite) with a new ID (BR-TEST-01) and the **same title**, and sorts by ID like any test (BR-LIST-01). After cloning, the copies are selected, scrolled to and highlighted. `TestCase.clonedFromId` records the original for information only (detail: "Source: Clone of <ID>"). Naming and moving are the user's choice; no suffixes, no dialog. (Changed: D41.)
 - **BR-CLONE-04** Works for one test, a selection, or a whole suite (suite checkbox + Clone).
 
 ## Import (BR-IMPORT)
