@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { listModels } from '@/data/api';
 import type { AiProvider } from '@/data/types';
+import { Button } from '@/components/ui/button';
 import { Field, Select } from '@/components/ui/field';
 import { useAsync } from '@/app/hooks/useAsync';
 import { useGlobalSettings } from '@/app/settings';
@@ -39,23 +40,30 @@ export function ProjectModelSelect({ label, hint, value, onChange, disabled }: P
   }, [value, first, onChange]);
 
   return (
-    <Field label={label} required hint={hint} error={groups.status === 'error' ? "Couldn't load the model list." : undefined}>
-      {(p) => (
-        <Select {...p} value={value} disabled={disabled || groups.status !== 'ready'} onChange={(e) => onChange(e.target.value)}>
-          {groups.status === 'loading' && <option value={value}>Loading models…</option>}
-          {groups.status === 'ready' && value && !offered.includes(value) && <option value={value}>{value} (not offered by your AI providers)</option>}
-          {groups.status === 'ready' &&
-            groups.data.map((g) => (
-              <optgroup key={g.provider.id} label={g.provider.label}>
-                {g.models.map((m) => (
-                  <option key={`${g.provider.id}-${m}`} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-        </Select>
+    <div className="flex flex-col gap-1">
+      <Field label={label} required hint={hint} error={groups.status === 'error' ? "Couldn't load the model list." : undefined}>
+        {(p) => (
+          <Select {...p} value={value} disabled={disabled || groups.status !== 'ready'} onChange={(e) => onChange(e.target.value)}>
+            {groups.status === 'loading' && <option value={value}>Loading models…</option>}
+            {groups.status === 'ready' && value && !offered.includes(value) && <option value={value}>{value} (not offered by your AI providers)</option>}
+            {groups.status === 'ready' &&
+              groups.data.map((g) => (
+                <optgroup key={g.provider.id} label={g.provider.label}>
+                  {g.models.map((m) => (
+                    <option key={`${g.provider.id}-${m}`} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+          </Select>
+        )}
+      </Field>
+      {groups.status === 'error' && (
+        <Button size="sm" className="self-start" onClick={groups.retry}>
+          Retry<span className="sr-only"> loading the model list</span>
+        </Button>
       )}
-    </Field>
+    </div>
   );
 }

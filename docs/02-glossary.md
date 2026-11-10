@@ -39,7 +39,7 @@ Use these terms exactly, in code and UI. One term = one meaning.
 ## Never use in the UI (legacy terms → new term)
 | Legacy | Use instead |
 |---|---|
-| Upload / task file / task | Import / test case |
+| Upload (of test files) / task file / task | Import / test case. (Knowledge documents keep "Upload", screens/03-knowledge.md; D69) |
 | Copilot Mode TRUE/FALSE | Run mode (AI run / Script replay), "Force AI" |
 | Openworld, Planner, Generator, Healer | AI explore (agents are invisible) |
 | Artifacts | (not shown; plans/files live inside a chat) |

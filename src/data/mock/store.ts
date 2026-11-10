@@ -53,13 +53,41 @@ export function resetMockDb(): void {
 }
 
 // ---------- simulated latency (07: 200–500 ms) ----------
-let latency = { min: 200, max: 500 };
+/** Dev helpers (latency, failure) survive a reload in this tab, so app-start loading and error states can be checked too. */
+function session(): Storage | null {
+  try {
+    return typeof sessionStorage === 'undefined' ? null : sessionStorage;
+  } catch {
+    return null;
+  }
+}
+const savedLatency = session()?.getItem('qai.mockLatency');
+let latency: { min: number; max: number } = savedLatency ? (JSON.parse(savedLatency) as { min: number; max: number }) : { min: 200, max: 500 };
 
 export function setMockLatency(min: number, max: number = min): void {
   latency = { min, max };
+  session()?.setItem('qai.mockLatency', JSON.stringify(latency));
+}
+
+// ---------- simulated failure (prototype checks of every screen's error state, CLAUDE.md rule 6) ----------
+let failing = session()?.getItem('qai.mockFailure') === 'true';
+
+/** Dev/test helper: while on, every data-layer call that waits for latency fails like a lost connection. */
+export function setMockFailure(on: boolean): void {
+  failing = on;
+  if (on) session()?.setItem('qai.mockFailure', 'true');
+  else session()?.removeItem('qai.mockFailure');
+}
+
+export class SimulatedFailureError extends Error {
+  constructor() {
+    super('The data could not be loaded (simulated failure).');
+    this.name = 'SimulatedFailureError';
+  }
 }
 
 export function delay(): Promise<void> {
+  if (failing) return Promise.reject(new SimulatedFailureError());
   const ms = latency.min + Math.random() * (latency.max - latency.min);
   return ms <= 0 ? Promise.resolve() : new Promise((resolve) => setTimeout(resolve, ms));
 }

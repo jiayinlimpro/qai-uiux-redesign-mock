@@ -131,7 +131,7 @@ export function ImportDialog() {
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border p-4">
             <div>
               <p className="font-semibold">Use the QAI template</p>
-              <p className="text-label font-normal text-text-muted">Fill your test cases into the template first, then upload. CSV or Excel (first sheet).</p>
+              <p className="text-label font-normal text-text-muted">Fill your test cases into the template first, then import it. CSV or Excel (first sheet).</p>
             </div>
             <Button size="sm" onClick={() => void template()}>
               Download template
