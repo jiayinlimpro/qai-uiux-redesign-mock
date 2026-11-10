@@ -9,8 +9,10 @@ interface DialogProps {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
-  /** 'md' = 720 px (forms), 'sm' = 480 px (confirmations), 'lg' = 1200 px (overlays such as Visual compare). 08: dialogs 720–820 px. */
-  size?: 'sm' | 'md' | 'lg';
+  /** 'md' = 720 px (forms), 'sm' = 480 px (confirmations), 'lg' = 1200 px (overlays such as Visual compare), 'xl' = 78% × 80% of the screen (Ready for Suites). 08: dialogs 720–820 px. */
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  /** Close on a click outside the dialog (on the backdrop). The caller's onClose decides (e.g. ask first). */
+  closeOnBackdrop?: boolean;
   /** Wraps body + footer in a form so Enter submits. */
   onSubmit?: () => void;
 }
@@ -19,7 +21,7 @@ interface DialogProps {
  * Modal dialog on the native <dialog> element: focus moves in, stays in, returns to the trigger on close,
  * Escape closes, and the page behind is inert.
  */
-export function Dialog({ title, onClose, children, footer, size = 'md', onSubmit }: DialogProps) {
+export function Dialog({ title, onClose, children, footer, size = 'md', onSubmit, closeOnBackdrop }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -52,13 +54,17 @@ export function Dialog({ title, onClose, children, footer, size = 'md', onSubmit
     <dialog
       ref={ref}
       aria-labelledby={titleId}
+      onClick={(e) => {
+        // The dialog element itself is only hit outside its content box, i.e. on the backdrop.
+        if (closeOnBackdrop && e.target === e.currentTarget) onClose();
+      }}
       onCancel={(e) => {
         e.preventDefault(); // Escape: let the caller close (keeps React in charge of state)
         onClose();
       }}
       className={cn(
         'max-h-[85vh] w-[calc(100%-2rem)] flex-col rounded-card border border-border bg-surface p-0 text-text shadow-xl backdrop:bg-backdrop open:flex',
-        size === 'lg' ? 'max-w-[1200px]' : size === 'md' ? 'max-w-[720px]' : 'max-w-[480px]',
+        size === 'xl' ? 'h-[80vh] max-h-[80vh] w-[78vw] max-w-[78vw]' : size === 'lg' ? 'max-w-[1200px]' : size === 'md' ? 'max-w-[720px]' : 'max-w-[480px]',
       )}
     >
       <div className="flex items-center justify-between gap-4 border-b border-border px-6 py-4">

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { CircleCheck, CircleDashed } from 'lucide-react';
-import { listResults, listTests, pauseRun, planRun, skipTest, stopRun } from '@/data/api';
+import { listResults, listLibraryTests, pauseRun, planRun, skipTest, stopRun } from '@/data/api';
 import type { Run, Status } from '@/data/types';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
@@ -19,7 +19,7 @@ import { RunProgress } from './RunProgress';
 export function LiveRunScreen({ run, live }: { run: Run; live: LiveState }) {
   const project = useProject();
   const base = useAsync(async () => {
-    const [results, tests, plans] = await Promise.all([listResults(run.id), listTests(project.id), planRun(run.testIds.filter(Boolean), { forceAi: run.forceAi, browsers: run.browsers }).catch(() => [])]);
+    const [results, tests, plans] = await Promise.all([listResults(run.id), listLibraryTests(project.id), planRun(run.testIds.filter(Boolean), { forceAi: run.forceAi, browsers: run.browsers }).catch(() => [])]);
     return { results, tests, plans };
   }, [run.id]);
   const [confirm, confirmDialog] = useConfirm();

@@ -30,7 +30,7 @@ import { createSeed, type MockDb } from './mock/seed';
 import { copyName, isProjectNameTaken, uniqueProjectName } from '@/lib/projectRules';
 import { canRemoveProvider, projectsToSwitch } from '@/lib/providers';
 import { duplicateAccount } from '@/lib/knowledge';
-import { changeEffect, cloneTestCase, idAfterMove, matchesFilters, nextTestId, prefixOf, validateSuite } from '@/lib/suiteRules';
+import { changeEffect, cloneTestCase, compareTestIds, idAfterMove, matchesFilters, nextTestId, NOT_IN_A_SUITE_PREFIX, prefixOf, validateSuite } from '@/lib/suiteRules';
 import { suggestRows, type Technique } from './mock/suggestRows';
 import { readImportFile, sampleImportFile } from './mock/importFile';
 import * as engine from './mock/runEngine';
@@ -42,6 +42,7 @@ import { contentToSteps, normaliseHeader, parseBrowserList, planImport, readTemp
 import { defaultTitle } from '@/lib/editorRules';
 import { appForStartPage, applyOverride, buildBugReportFor, canOverride, matchesResultFilters, NO_RESULT_FILTERS, setVisualDismissed, validateOverride, type BugReport, type ResultFilterState } from '@/lib/resultRules';
 import { CURRENT_USER } from './mock/seed';
+import { AI_CASE_FIELDS, isLibraryTest, moveBlockerLabels, moveBlockers, TRAY_INLINE_FIELDS } from '@/lib/exploreRules';
 export type { BugReport };
 
 export class NotFoundError extends Error {
@@ -64,9 +65,16 @@ async function respond<T>(value: () => T): Promise<T> {
   return structuredClone(value());
 }
 
-async function notBuilt(fn: string, slice: number): Promise<never> {
-  await delay();
-  throw new NotBuiltYetError(fn, slice);
+
+/** BR-EXPLORE-07: the project's library (tests in Suites). Tray and discarded AI cases are never part of it. */
+function libraryOf(db: MockDb, projectId: ID): TestCase[] {
+  return db.tests.filter((t) => t.projectId === projectId && isLibraryTest(t));
+}
+/** A library test by id; tray and discarded AI cases are "not found" here (BR-EXPLORE-07). */
+function findLibraryTest(db: MockDb, id: ID): TestCase {
+  const t = db.tests.find((x) => x.id === id && isLibraryTest(x));
+  if (!t) throw new NotFoundError('Test', id);
+  return t;
 }
 
 function find<T extends { id: ID }>(list: T[], id: ID, what: string): T {
@@ -245,8 +253,10 @@ export async function restoreFromBackup(file: File): Promise<void> {
   if (!isRecord(parsed) || parsed.format !== BACKUP_FORMAT || !isRecord(parsed.data) || !Array.isArray(parsed.data.projects)) {
     throw new InvalidFileError('This file is not a QAI backup.');
   }
-  const data = parsed.data as unknown as Omit<MockDb, 'seedVersion' | 'accountPasswords'> & { accountPasswords?: MockDb['accountPasswords'] };
-  replaceDb({ ...data, accountPasswords: data.accountPasswords ?? {} }); // older backups have no password store
+  const data = parsed.data as unknown as Omit<MockDb, 'seedVersion' | 'accountPasswords' | 'replacedTests' | 'simulatedTurns'> &
+    Partial<Pick<MockDb, 'accountPasswords' | 'replacedTests' | 'simulatedTurns'>>;
+  // Older backups have no password store, no Undo snapshots and no pending AI turns.
+  replaceDb({ ...data, accountPasswords: data.accountPasswords ?? {}, replacedTests: data.replacedTests ?? {}, simulatedTurns: data.simulatedTurns ?? {} });
 }
 /** Global settings back to defaults (AI providers removed, so QAI shows Welcome). Projects are kept. */
 export async function resetSettings(): Promise<GlobalSettings> {
@@ -272,6 +282,8 @@ export async function factoryReset(): Promise<void> {
     results: [],
     chats: [],
     accountPasswords: {},
+    replacedTests: {},
+    simulatedTurns: {},
   });
 }
 
@@ -437,9 +449,6 @@ function withNewIds(x: ProjectExport): ProjectExport {
   const ids = new Map<string, string>();
   const entities = [[x.project], x.accounts ?? [], x.knowledge ?? [], x.suites ?? [], x.tests ?? [], x.runs ?? [], x.results ?? [], x.chats ?? []].flat() as { id: ID }[];
   for (const e of entities) ids.set(e.id, `${e.id}-${suffix}`);
-  for (const chat of x.chats ?? []) {
-    for (const m of chat.messages) if (m.kind === 'tests_ready') for (const pr of m.proposals) ids.set(pr.id, `${pr.id}-${suffix}`);
-  }
   const remap = (v: unknown): unknown => {
     if (typeof v === 'string') return ids.get(v) ?? v;
     if (Array.isArray(v)) return v.map(remap);
@@ -609,7 +618,7 @@ export async function deleteSuite(suiteId: ID): Promise<void> {
   await delay();
   mutate((db) => {
     find(db.suites, suiteId, 'Suite');
-    if (db.tests.some((t) => t.suiteId === suiteId)) throw new SuiteNotEmptyError();
+    if (db.tests.some((t) => t.suiteId === suiteId && isLibraryTest(t))) throw new SuiteNotEmptyError();
     db.suites = db.suites.filter((s) => s.id !== suiteId);
   });
 }
@@ -626,12 +635,16 @@ export class SuiteNotEmptyError extends Error {
   }
 }
 
-export async function listTests(projectId: ID, filters: TestListFilters = {}): Promise<TestCase[]> {
+/**
+ * BR-EXPLORE-07: the ONE function for library tests (location 'suites'). Every Suites list, filter, run picker, run scope,
+ * count and Overview card uses it; AI cases in Ready for Suites or discarded never appear (D65).
+ */
+export async function listLibraryTests(projectId: ID, filters: TestListFilters = {}): Promise<TestCase[]> {
   await delay();
   const db = getDb();
   const latest = latestResultsOf(db, projectId);
   const f = { search: filters.search ?? '', status: filters.latestStatus ?? ('all' as const) };
-  return structuredClone(db.tests.filter((t) => t.projectId === projectId && matchesFilters(t, latest[t.id]?.status ?? 'not_run', f)));
+  return structuredClone(libraryOf(db, projectId).filter((t) => matchesFilters(t, latest[t.id]?.status ?? 'not_run', f)));
 }
 export async function getTest(testId: ID): Promise<TestCase> {
   return respond(() => find(getDb().tests, testId, 'Test'));
@@ -664,7 +677,7 @@ function applySave(db: MockDb, test: TestCase): TestCase {
   return next;
 }
 function assertTestIdFree(db: MockDb, projectId: ID, testId: string, exceptId?: ID): void {
-  if (db.tests.some((t) => t.projectId === projectId && t.id !== exceptId && t.testId.toLowerCase() === testId.trim().toLowerCase())) {
+  if (libraryOf(db, projectId).some((t) => t.id !== exceptId && t.testId.toLowerCase() === testId.trim().toLowerCase())) {
     throw new DuplicateTestIdError(testId.trim());
   }
 }
@@ -681,6 +694,7 @@ export async function createTest(input: NewTestInput): Promise<TestCase> {
       const test: TestCase = {
         ...structuredClone(input),
         id: newId('t'),
+        location: 'suites',
         testId: input.testId.trim(),
         title: input.title.trim() || defaultTitle(input.steps),
         steps: input.steps.map((x) => x.trim()).filter(Boolean),
@@ -710,9 +724,9 @@ export async function cloneTests(testIds: ID[]): Promise<TestCase[]> {
     mutate((db) => {
       const now = new Date().toISOString();
       return testIds.map((id) => {
-        const original = find(db.tests, id, 'Test');
+        const original = findLibraryTest(db, id);
         const suite = original.suiteId ? find(db.suites, original.suiteId, 'Suite') : null;
-        const taken = db.tests.filter((t) => t.projectId === original.projectId).map((t) => t.testId);
+        const taken = libraryOf(db, original.projectId).map((t) => t.testId);
         const copy = cloneTestCase(original, newId('t'), nextTestId(prefixOf(suite), taken), now);
         db.tests.push(copy);
         return copy;
@@ -727,8 +741,8 @@ export async function moveTests(testIds: ID[], suiteId: ID | null): Promise<Test
     mutate((db) => {
       const suite = suiteId ? find(db.suites, suiteId, 'Suite') : null;
       return testIds.map((id) => {
-        const t = find(db.tests, id, 'Test');
-        const taken = db.tests.filter((x) => x.projectId === t.projectId && x.id !== t.id).map((x) => x.testId);
+        const t = findLibraryTest(db, id);
+        const taken = libraryOf(db, t.projectId).filter((x) => x.id !== t.id).map((x) => x.testId);
         t.testId = idAfterMove(t, suite, taken);
         t.suiteId = suiteId;
         return t;
@@ -759,7 +773,7 @@ export async function restoreTests(tests: TestCase[]): Promise<TestCase[]> {
       tests.map((t) => {
         if (db.tests.some((x) => x.id === t.id)) return find(db.tests, t.id, 'Test');
         const suite = t.suiteId ? (db.suites.find((x) => x.id === t.suiteId) ?? null) : null;
-        const taken = db.tests.filter((x) => x.projectId === t.projectId).map((x) => x.testId);
+        const taken = libraryOf(db, t.projectId).map((x) => x.testId);
         const restored: TestCase = {
           ...structuredClone(t),
           suiteId: suite ? suite.id : null,
@@ -828,7 +842,7 @@ async function readPlanInput(projectId: ID, file: File) {
   return {
     parsed,
     simulatedExcel,
-    tests: db.tests.filter((t) => t.projectId === projectId),
+    tests: libraryOf(db, projectId), // duplicates are found among library tests
     suites: db.suites.filter((x) => x.projectId === projectId),
   };
 }
@@ -891,7 +905,7 @@ export async function importCommit(projectId: ID, file: File, duplicateChoice: I
   if (!parsed.header.some((h) => normaliseHeader(h) === 'task_content')) throw new InvalidFileError('The file has no task_content column.');
   return mutate((db) => {
     const suites = db.suites.filter((x) => x.projectId === projectId);
-    const plan = planImport(parsed.rows, db.tests.filter((t) => t.projectId === projectId), suites, duplicateChoice);
+    const plan = planImport(parsed.rows, libraryOf(db, projectId), suites, duplicateChoice);
     const suiteIdByName = new Map(suites.map((x) => [x.name.toLowerCase(), x.id]));
     for (const ns of plan.newSuites) {
       const suite: Suite = { id: newId('suite'), projectId, name: ns.name, idPrefix: ns.idPrefix };
@@ -923,6 +937,7 @@ export async function importCommit(projectId: ID, file: File, duplicateChoice: I
           id: newId('t'),
           projectId,
           suiteId: suiteIdOf(r.suite),
+          location: 'suites',
           testId: r.testId,
           title: f.title ?? defaultTitle(f.steps),
           ...f,
@@ -963,7 +978,7 @@ export async function planRun(testIds: ID[], options: { forceAi: boolean; browse
   return respond(() => {
     const db = getDb();
     const number = (id: ID) => db.runs.find((r) => r.id === id)?.number;
-    return testIds.map((id) => planTest(find(db.tests, id, 'Test'), { forceAi: options.forceAi, browsers: options.browsers, runNumber: number }));
+    return testIds.map((id) => planTest(findLibraryTest(db, id), { forceAi: options.forceAi, browsers: options.browsers, runNumber: number }));
   });
 }
 /** Pre-flight check after Start run (BR-RUN-09) [DEV-CONFIRM]. Simulated; shape to confirm. */
@@ -984,7 +999,9 @@ export async function startRun(options: RunOptions): Promise<Run> {
     if (options.testIds.length === 0) throw new Error('Select at least one test.');
     if (options.browsers.length === 0) throw new Error('Select at least one browser.');
     const projectRuns = db.runs.filter((r) => r.projectId === options.projectId);
-    const tests = db.tests.filter((t) => t.projectId === options.projectId);
+    const tests = libraryOf(db, options.projectId);
+    // BR-EXPLORE-07: only library tests can run (an AI case must be moved to Suites first).
+    for (const id of options.testIds) if (!tests.some((t) => t.id === id)) throw new NotFoundError('Test', id);
     const suites = db.suites.filter((x) => x.projectId === options.projectId);
     const r: Run = {
       id: newId('run'),
@@ -1094,7 +1111,7 @@ export async function markKnownIssue(testIds: ID[], input: KnownIssueInput): Pro
     mutate((db) => {
       const at = new Date().toISOString();
       return testIds.map((id) => {
-        const t = find(db.tests, id, 'Test');
+        const t = findLibraryTest(db, id);
         t.knownIssue = { ...(input.note?.trim() ? { note: input.note.trim() } : {}), ...(input.ticketRef?.trim() ? { ticketRef: input.ticketRef.trim() } : {}), markedAt: at, by: CURRENT_USER };
         return t;
       });
@@ -1143,15 +1160,264 @@ export async function dismissVisualFlag(resultId: ID, stepIndex: number, dismiss
 }
 
 // ---------- AI explore ----------
+/** This project's chats, newest first (BR-EXPLORE-01). */
 export async function listChats(projectId: ID): Promise<Chat[]> {
-  return respond(() => getDb().chats.filter((c) => c.projectId === projectId)); // BR-EXPLORE-01
+  settleSimulatedTurns();
+  return respond(() => getDb().chats.filter((c) => c.projectId === projectId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
 }
 export async function getChat(chatId: ID): Promise<Chat> {
+  settleSimulatedTurns();
   return respond(() => find(getDb().chats, chatId, 'Chat'));
 }
-export async function sendChatMessage(_chatId: ID, _text: string): Promise<Chat> {
-  return notBuilt('sendChatMessage', 8);
+export class AiTurnRunningError extends Error {
+  constructor() {
+    super('The AI is still working on this chat. Wait for its reply before sending another message.');
+    this.name = 'AiTurnRunningError';
+  }
 }
-export async function addProposals(_chatId: ID, _proposalIds: ID[]): Promise<TestCase[]> {
-  return notBuilt('addProposals', 8);
+/** New chat with its first message; the AI turn starts at once (prototype: simulated, D66). Shape to confirm. */
+export async function createChat(projectId: ID, text: string): Promise<Chat> {
+  await delay();
+  const chat = mutate((db) => {
+    find(db.projects, projectId, 'Project');
+    const words = text.trim().replace(/\s+/g, ' ');
+    const c: Chat = { id: newId('chat'), projectId, title: words.length > 48 ? `${words.slice(0, 48)}…` : words, updatedAt: new Date().toISOString(), running: false, messages: [] };
+    db.chats.push(c);
+    return c;
+  });
+  return sendChatMessage(chat.id, text);
+}
+/**
+ * Sends a message; the AI turn runs on (leaving the chat does not stop it, BR-EXPLORE-02). One turn at a time per chat.
+ * Prototype (D66): the turn is simulated and labelled as such: "Exploring…", then a reply and a cases card with 3 AI cases
+ * in Ready for Suites (Not checked with steps · Needs fixing without steps · a possible duplicate of a library test).
+ */
+export async function sendChatMessage(chatId: ID, text: string): Promise<Chat> {
+  await delay();
+  if (!text.trim()) throw new Error('Write a message first.');
+  const chat = mutate((db) => {
+    const c = find(db.chats, chatId, 'Chat');
+    if (c.running) throw new AiTurnRunningError();
+    c.messages.push({ kind: 'user', text: text.trim() });
+    c.running = true;
+    c.updatedAt = new Date().toISOString();
+    db.simulatedTurns[c.id] = new Date(Date.now() + aiTurnMs).toISOString();
+    return c;
+  });
+  if (typeof setTimeout !== 'undefined') setTimeout(settleSimulatedTurns, aiTurnMs + 20);
+  return structuredClone(chat);
+}
+let aiTurnMs = 4000;
+/** Tests only: how long a simulated AI turn takes. */
+export function setAiTurnDelayForTests(ms: number): void {
+  aiTurnMs = ms;
+}
+/** Finish simulated turns that are due (also after a reload: the turn kept running, BR-EXPLORE-02). */
+function settleSimulatedTurns(): void {
+  const now = Date.now();
+  const due = Object.entries(getDb().simulatedTurns).filter(([, at]) => Date.parse(at) <= now);
+  if (due.length === 0) return;
+  mutate((db) => {
+    for (const [chatId] of due) {
+      delete db.simulatedTurns[chatId];
+      const chat = db.chats.find((c) => c.id === chatId);
+      if (!chat) continue;
+      chat.messages.push({ kind: 'ai', simulated: true, text: 'Simulated reply (prototype, no AI connected): I explored the pages and wrote 3 test cases. They are waiting in Ready for Suites.' });
+      const messageIndex = chat.messages.length;
+      const cases = simulatedCases(db, chat.projectId, { chatId, messageIndex });
+      db.tests.push(...cases);
+      chat.messages.push({ kind: 'cases', simulated: true, testIds: cases.map((c) => c.id) });
+      chat.running = false;
+      chat.updatedAt = new Date().toISOString();
+    }
+  });
+}
+/** D66: three canned cases that show the tray rules. */
+function simulatedCases(db: MockDb, projectId: ID, aiOrigin: NonNullable<TestCase['aiOrigin']>): TestCase[] {
+  const now = new Date().toISOString();
+  const base = (title: string, extra: Partial<TestCase>): TestCase => ({
+    id: newId('t'),
+    projectId,
+    suiteId: null,
+    location: 'tray',
+    testId: '',
+    title,
+    steps: [],
+    linkedKnowledge: [],
+    version: 1,
+    source: 'ai_explore',
+    isNew: false,
+    aiOrigin,
+    script: { state: 'none' },
+    visual: { excluded: false, ignoreAreas: [] },
+    createdAt: now,
+    updatedAt: now,
+    ...extra,
+  });
+  const library = libraryOf(db, projectId).sort((a, b) => compareTestIds(a.testId, b.testId));
+  const similar = library[0];
+  return [
+    base('Search returns matching results', {
+      steps: ['Open the homepage.', "Type 'design' into the search box and press Enter.", 'Report the results shown.'],
+      expectedResult: 'Results that match the search term are listed.',
+      aiValidationStatus: 'not_checked',
+    }),
+    // No steps yet → "Missing: steps", cannot be moved (BR-EXPLORE-05).
+    base('Newsletter sign-up confirms the email', { expectedResult: 'A confirmation message is shown after signing up.', aiValidationStatus: 'needs_fixing' }),
+    ...(similar
+      ? [
+          base(similar.title, {
+            steps: [...similar.steps],
+            ...(similar.expectedResult ? { expectedResult: similar.expectedResult } : {}),
+            ...(similar.startPage ? { startPage: similar.startPage } : {}),
+            aiValidationStatus: 'checked' as const,
+            script: { state: 'recorded' as const }, // BR-EXPLORE-06
+            duplicateOf: similar.id, // BR-EXPLORE-04
+          }),
+        ]
+      : []),
+  ];
+}
+
+// ---------- Ready for Suites (D65, BR-EXPLORE-03…09) ----------
+function findCase(db: MockDb, id: ID, location: TestCase['location']): TestCase {
+  const t = db.tests.find((x) => x.id === id && x.source === 'ai_explore' && x.location === location);
+  if (!t) throw new NotFoundError(location === 'tray' ? 'Case in Ready for Suites' : 'Discarded case', id);
+  return t;
+}
+/** Ready for Suites: AI cases in the tray, from all chats of the project. */
+export async function listTrayCases(projectId: ID): Promise<TestCase[]> {
+  settleSimulatedTurns();
+  return respond(() => getDb().tests.filter((t) => t.projectId === projectId && t.location === 'tray'));
+}
+/** Tray › Show discarded (BR-EXPLORE-09). Cases that replaced a library test are not listed (their Undo is the move's Undo). */
+export async function listDiscardedCases(projectId: ID): Promise<TestCase[]> {
+  return respond(() => getDb().tests.filter((t) => t.projectId === projectId && t.location === 'discarded' && !t.locationChange?.replacedTestId));
+}
+/** BR-EXPLORE-08: inline edit of the small fields; no version while in the tray. Shape to confirm. */
+export async function updateTrayCase(input: TestCase): Promise<TestCase> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const c = findCase(db, input.id, 'tray');
+      for (const f of TRAY_INLINE_FIELDS) {
+        const v = input[f];
+        if (v === undefined || (typeof v === 'string' && !v.trim()) || (Array.isArray(v) && v.length === 0)) delete c[f];
+        else (c as unknown as Record<string, unknown>)[f] = typeof v === 'string' ? v.trim() : structuredClone(v);
+      }
+      if (!c.title) c.title = defaultTitle(c.steps.length ? c.steps : [input.title || 'Untitled case']);
+      c.updatedAt = new Date().toISOString();
+      return c;
+    }),
+  );
+}
+/** BR-EXPLORE-04: Keep both · Replace existing · Discard (Discard applies at once, BR-EXPLORE-09). */
+export async function resolveDuplicate(testId: ID, choice: NonNullable<TestCase['duplicateChoice']>): Promise<TestCase> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const c = findCase(db, testId, 'tray');
+      if (!c.duplicateOf) throw new Error('This case has no possible duplicate.');
+      c.duplicateChoice = choice;
+      if (choice === 'discard') discardIn(db, [c]);
+      return c;
+    }),
+  );
+}
+function discardIn(db: MockDb, cases: TestCase[]): void {
+  const at = new Date().toISOString();
+  for (const c of cases) {
+    c.location = 'discarded';
+    c.locationChange = { by: CURRENT_USER, at };
+  }
+  void db;
+}
+/** BR-EXPLORE-09: Discard any AI case, single or bulk; the record is kept with who and when. */
+export async function discardCases(testIds: ID[]): Promise<TestCase[]> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const cases = testIds.map((id) => findCase(db, id, 'tray'));
+      discardIn(db, cases);
+      return cases;
+    }),
+  );
+}
+/**
+ * Restore to tray (Show discarded) and the Undo of Discard / Move to Suites: the cases go back to Ready for Suites with
+ * their validation status; a replaced library test gets its previous version back. Shape to confirm.
+ */
+export async function restoreToTray(testIds: ID[]): Promise<TestCase[]> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const at = new Date().toISOString();
+      return testIds.map((id) => {
+        const c = db.tests.find((x) => x.id === id && x.source === 'ai_explore' && x.location !== 'tray');
+        if (!c) throw new NotFoundError('Case', id);
+        const replaced = c.locationChange?.replacedTestId;
+        if (replaced) {
+          const before = db.replacedTests[c.id];
+          if (before) db.tests = db.tests.map((t) => (t.id === replaced ? before : t));
+          delete db.replacedTests[c.id];
+        } else if (c.location === 'suites') {
+          if (db.results.some((r) => r.testId === c.id)) throw new Error(`${c.testId} has run since it was moved, so it stays in Suites.`);
+          c.testId = '';
+          c.suiteId = null;
+          c.isNew = false;
+        }
+        if (c.duplicateChoice === 'discard') delete c.duplicateChoice; // a duplicate needs a choice again
+        c.location = 'tray';
+        c.locationChange = { by: CURRENT_USER, at };
+        return c;
+      });
+    }),
+  );
+}
+export interface MoveToSuitesResult {
+  /** Cases now in Suites › Not in a suite, with a T- ID and the New badge. */
+  moved: TestCase[];
+  /** Library tests updated by a case resolved with Replace existing. */
+  replaced: TestCase[];
+  /** Cases that could not move, with the reasons (missing steps, unresolved duplicate). */
+  blocked: { testId: ID; title: string; reasons: string[] }[];
+}
+/**
+ * BR-EXPLORE-05: Move to Suites (bulk). Any validation status; steps required; duplicates resolved first. Moved cases go
+ * to Not in a suite with a T- ID (BR-TEST-01) and New (BR-TEST-04). Replace existing updates that library test like an
+ * import Update (new version; script reset per BR-SCRIPT-02). Who and when are stored. Shape to confirm.
+ */
+export async function moveToSuites(testIds: ID[]): Promise<MoveToSuitesResult> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const out: MoveToSuitesResult = { moved: [], replaced: [], blocked: [] };
+      const at = new Date().toISOString();
+      for (const id of testIds) {
+        const c = findCase(db, id, 'tray');
+        const reasons = moveBlockers(c);
+        if (reasons.length) {
+          out.blocked.push({ testId: c.id, title: c.title, reasons: reasons.map((r) => moveBlockerLabels[r]) });
+          continue;
+        }
+        const existing = c.duplicateChoice === 'replace' && c.duplicateOf ? db.tests.find((t) => t.id === c.duplicateOf && isLibraryTest(t)) : undefined;
+        if (existing) {
+          db.replacedTests[c.id] = structuredClone(existing);
+          const fields = Object.fromEntries(AI_CASE_FIELDS.map((f) => [f, c[f]])) as Partial<TestCase>;
+          const updated = applySave(db, { ...existing, ...fields, title: c.title });
+          out.replaced.push(updated);
+          c.location = 'discarded';
+          c.locationChange = { by: CURRENT_USER, at, replacedTestId: existing.id };
+          continue;
+        }
+        c.location = 'suites';
+        c.suiteId = null;
+        c.testId = nextTestId(NOT_IN_A_SUITE_PREFIX, libraryOf(db, c.projectId).map((t) => t.testId));
+        c.isNew = true;
+        c.locationChange = { by: CURRENT_USER, at };
+        out.moved.push(c);
+      }
+      return out;
+    }),
+  );
 }

@@ -36,7 +36,7 @@ describe('import commit (BR-IMPORT-05/06)', () => {
     expect(r).toEqual({ created: 83, updated: 0, skipped: 0, suitesCreated: 12 });
     const suites = await api.listSuites('p-hrms');
     expect(suites.map((s) => s.idPrefix).sort()).toEqual(['ABT', 'CNT', 'CONS', 'FTR', 'GEN', 'HOME', 'NAV', 'NWS', 'PRC', 'PRT', 'SVC', 'WA']);
-    const t = (await api.listTests('p-hrms', { search: 'CNT-04' }))[0]!;
+    const t = (await api.listLibraryTests('p-hrms', { search: 'CNT-04' }))[0]!;
     expect(t).toMatchObject({ source: 'import', version: 1, script: { state: 'none' }, suiteId: suites.find((s) => s.idPrefix === 'CNT')!.id });
   });
   it('update: unchanged tests keep their version; changed ones get a new version (script per BR-SCRIPT-02)', async () => {
@@ -51,11 +51,11 @@ describe('import commit (BR-IMPORT-05/06)', () => {
     expect(await api.importCommit('p-qcfixer', sample(), 'skip')).toEqual({ created: 0, updated: 0, skipped: 83, suitesCreated: 0 });
     const r = await api.importCommit('p-qcfixer', csv('task_id,category,task_content\nCNT-01,09 Contact Us,Open contact page\n'), 'import_as_new');
     expect(r.created).toBe(1);
-    expect((await api.listTests('p-qcfixer', { search: 'CNT-05' }))[0]!.title).toBe('Open contact page');
+    expect((await api.listLibraryTests('p-qcfixer', { search: 'CNT-05' }))[0]!.title).toBe('Open contact page');
   });
   it('rows without a category go to Not in a suite', async () => {
     await api.importCommit('p-hrms', csv('task_content\nCheck the leave form\n'), 'update');
-    const [t] = await api.listTests('p-hrms');
+    const [t] = await api.listLibraryTests('p-hrms');
     expect(t).toMatchObject({ suiteId: null, testId: 'T-01', title: 'Check the leave form' });
   });
 });

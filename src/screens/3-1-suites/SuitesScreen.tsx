@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { cloneTests, deleteTests, listKnowledge, listLatestResults, listRuns, listSuites, listTests } from '@/data/api';
+import { cloneTests, deleteTests, listKnowledge, listLatestResults, listRuns, listSuites, listLibraryTests } from '@/data/api';
 import type { ID } from '@/data/types';
 import { buttonClasses } from '@/components/ui/button';
 import { SplitPane } from '@/components/ui/split-pane';
@@ -26,7 +26,7 @@ export function SuitesScreen() {
     async () => {
       const [suites, tests, latest, runs, knowledge] = await Promise.all([
         listSuites(project.id),
-        listTests(project.id),
+        listLibraryTests(project.id),
         listLatestResults(project.id),
         listRuns(project.id),
         listKnowledge(project.id),

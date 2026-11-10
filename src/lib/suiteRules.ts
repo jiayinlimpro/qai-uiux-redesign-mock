@@ -72,6 +72,7 @@ export function cloneTestCase(original: TestCase, id: ID, testId: string, now: s
     id,
     projectId: original.projectId,
     suiteId: original.suiteId,
+    location: 'suites', // a copy of a library test is in the library (BR-EXPLORE-07)
     testId,
     title: original.title,
     ...(original.description !== undefined ? { description: original.description } : {}),

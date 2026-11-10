@@ -28,7 +28,9 @@ export interface KnowledgeItem { id: ID; projectId: ID; kind: 'document'|'skill'
 
 export interface Suite { id: ID; projectId: ID; name: string; idPrefix: string }        // "09 Contact Us", "CNT"
 export interface TestCase { id: ID; projectId: ID; suiteId: ID | null;                   // null = Not in a suite
-  testId: string;                // display ID, e.g. "CNT-04"
+  location: 'tray'|'suites'|'discarded';   // D65: 'suites' = the library; AI cases start in 'tray' (Ready for Suites); 'discarded' via Discard (BR-EXPLORE-09)
+  locationChange?: { by: string; at: string; replacedTestId?: ID };   // last move / discard / replace / restore: who and when (rule 10)
+  testId: string;                // display ID, e.g. "CNT-04"; AI cases get a T- ID when moved (empty while in the tray or discarded)
   title: string; description?: string; preconditions?: string;
   steps: string[]; expectedResult?: string; expectedKeywords?: string; startPage?: string; browserPreference?: Browser[];
   linkedKnowledge: ID[];
@@ -36,7 +38,9 @@ export interface TestCase { id: ID; projectId: ID; suiteId: ID | null;          
   version: number; source: 'import'|'written'|'ai_explore'|'clone';
   clonedFromId?: ID;             // source 'clone': the original (internal id), shown as "Clone of <ID>"; not used for ordering (D41)
   isNew: boolean;                // BR-TEST-04
-  aiExploreFinding?: { kind: 'likely_bug'; chatId: ID; messageIndex: number }; // BR-EXPLORE-05: badge until the test's first run
+  aiValidationStatus?: 'not_checked'|'checked'|'needs_fixing';   // AI cases only (BR-EXPLORE-03); 'needs_fixing' → badge in Suites until the first run
+  aiOrigin?: { chatId: ID; messageIndex: number };                // AI cases: the chat and its cases card (Open in chat / View in AI explore)
+  duplicateOf?: ID; duplicateChoice?: 'keep_both'|'replace'|'discard';   // tray: possible duplicate of a library test (BR-EXPLORE-04)
   script: { state: 'none'|'recorded'|'reset'|'failed_ai'; fromRunId?: ID };
   visual: { excluded: boolean; ignoreAreas: { id: ID; stepIndex: number; label: string;
     rect?: { x: number; y: number; width: number; height: number } }[] };   // rect: share of the screenshot (0–1); absent = "Not drawn yet" (D45)
@@ -95,10 +99,6 @@ export interface ResultStep { index: number; text: string; status: Status; durat
 export interface Chat { id: ID; projectId: ID; title: string; updatedAt: string; running: boolean; messages: ChatMessage[] }
 export type ChatMessage =
   | { kind: 'user'; text: string }
-  | { kind: 'ai'; text: string }
+  | { kind: 'ai'; text: string; simulated?: boolean }   // simulated: prototype turn, labelled in the UI (D66)
   | { kind: 'plan'; suites: number; scenarios: number; pagesExplored: number; usedKnowledge: ID[] }
-  | { kind: 'tests_ready'; proposals: Proposal[] };
-export interface Proposal { id: ID; title: string; steps: string[]; expectedResult: string;
-  validation: 'validated'|'likely_bug'|'needs_attention';
-  duplicateOf?: ID; duplicateChoice?: 'keep_both'|'replace'|'skip'; ticked: boolean;
-  outcome?: { kind: 'added'; testId: ID } | { kind: 'replaced'; testId: ID } | { kind: 'skipped' } } // set by Add (D29)
+  | { kind: 'cases'; testIds: ID[]; simulated?: boolean };   // AI cases this turn wrote (TestCase ids); D65. simulated: prototype turn (D66)

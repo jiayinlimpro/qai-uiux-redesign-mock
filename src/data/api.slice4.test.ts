@@ -20,9 +20,9 @@ describe('latest results and history (Slice 4)', () => {
     expect(numbers).toEqual([12, 11, 8, 5]);
   });
   it('listTests filters by latest status', async () => {
-    const failed = await api.listTests('p-qcfixer', { latestStatus: 'failed' });
+    const failed = await api.listLibraryTests('p-qcfixer', { latestStatus: 'failed' });
     expect(failed.map((t) => t.testId).sort()).toEqual(['ABT-03', 'CNT-04', 'CONS-02', 'FTR-04', 'HOME-01', 'HOME-02', 'NWS-02', 'PRT-01', 'PRT-02', 'PRT-03', 'SVC-17']);
-    expect((await api.listTests('p-qcfixer', { latestStatus: 'not_run' })).map((t) => t.testId)).toEqual(['T-01', 'T-02']);
+    expect((await api.listLibraryTests('p-qcfixer', { latestStatus: 'not_run' })).map((t) => t.testId)).toEqual(['T-01', 'T-02']);
   });
 });
 
@@ -70,8 +70,8 @@ describe('clone, move, delete (Slice 4)', () => {
     const moved = await api.moveTests(['t-t-01', 't-nav-02'], cnt.id);
     expect(moved.map((t) => t.testId)).toEqual(['CNT-05', 'NAV-02']);
     const chat = await api.getChat('chat-3');
-    const ready = chat.messages.find((m) => m.kind === 'tests_ready');
-    expect(ready && ready.kind === 'tests_ready' && ready.proposals[0]!.outcome).toEqual({ kind: 'added', testId: 't-t-01' }); // internal id: shows CNT-05 now
+    const card = chat.messages.find((m) => m.kind === 'cases');
+    expect(card && card.kind === 'cases' && card.testIds[0]).toBe('t-t-01'); // internal id: shows CNT-05 now
     expect((await api.getTest('t-t-01')).suiteId).toBe(cnt.id);
   });
   it('deletes tests; their results stay in the runs', async () => {

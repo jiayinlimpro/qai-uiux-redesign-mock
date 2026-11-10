@@ -31,7 +31,7 @@ import { knowledgeForRun, modeFor, snapshotEnvironment } from '@/lib/runRules';
 import { sumCost } from '@/lib/status';
 import { actionsFor, aiThoughtFor, deriveSteps, intentSteps, logsFor, startUrl, urlsFor, usageFor } from './evidence';
 
-export const SEED_VERSION = 12;
+export const SEED_VERSION = 13;
 
 /**
  * Mock engine pace for seeded demo runs: timer ticks per work tick (normal runs: 1). Run #14 has 14 work ticks left
@@ -52,6 +52,10 @@ export interface MockDb {
   chats: Chat[];
   /** Mock-only secret store: account passwords by account ID. Never part of a domain type (07: hasPassword only). */
   accountPasswords: Record<ID, string>;
+  /** Mock-only: library tests as they were before an AI case replaced them, by AI case id (Undo of Move to Suites, D65). */
+  replacedTests: Record<ID, TestCase>;
+  /** Mock-only: simulated AI turns still "thinking", chat id → when the reply is due (D66). */
+  simulatedTurns: Record<ID, string>;
 }
 
 // ---------- ids and constants ----------
@@ -75,7 +79,9 @@ const SCRIPT_REPLAY_COST = 0.02;
 const DEFAULT_VIEWPORT = { width: 1920, height: 1080 }; // D27: every run, until users can choose
 const VP = `${DEFAULT_VIEWPORT.width}x${DEFAULT_VIEWPORT.height}`;
 const CHAT_T_TESTS = 'chat-3'; // the chat T-01 and T-02 were added from
-const CHAT_T_TESTS_READY_INDEX = 2;
+const CHAT_T_TESTS_READY_INDEX = 2; // its cases card
+const CHAT_CONTACT = 'chat-1';
+const CHAT_CONTACT_CASES_INDEX = 2;
 
 /** Deterministic pseudo-values so lists look varied. */
 const durationFor = (n: number, mode: Mode): number =>
@@ -174,6 +180,7 @@ const tests: TestCase[] = parsed.rows.map((row) => {
     id: testKey(displayId),
     projectId: P_QC,
     suiteId: suiteIdByName.get(row.category ?? '') ?? null, // BR-IMPORT-05
+    location: 'suites', // the library (BR-EXPLORE-07)
     testId: displayId,
     title: row.title || (steps[0] ?? '').slice(0, 40), // BR-TEST-02
     description: row.description || undefined,
@@ -589,6 +596,9 @@ const aiExploreTest = (testId: string, p: typeof T01, extra: Partial<TestCase>):
   id: testKey(testId),
   projectId: P_QC,
   suiteId: null,
+  location: 'suites', // moved from Ready for Suites (D65)
+  locationChange: { by: CURRENT_USER, at: AI_EXPLORE_AT },
+  aiOrigin: { chatId: CHAT_T_TESTS, messageIndex: CHAT_T_TESTS_READY_INDEX },
   testId,
   ...p,
   linkedKnowledge: [],
@@ -602,11 +612,46 @@ const aiExploreTest = (testId: string, p: typeof T01, extra: Partial<TestCase>):
   ...extra,
 });
 tests.push(
-  // Validated in AI explore → keeps its generated script, so its first run can replay (BR-EXPLORE-06).
-  aiExploreTest('T-01', T01, { script: { state: 'recorded' } }),
-  // Likely bug → Not run, with a "Likely bug" badge until its first run (BR-EXPLORE-05, D25).
-  aiExploreTest('T-02', T02, { aiExploreFinding: { kind: 'likely_bug', chatId: CHAT_T_TESTS, messageIndex: CHAT_T_TESTS_READY_INDEX } }),
+  // Checked in AI explore → keeps its generated script, so its first run can replay (BR-EXPLORE-06).
+  aiExploreTest('T-01', T01, { aiValidationStatus: 'checked', script: { state: 'recorded' } }),
+  // Needs fixing → Not run, with a "Needs fixing" badge until its first run (BR-EXPLORE-05, D65).
+  aiExploreTest('T-02', T02, { aiValidationStatus: 'needs_fixing' }),
 );
+
+// Ready for Suites (D65): five AI cases from the Contact Us chat, still in the tray (no display ID until moved).
+const TRAY_AT = '2026-11-04T16:00:00.000Z';
+const trayCase = (n: number, c: { title: string; steps: string[]; expectedResult: string; status: NonNullable<TestCase['aiValidationStatus']>; duplicateOf?: ID }): TestCase => ({
+  id: `t-ai-c1-${n}`,
+  projectId: P_QC,
+  suiteId: null,
+  location: 'tray',
+  testId: '',
+  title: c.title,
+  steps: c.steps,
+  expectedResult: c.expectedResult,
+  startPage: 'https://www.qcfixer.com/',
+  linkedKnowledge: [],
+  version: 1,
+  source: 'ai_explore',
+  isNew: false,
+  aiValidationStatus: c.status,
+  aiOrigin: { chatId: CHAT_CONTACT, messageIndex: CHAT_CONTACT_CASES_INDEX },
+  ...(c.duplicateOf ? { duplicateOf: c.duplicateOf } : {}),
+  // BR-EXPLORE-06: Checked cases keep their generated script; the others have none.
+  script: c.status === 'checked' ? { state: 'recorded' } : { state: 'none' },
+  visual: { excluded: false, ignoreAreas: [] },
+  createdAt: TRAY_AT,
+  updatedAt: TRAY_AT,
+});
+const TRAY_CASES: TestCase[] = [
+  trayCase(1, { title: 'Contact form blocks empty submission', steps: ["Click 'Contact Us' in the header.", 'Click submit without filling any field.'], expectedResult: 'Required-field messages are shown.', status: 'checked', duplicateOf: testKey('CNT-02') }),
+  trayCase(2, { title: 'Contact form accepts a valid enquiry', steps: ["Click 'Contact Us' in the header.", 'Fill every field with valid values and submit.'], expectedResult: 'A confirmation message is shown.', status: 'checked' }),
+  trayCase(3, { title: 'Form keeps entered values after an error', steps: ["Click 'Contact Us' in the header.", 'Fill the form with an invalid email and submit.'], expectedResult: 'The other fields keep their values.', status: 'not_checked' }),
+  trayCase(4, { title: 'Office address opens a map', steps: ["Click 'Contact Us' in the header.", 'Click the office address.'], expectedResult: 'A map opens at the office location.', status: 'needs_fixing' }),
+  // No steps yet → "Missing: steps", cannot be moved (BR-EXPLORE-05).
+  trayCase(5, { title: 'Opening hours are shown', steps: [], expectedResult: 'Opening hours are visible.', status: 'not_checked' }),
+];
+tests.push(...TRAY_CASES);
 
 // #14: running now, 09 Contact Us on UAT, on test 3 of 4 (CNT-03 as Data rows). It runs slowly (SEED_RUN_PACE) so the
 // Running state stays visible for demos.
@@ -626,16 +671,8 @@ const chats: Chat[] = [
     messages: [
       { kind: 'user', text: 'Explore the Contact Us page on UAT and propose tests for the form and the contact details.' },
       { kind: 'plan', suites: 2, scenarios: 5, pagesExplored: 4, usedKnowledge: [K_CONTACT_FRS] },
-      {
-        kind: 'tests_ready',
-        proposals: [
-          { id: 'prop-1.1', title: 'Contact form blocks empty submission', steps: ["Click 'Contact Us' in the header.", 'Click submit without filling any field.'], expectedResult: 'Required-field messages are shown.', validation: 'validated', duplicateOf: testKey('CNT-02'), ticked: true },
-          { id: 'prop-1.2', title: 'Contact form accepts a valid enquiry', steps: ["Click 'Contact Us' in the header.", 'Fill every field with valid values and submit.'], expectedResult: 'A confirmation message is shown.', validation: 'validated', ticked: true },
-          { id: 'prop-1.3', title: 'Form keeps entered values after an error', steps: ["Click 'Contact Us' in the header.", 'Fill the form with an invalid email and submit.'], expectedResult: 'The other fields keep their values.', validation: 'validated', ticked: true },
-          { id: 'prop-2.1', title: 'Office address opens a map', steps: ["Click 'Contact Us' in the header.", 'Click the office address.'], expectedResult: 'A map opens at the office location.', validation: 'likely_bug', ticked: true },
-          { id: 'prop-2.2', title: 'Opening hours are shown', steps: ["Click 'Contact Us' in the header.", 'Look for opening hours.'], expectedResult: 'Opening hours are visible.', validation: 'needs_attention', ticked: false }, // BR-EXPLORE-03
-        ],
-      },
+      // index 2 = CHAT_CONTACT_CASES_INDEX: the cases this turn wrote, all in Ready for Suites (D65)
+      { kind: 'cases', testIds: TRAY_CASES.map((t) => t.id) },
     ],
   },
   {
@@ -655,14 +692,8 @@ const chats: Chat[] = [
     messages: [
       { kind: 'user', text: 'Explore the homepage and Contact Us on UAT and propose tests for anything the suites miss.' },
       { kind: 'plan', suites: 2, scenarios: 2, pagesExplored: 2, usedKnowledge: [] },
-      // index 2 = CHAT_T_TESTS_READY_INDEX; both proposals were added as T-01 and T-02
-      {
-        kind: 'tests_ready',
-        proposals: [
-          { id: 'prop-3-1', ...T01, validation: 'validated', ticked: true, outcome: { kind: 'added', testId: testKey('T-01') } },
-          { id: 'prop-3-2', ...T02, validation: 'likely_bug', ticked: true, outcome: { kind: 'added', testId: testKey('T-02') } },
-        ],
-      },
+      // index 2 = CHAT_T_TESTS_READY_INDEX; both cases were moved to Suites as T-01 and T-02
+      { kind: 'cases', testIds: [testKey('T-01'), testKey('T-02')] },
     ],
   },
 ];
@@ -680,5 +711,7 @@ export function createSeed(): MockDb {
     runs,
     results,
     chats,
+    replacedTests: {},
+    simulatedTurns: {},
   });
 }

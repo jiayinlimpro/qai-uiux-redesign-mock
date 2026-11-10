@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowDown, ArrowUp, Plus, X } from 'lucide-react';
-import { createTest, DuplicateTestIdError, getResult, getRun, listKnowledge, listSuites, listTests, saveTest } from '@/data/api';
+import { createTest, DuplicateTestIdError, getResult, getRun, listKnowledge, listSuites, listLibraryTests, saveTest } from '@/data/api';
 import type { Browser, KnowledgeItem, Result, Run, Suite, TestCase } from '@/data/types';
 import { Button, buttonClasses } from '@/components/ui/button';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
@@ -34,7 +34,7 @@ export function EditTestScreen({ mode }: { mode: 'new' | 'edit' }) {
   const { testId = '' } = useParams();
   const fromResultId = useSearchParams()[0].get('from');
   const data = useAsync<Data>(async () => {
-    const [suites, tests, knowledge] = await Promise.all([listSuites(project.id), listTests(project.id), listKnowledge(project.id)]);
+    const [suites, tests, knowledge] = await Promise.all([listSuites(project.id), listLibraryTests(project.id), listKnowledge(project.id)]);
     let from: Data['from'] = null;
     if (mode === 'edit' && fromResultId) {
       const result = await getResult(fromResultId);

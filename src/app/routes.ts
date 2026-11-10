@@ -50,7 +50,7 @@ export const to = {
   /** `fromResultId`: opened from a run result → shows "Opened from Run #N result" and "Save and re-run" (3.2). */
   editTest: (projectId: ID, testId: ID, fromResultId?: ID) => `${p(projectId)}/tests/${seg(testId)}/edit${query({ from: fromResultId })}`,
   explore: (projectId: ID) => `${p(projectId)}/explore`,
-  /** `messageIndex` scrolls to a message, e.g. the tests-ready card for a Likely bug test (BR-EXPLORE-05). */
+  /** `messageIndex` scrolls to a message, e.g. the cases card of an AI case (Open in chat, View in AI explore; BR-EXPLORE-05). */
   exploreChat: (projectId: ID, chatId: ID, messageIndex?: number) =>
     `${p(projectId)}/explore/${seg(chatId)}${query({ message: messageIndex })}`,
   runs: (projectId: ID) => `${p(projectId)}/runs`,

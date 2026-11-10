@@ -1,5 +1,5 @@
 import { modeFor } from '@/lib/runRules';
-import { showsLikelyBugBadge } from '@/lib/exploreRules';
+import { showsNeedsFixingBadge } from '@/lib/exploreRules';
 import { countRunStatuses, latestStatus, passRate, sumCost } from '@/lib/status';
 import seedCsv from '../../../docs/fixtures/qcfixer-tests-seed.csv?raw';
 import { readTemplateCsv } from '@/lib/importRules';
@@ -17,7 +17,7 @@ const runNumberOf = (r: Result) => db.runs.find((x) => x.id === r.runId)!.number
 
 describe('Slice 0 acceptance', () => {
   it('has 83 tests in 12 suites plus 2 Not in a suite', () => {
-    const tests = db.tests.filter((t) => t.projectId === qc.id);
+    const tests = db.tests.filter((t) => t.projectId === qc.id && t.location === 'suites'); // the library (BR-EXPLORE-07)
     expect(db.suites.filter((s) => s.projectId === qc.id)).toHaveLength(12);
     expect(tests.filter((t) => t.suiteId !== null)).toHaveLength(83);
     expect(tests.filter((t) => t.suiteId === null).map((t) => t.testId)).toEqual(['T-01', 'T-02']);
@@ -123,14 +123,13 @@ describe('sample data matches docs/07', () => {
     expect(resultFor(12, 'PRT-03').steps[0]!.aiReasoning).toContain('PRT-01');
   });
 
-  it('second project has no runs; chats include a running one and 5 proposals with Needs attention unticked', () => {
+  it('second project has no runs; chats include a running one and a cases card with the 5 tray cases', () => {
     const hrms = db.projects.find((p) => p.id !== qc.id)!;
     expect(db.runs.filter((r) => r.projectId === hrms.id)).toHaveLength(0);
     expect(db.chats.some((c) => c.running)).toBe(true);
-    const ready = db.chats[0]!.messages.find((m) => m.kind === 'tests_ready');
-    if (ready?.kind !== 'tests_ready') throw new Error('tests_ready card missing');
-    expect(ready.proposals).toHaveLength(5);
-    expect(ready.proposals.filter((p) => p.validation === 'needs_attention').every((p) => !p.ticked)).toBe(true);
+    const card = db.chats[0]!.messages.find((m) => m.kind === 'cases');
+    if (card?.kind !== 'cases') throw new Error('cases card missing');
+    expect(card.testIds.map((id) => db.tests.find((t) => t.id === id)!.location)).toEqual(['tray', 'tray', 'tray', 'tray', 'tray']);
   });
 });
 
@@ -179,27 +178,44 @@ describe('sample data follows the business rules', () => {
     expect(latestOf('SVC-17')).toBe('failed'); // #13 is newer than #12
   });
 
-  it('BR-EXPLORE-05: T-02 is Not run with a Likely bug badge and points to its tests-ready message', () => {
+  it('BR-EXPLORE-05: T-02 (Needs fixing) is Not run with a "Needs fixing" badge and points to its cases card', () => {
     const t02 = test('T-02');
     const hasRun = db.results.some((r) => r.testId === t02.id);
     expect(hasRun).toBe(false); // never counted as failed
-    expect(showsLikelyBugBadge(t02, hasRun)).toBe(true);
-    const f = t02.aiExploreFinding!;
-    const msg = db.chats.find((c) => c.id === f.chatId)!.messages[f.messageIndex];
-    if (msg?.kind !== 'tests_ready') throw new Error('finding does not point to a tests-ready message');
-    expect(msg.proposals.find((p) => p.title === t02.title)?.validation).toBe('likely_bug');
-    expect(test('T-01').aiExploreFinding).toBeUndefined();
+    expect(showsNeedsFixingBadge(t02, hasRun)).toBe(true);
+    const o = t02.aiOrigin!;
+    const msg = db.chats.find((c) => c.id === o.chatId)!.messages[o.messageIndex];
+    if (msg?.kind !== 'cases') throw new Error('aiOrigin does not point to a cases card');
+    expect(msg.testIds).toContain(t02.id);
+    expect(showsNeedsFixingBadge(test('T-01'), false)).toBe(false); // Checked: no badge
   });
 
-  it('D29: proposal outcomes point to real tests that came from AI explore', () => {
-    const proposals = db.chats.flatMap((c) => c.messages.flatMap((m) => (m.kind === 'tests_ready' ? m.proposals : [])));
-    const added = proposals.filter((p) => p.outcome?.kind === 'added');
-    expect(added.map((p) => p.outcome?.kind === 'added' && displayId(p.outcome.testId))).toEqual(['T-01', 'T-02']);
-    for (const p of added) {
-      const t = db.tests.find((x) => p.outcome?.kind === 'added' && x.id === p.outcome.testId)!;
-      expect(t.source).toBe('ai_explore');
-      expect(t.title).toBe(p.title);
-    }
+  it('D65: every test has a location; the library is the 83 CSV tests + T-01/T-02; 5 AI cases wait in the tray', () => {
+    const qcTests = db.tests.filter((t) => t.projectId === qc.id);
+    expect(qcTests.every((t) => ['tray', 'suites', 'discarded'].includes(t.location))).toBe(true);
+    expect(qcTests.filter((t) => t.location === 'suites')).toHaveLength(85);
+    const tray = qcTests.filter((t) => t.location === 'tray');
+    expect(tray.map((t) => [t.title, t.aiValidationStatus])).toEqual([
+      ['Contact form blocks empty submission', 'checked'],
+      ['Contact form accepts a valid enquiry', 'checked'],
+      ['Form keeps entered values after an error', 'not_checked'],
+      ['Office address opens a map', 'needs_fixing'],
+      ['Opening hours are shown', 'not_checked'],
+    ]);
+    expect(tray.every((t) => t.testId === '' && t.source === 'ai_explore' && !t.isNew)).toBe(true); // no display ID until moved
+    expect(tray[0]!.duplicateOf).toBe(test('CNT-02').id);
+    expect(tray[4]!.steps).toEqual([]); // "Missing: steps"
+    // BR-EXPLORE-06: Checked cases keep their script; the others have none.
+    expect(tray.map((t) => t.script.state)).toEqual(['recorded', 'recorded', 'none', 'none', 'none']);
+  });
+
+  it('D65: chat cases cards point to real AI cases; moved ones are library tests', () => {
+    const cards = db.chats.flatMap((c) => c.messages.flatMap((m) => (m.kind === 'cases' ? [m] : [])));
+    const ids = cards.flatMap((m) => m.testIds);
+    for (const id of ids) expect(db.tests.find((t) => t.id === id)?.source).toBe('ai_explore');
+    const moved = ids.map((id) => db.tests.find((t) => t.id === id)!).filter((t) => t.location === 'suites');
+    expect(moved.map((t) => t.testId)).toEqual(['T-01', 'T-02']);
+    expect(moved.every((t) => t.isNew && t.suiteId === null && t.locationChange?.by)).toBe(true);
   });
 
   it('Prod runs contain only read-only tests (no form submissions or data entry)', () => {
@@ -252,8 +268,9 @@ describe('sample data follows the business rules', () => {
   });
 
   it('BR-TEST-01: test IDs are unique and use the suite prefix, or "T-" when not in a suite', () => {
-    expect(new Set(db.tests.map((t) => t.testId)).size).toBe(db.tests.length);
-    for (const t of db.tests) {
+    const library = db.tests.filter((t) => t.location === 'suites'); // tray cases get an ID when moved (D65)
+    expect(new Set(library.map((t) => t.testId)).size).toBe(library.length);
+    for (const t of library) {
       const prefix = t.suiteId ? db.suites.find((s) => s.id === t.suiteId)!.idPrefix : 'T';
       expect(t.testId.startsWith(`${prefix}-`)).toBe(true);
     }

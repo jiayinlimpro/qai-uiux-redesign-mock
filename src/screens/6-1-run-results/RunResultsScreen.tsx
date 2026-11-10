@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { listKnowledge, listResults, listRuns, listSuites, listTests } from '@/data/api';
+import { listKnowledge, listResults, listRuns, listSuites, listLibraryTests } from '@/data/api';
 import type { ID, ResultStep, Run, Status } from '@/data/types';
 import { SplitPane } from '@/components/ui/split-pane';
 import { Toast, type ToastMessage } from '@/components/ui/toast';
@@ -59,7 +59,7 @@ export function RunResultsScreen({ run }: { run: Run }) {
     async () => {
       const [results, tests, suites, knowledge, runs, models] = await Promise.all([
         listResults(run.id),
-        listTests(project.id),
+        listLibraryTests(project.id),
         listSuites(project.id),
         listKnowledge(project.id),
         listRuns(project.id),

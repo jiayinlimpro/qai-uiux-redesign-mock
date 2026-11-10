@@ -63,7 +63,7 @@ describe('projects (Slice 2)', () => {
     await api.deleteProject('p-qcfixer');
     await expect(api.getProject('p-qcfixer')).rejects.toBeInstanceOf(api.NotFoundError);
     expect(await api.listRuns('p-qcfixer')).toEqual([]);
-    expect(await api.listTests('p-qcfixer')).toEqual([]);
+    expect(await api.listLibraryTests('p-qcfixer')).toEqual([]);
     expect(await api.listResults('run-12')).toEqual([]);
   });
 
@@ -142,7 +142,7 @@ describe('Slice 2 review changes', () => {
     const run12 = copyRuns.find((r) => r.number === 12)!;
     const results = await api.listResults(run12.id);
     expect(results.length).toBe(83);
-    const copyTests = await api.listTests(copy.id);
+    const copyTests = await api.listLibraryTests(copy.id);
     expect(results.every((r) => copyTests.some((t) => t.id === r.testId))).toBe(true); // references follow the new IDs
     expect((await api.listResults('run-12')).length).toBe(83); // original untouched
     const again = await api.importProject(file, 'copy');

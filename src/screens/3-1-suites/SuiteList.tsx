@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { ID, Status, Suite, TestCase } from '@/data/types';
 import { Button, buttonClasses } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Menu } from '@/components/ui/menu';
 import { StatusDot } from '@/components/StatusViews';
 import { useProject } from '@/app/projectContext';
 import { to, type TestTab } from '@/app/routes';
-import { showsLikelyBugBadge } from '@/lib/exploreRules';
+import { NEEDS_FIXING_TIP, showsNeedsFixingBadge } from '@/lib/exploreRules';
 import { plural } from '@/lib/format';
 import { statusLabels } from '@/lib/labels';
 import { buildSuiteTree, hasActiveFilters, type SuiteGroup, type TestFilters } from '@/lib/suiteRules';
@@ -34,7 +34,9 @@ export function SuiteList() {
   const { testId: selectedId } = useParams();
   const tab = (useSearchParams()[0].get('tab') as TestTab | null) ?? undefined;
   const [filters, setFilters] = useState<TestFilters>({ search: '', status: 'all' });
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Overview › "Organise in Suites" opens Suites with Not in a suite expanded (03 § Key cross-links).
+  const expandRequest = (useLocation().state as { expand?: string } | null)?.expand;
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(expandRequest === 'not-in-a-suite' ? ['none'] : []));
   const [renaming, setRenaming] = useState<Suite | null>(null);
   const [deleteSuite, deleteDialog] = useDeleteSuite();
 
@@ -223,7 +225,7 @@ function SuiteRow({ group, open, filtering, onToggle, selection, onSelect, selec
               key={t.id}
               test={t}
               status={statusOf(t.id)}
-              likelyBug={showsLikelyBugBadge(t, hasResult(t.id))}
+              needsFixing={showsNeedsFixingBadge(t, hasResult(t.id))}
               checked={selection.has(t.id)}
               onCheck={(on) => onSelect([t.id], on)}
               current={t.id === selectedId}
@@ -241,7 +243,7 @@ function SuiteRow({ group, open, filtering, onToggle, selection, onSelect, selec
 function TestRow({
   test,
   status,
-  likelyBug,
+  needsFixing,
   checked,
   onCheck,
   current,
@@ -250,7 +252,7 @@ function TestRow({
 }: {
   test: TestCase;
   status: Status;
-  likelyBug: boolean;
+  needsFixing: boolean;
   checked: boolean;
   onCheck: (on: boolean) => void;
   current: boolean;
@@ -272,9 +274,9 @@ function TestRow({
         <span className="truncate">{test.title}</span>
       </Link>
       {test.isNew && <Chip tone="info">New</Chip>}
-      {likelyBug && (
-        <span title="Found during AI explore, not yet confirmed by a run">
-          <Chip tone="failed">Likely bug</Chip>
+      {needsFixing && (
+        <span title={NEEDS_FIXING_TIP}>
+          <Chip tone="cc">Needs fixing</Chip>
         </span>
       )}
       <StatusDot status={status} className="shrink-0" />

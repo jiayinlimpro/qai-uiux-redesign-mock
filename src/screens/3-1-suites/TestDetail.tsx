@@ -13,7 +13,7 @@ import { useConfirm } from '@/components/useConfirm';
 import { useProject } from '@/app/projectContext';
 import { OverviewLink } from '@/app/WayBackLink';
 import { to, type TestTab } from '@/app/routes';
-import { showsLikelyBugBadge } from '@/lib/exploreRules';
+import { NEEDS_FIXING_TIP, showsNeedsFixingBadge } from '@/lib/exploreRules';
 import { formatDate, plural } from '@/lib/format';
 import { deleteImpact } from '@/lib/suiteRules';
 import { browserLabels, scriptLabels, sourceLabels } from '@/lib/labels';
@@ -76,7 +76,7 @@ export function TestDetail() {
   const suite = s.suites.find((x) => x.id === test.suiteId);
   const latest = s.latest[test.id];
   const latestRun = latest ? s.runs.find((r) => r.id === latest.runId) : undefined;
-  const likelyBug = showsLikelyBugBadge(test, Boolean(latest));
+  const needsFixing = showsNeedsFixingBadge(test, Boolean(latest));
   const original = test.clonedFromId ? s.tests.find((t) => t.id === test.clonedFromId) : undefined;
 
   /** Delete with a confirmation that lists what is affected, and Undo in the toast (BR-TEST-06, D46). */
@@ -149,15 +149,17 @@ export function TestDetail() {
             <Chip>{test.source === 'clone' ? `Source: Clone of ${original?.testId ?? 'a deleted test'}` : sourceLabels[test.source]}</Chip>
             <Chip>{scriptLabels[test.script.state]}</Chip>
             {test.knownIssue && <Chip tone="cc">Known issue{test.knownIssue.ticketRef ? ` · ${test.knownIssue.ticketRef}` : ''}</Chip>}
-            {likelyBug && test.aiExploreFinding && (
+            {needsFixing && (
               <>
-                <span title="Found during AI explore, not yet confirmed by a run">
-                  <Chip tone="failed">Likely bug</Chip>
+                <span title={NEEDS_FIXING_TIP}>
+                  <Chip tone="cc">Needs fixing</Chip>
                 </span>
-                <span className="text-label font-normal text-text-muted">Found during AI explore, not yet confirmed by a run.</span>
-                <Link to={to.exploreChat(project.id, test.aiExploreFinding.chatId, test.aiExploreFinding.messageIndex)} className="text-label text-accent underline underline-offset-2">
-                  View in AI explore
-                </Link>
+                <span className="text-label font-normal text-text-muted">{NEEDS_FIXING_TIP}</span>
+                {test.aiOrigin && (
+                  <Link to={to.exploreChat(project.id, test.aiOrigin.chatId, test.aiOrigin.messageIndex)} className="text-label text-accent underline underline-offset-2">
+                    View in AI explore
+                  </Link>
+                )}
               </>
             )}
           </div>

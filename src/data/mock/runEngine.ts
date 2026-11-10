@@ -3,7 +3,7 @@
  * would. Developers replace it with the real engine; api.ts is the only caller.
  *
  * Simulated outcome ("the app has not changed"): a test repeats its last failure / couldn't-complete; a never-run
- * Likely bug test fails (the run confirms the finding); everything else passes.
+ * Needs fixing AI case fails (the run confirms the problem, BR-EXPLORE-05); everything else passes.
  */
 import type { Browser, ID, Result, ResultStep, Run, Status } from '../types';
 import { planTest, type TestPlan } from '@/lib/runPlan';
@@ -237,7 +237,7 @@ function finish(runId: ID, a: Active, forced?: 'not_run', note?: string): void {
       status = prev.status;
       reason = prev.reason;
       failure = prev.failure;
-    } else if (!prev && test.aiExploreFinding?.kind === 'likely_bug') {
+    } else if (!prev && test.aiValidationStatus === 'needs_fixing') {
       status = 'failed';
       reason = 'product_bug';
       failure = { stepIndex: a.steps.length, expected: test.expectedResult ?? 'What the test expects', found: 'The page did not do this' };

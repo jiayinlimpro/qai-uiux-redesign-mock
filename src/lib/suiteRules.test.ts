@@ -21,6 +21,7 @@ const test = (over: Partial<TestCase>): TestCase => ({
   id: over.id ?? `t-${over.testId?.toLowerCase()}`,
   projectId: 'p',
   suiteId: 's-cnt',
+  location: 'suites',
   testId: 'CNT-01',
   title: 'Title',
   steps: ['Open the page.'],

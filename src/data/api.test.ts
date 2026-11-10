@@ -13,7 +13,7 @@ describe('api.ts (Slice 0)', () => {
   });
 
   it('searches tests by ID or title', async () => {
-    expect((await api.listTests('p-qcfixer', { search: 'cnt-0' })).map((t) => t.testId)).toEqual([
+    expect((await api.listLibraryTests('p-qcfixer', { search: 'cnt-0' })).map((t) => t.testId)).toEqual([
       'CNT-01',
       'CNT-02',
       'CNT-03',
@@ -23,7 +23,7 @@ describe('api.ts (Slice 0)', () => {
 
   it('rejects unknown ids and unbuilt functions with typed errors', async () => {
     await expect(api.getProject('nope')).rejects.toBeInstanceOf(api.NotFoundError);
-    await expect(api.sendChatMessage('chat-1', 'hi')).rejects.toBeInstanceOf(api.NotBuiltYetError); // Slice 8
+    await expect(api.getChat('nope')).rejects.toBeInstanceOf(api.NotFoundError);
   });
 
   it('lists runs newest first', async () => {

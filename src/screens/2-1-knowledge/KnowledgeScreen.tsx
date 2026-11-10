@@ -1,4 +1,4 @@
-import { listAccounts, listKnowledge, listRuns, listSuites, listTests } from '@/data/api';
+import { listAccounts, listKnowledge, listRuns, listSuites, listLibraryTests } from '@/data/api';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { useAsync } from '@/app/hooks/useAsync';
 import { useProject } from '@/app/projectContext';
@@ -24,7 +24,7 @@ export function KnowledgeScreen() {
       listAccounts(project.id),
       listKnowledge(project.id),
       listSuites(project.id),
-      listTests(project.id),
+      listLibraryTests(project.id),
       listRuns(project.id),
     ]);
     return { accounts, items, suites, tests, runs };

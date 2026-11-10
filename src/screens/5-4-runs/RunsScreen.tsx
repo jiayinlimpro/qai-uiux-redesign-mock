@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { listResults, listRuns, listTests, resumeRun, subscribeRun } from '@/data/api';
+import { listResults, listRuns, listLibraryTests, resumeRun, subscribeRun } from '@/data/api';
 import type { ID, Result, Run } from '@/data/types';
 import { Button, buttonClasses } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { Table, Td, Th, Tr } from '@/components/ui/table';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { RunDialog } from '@/components/RunDialog';
+import { RunStateChip } from '@/components/RunStateChip';
 import { errorText } from '@/components/StatusLine';
 import { useAsync } from '@/app/hooks/useAsync';
 import { useProject } from '@/app/projectContext';
@@ -15,15 +16,6 @@ import { formatDuration, formatStarted } from '@/lib/format';
 import { scopeWithCount } from '@/lib/runPlan';
 import { countRunStatuses } from '@/lib/status';
 
-/** State column (screens/06-runs.md 5.4): Running x/y · Paused · Interrupted at x/y · Completed · Stopped at x/y (D55). */
-function stateChip(run: Run) {
-  const at = `${run.progress.done}/${run.progress.total}`;
-  if (run.state === 'running') return <Chip tone="info">Running {at}</Chip>;
-  if (run.state === 'paused') return <Chip tone="cc">Paused</Chip>;
-  if (run.state === 'interrupted') return <Chip tone="cc">Interrupted at {at}</Chip>;
-  if (run.stoppedAt) return <Chip>Stopped at {`${run.stoppedAt.done}/${run.stoppedAt.total}`}</Chip>;
-  return <Chip>Completed</Chip>;
-}
 
 /** 5.4 Runs list (screens/06-runs.md). Counts come from the results (CLAUDE.md rule 5). */
 export function RunsScreen() {
@@ -59,7 +51,7 @@ export function RunsScreen() {
 
   async function openNewRun() {
     try {
-      setNewRun((await listTests(project.id)).map((t) => t.id)); // no selection → All tests (D56)
+      setNewRun((await listLibraryTests(project.id)).map((t) => t.id)); // no selection → All tests (D56)
     } catch (e) {
       setError(errorText(e));
     }
@@ -129,7 +121,7 @@ export function RunsScreen() {
                     </Td>
                     <Td>{run.environment.name}</Td>
                     <Td className="whitespace-nowrap">{formatDuration(run.durationMs ?? 0)}</Td>
-                    <Td className="whitespace-nowrap">{stateChip(run)}</Td>
+                    <Td className="whitespace-nowrap"><RunStateChip run={run} /></Td>
                     <Td>
                       <div className="flex flex-wrap gap-1">
                         {c.passed > 0 && <Chip tone="passed">{c.passed} passed</Chip>}

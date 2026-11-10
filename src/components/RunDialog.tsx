@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { CircleAlert, CircleCheck, CircleX, LoaderCircle } from 'lucide-react';
-import { listSuites, listTests, planRun, runPreflight, startRun, type PlannedTest } from '@/data/api';
+import { listSuites, listLibraryTests, planRun, runPreflight, startRun, type PlannedTest } from '@/data/api';
 import type { Browser, ID } from '@/data/types';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
@@ -32,7 +32,7 @@ export function RunDialog({ testIds, onClose, presetModel, presetEnvironmentId }
   const { settings } = useGlobalSettings();
   const navigate = useNavigate();
   const data = useAsync(async () => {
-    const [tests, suites, models] = await Promise.all([listTests(project.id), listSuites(project.id), modelOptions(settings.providers)]);
+    const [tests, suites, models] = await Promise.all([listLibraryTests(project.id), listSuites(project.id), modelOptions(settings.providers)]);
     return { tests, suites, models };
   }, [project.id]);
 
