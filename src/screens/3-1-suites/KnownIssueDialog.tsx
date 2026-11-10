@@ -1,14 +1,14 @@
 import { useState } from 'react';
+import { markKnownIssue } from '@/data/api';
 import type { TestCase } from '@/data/types';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input } from '@/components/ui/field';
 import { errorText } from '@/components/StatusLine';
 import { useSuites } from './suitesContext';
-import type { SaveTest } from './TestDetail';
 
 /** More › Mark known issue (glossary: failing for a known, reported reason; still runs and is recorded). Optional note + ticket. */
-export function KnownIssueDialog({ test, save, onClose }: { test: TestCase; save: SaveTest; onClose: () => void }) {
+export function KnownIssueDialog({ test, onClose }: { test: TestCase; onClose: () => void }) {
   const s = useSuites();
   const [note, setNote] = useState('');
   const [ticketRef, setTicketRef] = useState('');
@@ -16,10 +16,9 @@ export function KnownIssueDialog({ test, save, onClose }: { test: TestCase; save
 
   async function mark() {
     try {
-      await save((t) => ({
-        ...t,
-        knownIssue: { ...(note.trim() ? { note: note.trim() } : {}), ...(ticketRef.trim() ? { ticketRef: ticketRef.trim() } : {}), markedAt: new Date().toISOString() },
-      }));
+      // The data layer stores who marked it and when (BR-ACTION-02, CLAUDE.md rule 10).
+      await markKnownIssue([test.id], { note, ticketRef });
+      s.reload();
       s.showToast({ text: `${test.testId} marked as a known issue` });
       onClose();
     } catch (e) {

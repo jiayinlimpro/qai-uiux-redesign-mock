@@ -5,10 +5,12 @@
  * Simulated outcome ("the app has not changed"): a test repeats its last failure / couldn't-complete; a never-run
  * Likely bug test fails (the run confirms the finding); everything else passes.
  */
-import type { Browser, ID, Result, ResultStep, Run, Status, TestCase } from '../types';
+import type { Browser, ID, Result, ResultStep, Run, Status } from '../types';
 import { planTest, type TestPlan } from '@/lib/runPlan';
 import { sumCost } from '@/lib/status';
-import { deriveSteps, SEED_RUN_PACE } from './seed';
+import { SEED_RUN_PACE } from './seed';
+import { actionsFor, aiThoughtFor, intentSteps, logsFor, startUrl, urlsFor, usageFor } from './evidence';
+import { knowledgeForRun } from '@/lib/runRules';
 import { getDb, mutate } from './store';
 
 export interface Narration {
@@ -86,7 +88,6 @@ export function ensureEngine(): void {
   timer = setInterval(tick, tickMs);
 }
 
-const intentSteps = (t: TestCase): string[] => (t.steps.length > 1 ? t.steps : deriveSteps(t.steps[0] ?? ''));
 const hash = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 const aiCost = (key: string) => Math.round(5 + (hash(key) % 20)) / 100; // $0.05–$0.24
 const ticksPerStep = (mode: TestPlan['mode'], step: number) => (mode === 'script' ? 1 : step === 0 && mode === 'data_rows' ? 3 : mode === 'data_rows' ? 1 : 3);
@@ -106,7 +107,7 @@ function startTest(run: Run, testId: ID): Active | null {
   const test = getDb().tests.find((t) => t.id === testId);
   if (!test) return null;
   const plan = planTest(test, { forceAi: run.forceAi, browsers: run.browsers, runNumber: runNumberOf });
-  return { testId, plan, steps: intentSteps(test), step: 0, ticksInStep: 0, beats: 0, aiSteps: 0, version: test.version, startedMs: 0 };
+  return { testId, plan, steps: intentSteps(test).steps, step: 0, ticksInStep: 0, beats: 0, aiSteps: 0, version: test.version, startedMs: 0 };
 }
 
 function tick(): void {
@@ -244,6 +245,9 @@ function finish(runId: ID, a: Active, forced?: 'not_run', note?: string): void {
     const stopAt = status === 'passed' ? a.steps.length + 1 : forced ? Math.min(a.step + 1, a.steps.length) : Math.min(failure?.stepIndex ?? a.steps.length, a.steps.length);
     const scriptFrom = test.script.fromRunId ? (db.runs.find((r) => r.id === test.script.fromRunId)?.number ?? 0) : 0;
     const prevReplay = a.plan.mode === 'script' && !test.visual.excluded ? previousReplay(db, test.id, run, scriptFrom) : undefined;
+    // Evidence written when the result is created (D58): URL, actions with locators, AI thought, usage, knowledge, logs.
+    const appUrl = run.environment.apps.find((x) => x.url)?.url ?? null;
+    const urls = urlsFor(a.steps, startUrl(test, appUrl));
     const steps: ResultStep[] = a.steps.map((text, i) => {
       const index = i + 1;
       const s: Status = forced ? (index <= a.step ? 'passed' : 'not_run') : index < stopAt ? 'passed' : index === stopAt ? status : 'not_run';
@@ -253,10 +257,11 @@ function finish(runId: ID, a: Active, forced?: 'not_run', note?: string): void {
         text,
         status: s,
         durationMs: ran ? tickMs * ticksPerStep(a.plan.mode, i) : 0,
-        actions: ran ? [{ text: a.plan.mode === 'script' ? 'Replayed the recorded actions' : `Did what the step asks: ${text.slice(0, 80)}`, raw: a.plan.mode === 'script' ? 'replay()' : 'act()' }] : [],
-        ...(ran ? { screenshotId: `shot-${run.number}-${test.testId.toLowerCase()}-${index}` } : {}),
+        actions: ran ? actionsFor(text, urls[i]!) : [],
+        ...(ran ? { screenshotId: `shot-${run.number}-${test.testId.toLowerCase()}-${index}`, url: urls[i]! } : {}),
       };
       if (!forced && index === stopAt && failure) step.check = { expected: failure.expected, found: failure.found, ok: false };
+      if (ran && a.plan.mode !== 'script') step.aiThought = aiThoughtFor(step, a.steps.length); // a script replay has no AI
       if (ran && prevReplay) step.visual = { previousScreenshotId: prevReplay.steps[i]?.screenshotId ?? `shot-prev-${index}`, changedAreas: 0 };
       return step;
     });
@@ -295,6 +300,20 @@ function finish(runId: ID, a: Active, forced?: 'not_run', note?: string): void {
       durationMs: a.startedMs,
       flags: {},
       ...(note ? { note } : {}),
+      stepsSource: intentSteps(test).source,
+      usage: usageFor(Math.round(cost * 100) / 100, a.plan.mode, browsers.length, status),
+      knowledgeUsed: knowledgeForRun(test, db.knowledge.filter((k) => k.projectId === test.projectId)).map((k) => k.id),
+      logs: logsFor({
+        startedAt: new Date(Date.now() - a.startedMs).toISOString(),
+        mode: a.plan.mode,
+        browsers,
+        viewport: `${run.viewport.width}×${run.viewport.height}`,
+        environment: run.environment.name,
+        steps,
+        status,
+        reason,
+        note,
+      }),
     };
     db.results.push(r);
     run.progress.done = db.results.filter((x) => x.runId === runId).length;

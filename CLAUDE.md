@@ -43,6 +43,10 @@ src/
 7. **Accessibility:** real `<button>`/`<a>`/`<input>` with labels; icon-only buttons have `aria-label`; colour is never the only signal (status also has icon or text); visible focus; text contrast ≥ 4.5:1.
 8. Small, reviewable changes. After each slice: run the app, check the slice's acceptance list in `docs/11-build-plan.md`, then stop and report.
 9. If a decision changes, update the relevant doc AND add an entry to `docs/12-decision-log.md` in the same change.
+10. **A result is a frozen record of what happened.** When a screen needs data the model doesn't hold, add an OPTIONAL field
+    written when the result is created, and show "Not recorded" when it is empty. Human decisions on results
+    (override, dismiss, known issue) are stored with who and when, never by changing or deleting data.
+    Only ask when the choice changes product behaviour.
 
 ## Reading map
 | Task | Read |

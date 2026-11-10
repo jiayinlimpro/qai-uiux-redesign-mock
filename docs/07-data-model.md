@@ -41,7 +41,7 @@ interface TestCase { id: ID; projectId: ID; suiteId: ID | null;                 
   script: { state: 'none'|'recorded'|'reset'|'failed_ai'; fromRunId?: ID };
   visual: { excluded: boolean; ignoreAreas: { id: ID; stepIndex: number; label: string;
     rect?: { x: number; y: number; width: number; height: number } }[] };   // rect: share of the screenshot (0–1); absent = "Not drawn yet" (D45)
-  knownIssue?: { note?: string; ticketRef?: string; markedAt: string };
+  knownIssue?: { note?: string; ticketRef?: string; markedAt: string; by?: string };   // by: who marked it (CLAUDE.md rule 10)
   createdAt: string; updatedAt: string }
 interface TestData { fields: { name: string; type: 'text'|'select'|'checkbox'|'date'; options?: string[] }[];
   rows: { id: ID; index: number; values: Record<string, string>; expected: 'accepted'|'rejected'; pageShows?: string; note?: string;
@@ -68,7 +68,7 @@ interface Run { id: ID; projectId: ID; number: number; environmentId: ID; browse
   startedAt: string; finishedAt?: string; durationMs?: number; cost: number }   // durationMs: active time (pauses excluded)
 interface Result { id: ID; runId: ID; testId: ID; testVersion: number; mode: Mode;
   testSnapshot: { testId: string; title: string };   // display ID + title when it ran; shown if the test is deleted (D46)
-  status: Status;                       // effective status (after override)
+  status: Status;                       // effective status (after the latest override)
   reason?: FailReason | CcReason;
   aiVerdict: { status: Status; reason?: FailReason | CcReason; confidence: 'high'|'medium'|'low' };
   perBrowser: { browser: Browser; status: Status }[];
@@ -77,10 +77,20 @@ interface Result { id: ID; runId: ID; testId: ID; testVersion: number; mode: Mod
   steps: ResultStep[]; cost: number; durationMs: number;
   flags: { worthALook?: string; scriptReRecorded?: boolean; visualChanges?: number };
   note?: string;                        // e.g. "Skipped by user", "No allowed browser selected (test allows Chrome, Safari)"
-  override?: { status: 'passed'|'failed'; reason: string; proofName: string; by: string; at: string } }
+  overrides?: { status: 'passed'|'failed'; reason: string; proofName: string; by: string; at: string }[];   // history, oldest first; the newest applies (D62)
+  // Optional evidence, written when the result is created; empty → "Not recorded" (D58, CLAUDE.md rule 10)
+  stepsSource?: 'test'|'ai_derived';    // the test's own numbered steps, or derived by the AI from a single paragraph
+  usage?: { inputTokens: number; outputTokens: number };
+  knowledgeUsed?: ID[];                 // knowledge items the run gave the AI for this test
+  logs?: { at: string; level: 'info'|'warn'|'error'; text: string }[] }
 interface ResultStep { index: number; text: string; status: Status; durationMs: number; screenshotId?: ID;
-  actions: { text: string; raw: string }[]; check?: { expected: string; found: string; ok: boolean };
-  aiReasoning?: string; visual?: { previousScreenshotId?: ID; changedAreas: number } }
+  actions: { text: string; raw: string; locator?: string }[]; check?: { expected: string; found: string; ok: boolean };
+  aiReasoning?: string;                 // one line, always shown
+  aiThought?: string;                   // full AI thought, shown with "Show technical details" (D58)
+  url?: string;                         // page URL at the end of the step (D58)
+  visual?: { previousScreenshotId?: ID; changedAreas: number;
+    changedRegions?: { x: number; y: number; w: number; h: number }[];   // where they changed (share of the screenshot, 0–1); absent → placeholder outlines (D64, open question 23)
+    dismissed?: { by: string; at: string } } }   // "Looks fine" in Visual compare: kept, not counted as a flag (D59)
 
 interface Chat { id: ID; projectId: ID; title: string; updatedAt: string; running: boolean; messages: ChatMessage[] }
 type ChatMessage =
@@ -124,12 +134,17 @@ planRun(testIds, { forceAi, browsers }) → per-test { testId, mode, reason, bro
 runPreflight(projectId, environmentId, model) → [{ id, label, status: pass | warn | block, detail? }]  // BR-RUN-09, D57
 startRun({ projectId, testIds, environmentId, browsers, model, forceAi, advanced }) → Run   // new number, environment snapshot
 pauseRun / resumeRun / stopRun(runId) → Run · skipTest(runId, testId) → Run   // BR-RUN-10/14/15
-listRuns / getRun / listResults(runId, filters) / getResult
-overrideResult / markKnownIssue / buildBugReport(resultId) → text
+listRuns / getRun / listResults(runId, filters?) / getResult     // filters: status, reason, mode, search, worthALook (BR-LIST-03);
+                                                                     // tests of the run without a result are Not run (the screen adds them, D55)
+overrideResult(resultId, { status, reason, proofName }) → Result    // adds to Result.overrides with by + at; the newest applies; AI verdict kept (BR-ACTION-01, BR-STATUS-05, D62)
+markKnownIssue(testIds, { note?, ticketRef? }) → TestCase[]          // stores by + markedAt; no new version (BR-ACTION-02)
+buildBugReport(resultId, { visualStepIndex? }) → BugReport           // { title, environment, steps[], expected, actual, screenshots[] },
+                                                                     // editable; formatBugReport (lib) makes the Copy text (BR-ACTION-03, D60)
+dismissVisualFlag(resultId, stepIndex, dismissed) → Result           // 6.2 Looks fine / Undo, stores by + at (D59); shape to confirm
 listChats / getChat / sendChatMessage / addProposals(chatId, proposalIds) → TestCase[]
 subscribeRun(runId, cb)   // live progress + narration events (mock: timer-driven)
 ```
-Mock implementation: in-memory store seeded from fixtures; persist to localStorage; simulate latency (200–500 ms) and a live run via timers (`src/data/mock/runEngine.ts`: one tick per 500 ms, AI steps take 3 ticks, replay steps 1; a run that was running keeps going after a reload). Simulated outcome: a test whose previous result was Failed or Couldn't complete repeats it; a never-run Likely bug test fails as a product bug; everything else passes. Cost: AI run $0.05–$0.24, each replay $0.02.
+Mock implementation: in-memory store seeded from fixtures; persist to localStorage; simulate latency (200–500 ms) and a live run via timers (`src/data/mock/runEngine.ts`: one tick per 500 ms, AI steps take 3 ticks, replay steps 1; a run that was running keeps going after a reload). Results carry mock technical evidence (`src/data/mock/evidence.ts`: plain-language actions with raw action + locator, page URL per step, the AI's full thought on AI steps, tokens from the cost, knowledge in scope, a short log; D58). Simulated outcome: a test whose previous result was Failed or Couldn't complete repeats it; a never-run Likely bug test fails as a product bug; everything else passes. Cost: AI run $0.05–$0.24, each replay $0.02.
 
 ## Sample data (one consistent world)
 Fake data, not a source of truth: it may change, as long as it stays consistent with the business rules (D24).
@@ -142,9 +157,9 @@ Seed from `fixtures/qcfixer-tests-seed.csv` (83 tests in 12 categories → 12 su
 - **Global settings**: no AI provider, so first launch shows Welcome.
 - **Tests**: all 83 from the CSV, source `import`. Scripts follow from the runs: 72 `recorded`, 8 `failed_ai` (last AI run failed), FTR-02 and GEN-02 `none` (AI couldn't finish), CNT-03 `reset`. Edits: CNT-03 v2 (20 Oct, expected result) and v3 (3 Nov, test data); CNT-04 v2 (20 Oct, the paragraph split into 3 numbered steps; expected result unchanged from the CSV). Tests that have never run (T-01, T-02) show Not run (BR-STATUS-01). Two AI explore tests in Not in a suite, both New, prefix `T-` (BR-TEST-01), added from chat "Homepage and Contact Us": T-01 "Message field enforces length limit" (Validated, so its script is `recorded` from AI explore, BR-EXPLORE-06) and T-02 "Back to top button returns to the top" (Likely bug: Not run, `aiExploreFinding` → that chat's tests-ready message, BR-EXPLORE-05).
 - **Test data** on CNT-03: fields {name}, {email}, {topic: select}; 5 rows (row 1 recorded; rows 2–4 vary email/email/name; row 5 varies topic).
-- **Runs** (all UAT, Chrome, unless noted): #1–#6 first AI runs suite by suite (Sept); #7 01 Navigation on **Prod** in Chrome/Firefox/Safari (WebKit), read-only tests only (no form submissions or data entry on Prod; checked by `seed.test.ts`); #8 CNT-04 (AI: Needs confirmation, overridden to Passed); #9 01 Navigation replays; #10 Data Consistency / Portfolio / News Feed re-check; #11 CNT-04 only, failed; **#12 completed, All tests (83): 72 passed · 8 failed · 3 couldn't complete, cost $3.47**; #13 interrupted (QAI closed) at 34/83 (31 passed, 3 failed: SVC-17, HOME-01, HOME-02; 49 not run; $1.12); #14 running (09 Contact Us, 4 tests, 2 done, CNT-03 running as Data rows); #14 runs slowly on purpose (`SEED_RUN_PACE` in seed.ts: about 30 minutes to complete) so the Running state stays visible for demos; checks that need the seed's fixed results stop #14 first. Script replays cost $0.02; run cost = sum of result costs. Every run's viewport is 1920×1080 (D27), and every run stores its environment snapshot (name + app URLs, BR-ENV-04).
-- **Run #12 non-passed results** (exactly these): failed — ABT-03 Product bug, FTR-04 Product bug, PRT-01 Product bug (portfolio never loads), CNT-04 Needs confirmation (phone link consistently opens WhatsApp instead of tel:, no linked document; BR-REASON-05), NWS-02 Test case unclear, CONS-02 Test case unclear, PRT-02/PRT-03 Blocked (by PRT-01, noted in the step's AI reasoning); couldn't complete — FTR-02 AI couldn't finish, GEN-02 AI couldn't finish (low confidence), WA-02 Environment down. Every one has a failure summary (step, expected, found). Worth a look: CNT-03 (passed using 38 of 40 AI steps), CNT-04 (Needs confirmation), GEN-02 (low confidence).
+- **Runs** (all UAT, Chrome, unless noted): #1–#6 first AI runs suite by suite (Sept); #7 01 Navigation on **Prod** in Chrome/Firefox/Safari (WebKit), read-only tests only (no form submissions or data entry on Prod; checked by `seed.test.ts`); #8 CNT-04 (AI: Needs confirmation, overridden to Passed: one entry in `overrides`); #9 01 Navigation replays; #10 Data Consistency / Portfolio / News Feed re-check; #11 CNT-04 only, failed; **#12 completed, All tests (83): 72 passed · 8 failed · 3 couldn't complete, cost $3.47**; #13 interrupted (QAI closed) at 34/83 (31 passed, 3 failed: SVC-17, HOME-01, HOME-02; 49 not run; $1.12); #14 running (09 Contact Us, 4 tests, 2 done, CNT-03 running as Data rows); #14 runs slowly on purpose (`SEED_RUN_PACE` in seed.ts: about 30 minutes to complete) so the Running state stays visible for demos; checks that need the seed's fixed results stop #14 first. Script replays cost $0.02; run cost = sum of result costs. Every run's viewport is 1920×1080 (D27), and every run stores its environment snapshot (name + app URLs, BR-ENV-04).
+- **Run #12 non-passed results** (exactly these): failed — ABT-03 Product bug, FTR-04 Product bug, PRT-01 Product bug (portfolio never loads), CNT-04 Needs confirmation (phone link consistently opens WhatsApp instead of tel:, no linked document; BR-REASON-05), NWS-02 Test case unclear, CONS-02 Test case unclear, PRT-02/PRT-03 Blocked (by PRT-01, noted in the step's AI reasoning); couldn't complete — FTR-02 AI couldn't finish, GEN-02 AI couldn't finish (low confidence), WA-02 Environment down. Every one has a failure summary (step, expected, found). Worth a look: CNT-03 (passed using 38 of 40 AI steps), CNT-04 ("The behaviour looks deliberate; confirm the expected result before reporting a bug", Needs confirmation), GEN-02 (low confidence). Every seeded result has the D58 evidence (steps source, actions with locators, URLs, AI thoughts on AI steps, tokens, knowledge used, logs); script replays have no AI thought.
 - **CNT-04 full evidence** (use for the detailed result): 3 steps; step 2 failed: expected `tel:` link, found `https://wa.link/mgz96d`; actions "Found phone '+60123933860' on the page", "Read its link target"; raw `click(index=218)`, `evaluate(...)`; cost $0.07; duration 2m 54s; history: #12 v2 failed, #11 v2 failed, #8 v1 passed (overridden; AI verdict Needs confirmation), #5 v1 couldn't complete (service problem).
-- **Visual**: NAV-01 step 2 in #12 has 3 changed areas vs the previous UAT replay, Run #9; afterwards ignore areas were added on NAV-01 step 2: "Hero rotating word", "Statistics counters", "Team carousel". Replays without an earlier replay on the same environment and browser have no comparison ("No previous run to compare").
+- **Visual**: NAV-01 step 2 in #12 has 3 changed areas vs the previous UAT replay, Run #9, with their `changedRegions` (the places later ignored); afterwards ignore areas were added on NAV-01 step 2: "Hero rotating word", "Statistics counters", "Team carousel". Replays without an earlier replay on the same environment and browser have no comparison ("No previous run to compare").
 - **Chats**: "Contact Us · explore on UAT": user message, plan card (2 suites, 5 scenarios, 4 pages), tests ready card with 5 proposals (1.1 duplicate of CNT-02, 2.1 Likely bug, 2.2 Needs attention unticked). "Footer links · explore on UAT": AI turn still running (Running badge). "Homepage and Contact Us · explore on UAT": tests ready card with 2 proposals (Validated, Likely bug) with outcome "added" → T-01 and T-02 (D29).
 All counts in the UI are computed from this data (CLAUDE.md rule 5).

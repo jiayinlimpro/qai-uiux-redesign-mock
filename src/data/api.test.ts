@@ -23,7 +23,7 @@ describe('api.ts (Slice 0)', () => {
 
   it('rejects unknown ids and unbuilt functions with typed errors', async () => {
     await expect(api.getProject('nope')).rejects.toBeInstanceOf(api.NotFoundError);
-    await expect(api.overrideResult('res-12-cnt-04', { status: 'passed', reason: 'x', proofName: 'p.png' })).rejects.toBeInstanceOf(api.NotBuiltYetError);
+    await expect(api.sendChatMessage('chat-1', 'hi')).rejects.toBeInstanceOf(api.NotBuiltYetError); // Slice 8
   });
 
   it('lists runs newest first', async () => {

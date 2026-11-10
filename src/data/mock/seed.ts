@@ -27,11 +27,11 @@ import type {
   TestCase,
 } from '../types';
 import { contentToSteps, idPrefixOf, parseBrowserList, readTemplateCsv } from '@/lib/importRules';
-import { snapshotEnvironment } from '@/lib/runRules';
-import { modeFor } from '@/lib/runRules';
+import { knowledgeForRun, modeFor, snapshotEnvironment } from '@/lib/runRules';
 import { sumCost } from '@/lib/status';
+import { actionsFor, aiThoughtFor, deriveSteps, intentSteps, logsFor, startUrl, urlsFor, usageFor } from './evidence';
 
-export const SEED_VERSION = 9;
+export const SEED_VERSION = 12;
 
 /**
  * Mock engine pace for seeded demo runs: timer ticks per work tick (normal runs: 1). Run #14 has 14 work ticks left
@@ -69,7 +69,8 @@ const addMs = (iso: string, ms: number): string => new Date(Date.parse(iso) + ms
 const PROJECT_CREATED = '2026-09-01T09:00:00.000Z';
 const IMPORTED_AT = '2026-09-01T10:00:00.000Z';
 const DEFAULT_MODEL = 'gpt-4.1';
-const CURRENT_USER = 'Jia Yin';
+/** Prototype: the person using QAI (who overrides, marks known issues, dismisses visual flags). */
+export const CURRENT_USER = 'Jia Yin';
 const SCRIPT_REPLAY_COST = 0.02;
 const DEFAULT_VIEWPORT = { width: 1920, height: 1080 }; // D27: every run, until users can choose
 const VP = `${DEFAULT_VIEWPORT.width}x${DEFAULT_VIEWPORT.height}`;
@@ -201,17 +202,7 @@ function T(displayId: string): TestCase {
 }
 const idsOfSuites = (...prefixes: string[]): string[] => csvIds.filter((id) => prefixes.includes(idPrefixOf(id)));
 
-/**
- * 6.1: when a test is a single paragraph, the AI derives intent steps from it.
- * Simulated by splitting on sentence ends (an ellipsis "..." is not a sentence end).
- */
-export function deriveSteps(paragraph: string): string[] {
-  return paragraph
-    .split(/(?<=[^.][.!?])\s+(?=[A-Z'"(])/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-const intentSteps = (t: TestCase): string[] => (t.steps.length > 1 ? t.steps : deriveSteps(t.steps[0] ?? ''));
+export { deriveSteps };
 
 // ---------- timeline: edits ----------
 // BR-VISUAL-02: previous replay of the same test, environment, browser and viewport.
@@ -244,9 +235,11 @@ interface Outcome {
   confidence?: 'high' | 'medium' | 'low';
   worthALook?: string;
   aiVerdict?: Result['aiVerdict'];
-  override?: Result['override'];
+  override?: NonNullable<Result['overrides']>[number];
   actions?: Record<number, ResultStep['actions']>;
   visualChanges?: Record<number, number>; // step → changed areas
+  /** step → where the areas changed (share of the screenshot), D64 */
+  visualRegions?: Record<number, { x: number; y: number; w: number; h: number }[]>;
 }
 const PASSED: Outcome = { status: 'passed' };
 
@@ -268,11 +261,13 @@ const runs: Run[] = [];
 const results: Result[] = [];
 
 function buildSteps(runNumber: number, t: TestCase, mode: Mode, o: Outcome, durationMs: number, environmentId: ID): ResultStep[] {
-  const texts = intentSteps(t);
+  const texts = intentSteps(t).steps;
   const stopAt = o.status === 'passed' ? texts.length + 1 : Math.min(o.atStep ?? texts.length, texts.length);
   const executed = Math.min(stopAt, texts.length);
   const each = Math.round(durationMs / Math.max(executed, 1));
   const previous = mode === 'script' ? replayHistory.get(replayKey(t.id, environmentId, 'chrome')) : undefined;
+  const appUrl = snapshotEnvironment(projects[0]!, environmentId).apps.find((a) => a.appId === APP.customer)?.url ?? null;
+  const urls = urlsFor(texts, startUrl(t, appUrl));
   return texts.map((text, i) => {
     const index = i + 1;
     const status: Status = index < stopAt ? 'passed' : index === stopAt ? o.status : 'not_run';
@@ -282,14 +277,19 @@ function buildSteps(runNumber: number, t: TestCase, mode: Mode, o: Outcome, dura
       text,
       status,
       durationMs: ran ? each : 0,
-      actions: o.actions?.[index] ?? [],
-      ...(ran ? { screenshotId: shotKey(runNumber, t.testId, index) } : {}),
+      actions: ran ? (o.actions?.[index] ?? actionsFor(text, urls[i]!)) : [],
+      ...(ran ? { screenshotId: shotKey(runNumber, t.testId, index), url: urls[i]! } : {}),
     };
     if (index === stopAt && o.expected && o.found) step.check = { expected: o.expected, found: o.found, ok: false };
     if (index === stopAt && o.note) step.aiReasoning = o.note;
+    if (ran && mode !== 'script') step.aiThought = aiThoughtFor(step, texts.length); // a script replay has no AI
     // BR-VISUAL-01/02: script replays compare each step with the previous replay (same test, environment, browser).
     if (ran && previous !== undefined && !t.visual.excluded) {
-      step.visual = { previousScreenshotId: shotKey(previous, t.testId, index), changedAreas: o.visualChanges?.[index] ?? 0 };
+      step.visual = {
+        previousScreenshotId: shotKey(previous, t.testId, index),
+        changedAreas: o.visualChanges?.[index] ?? 0,
+        ...(o.visualRegions?.[index] ? { changedRegions: o.visualRegions[index] } : {}),
+      };
     }
     return step;
   });
@@ -300,6 +300,7 @@ function simulateRun(spec: RunSpec): void {
   const state = spec.state ?? 'completed';
   const executed = spec.testIds.slice(0, spec.done ?? spec.testIds.length);
   const runResults: Result[] = [];
+  let offsetMs = 0; // tests run one after another (BR-RUN-04 default: no parallel)
 
   executed.forEach((displayId, i) => {
     const t = T(displayId);
@@ -315,8 +316,15 @@ function simulateRun(spec: RunSpec): void {
     // BR-WORTH [PROPOSAL]: Needs confirmation or a low-confidence verdict.
     const worthALook =
       o.worthALook ??
-      (o.reason === 'needs_confirmation' ? 'Needs confirmation' : aiVerdict.confidence === 'low' ? 'Low confidence verdict' : undefined);
+      (o.reason === 'needs_confirmation'
+        ? 'The behaviour looks deliberate; confirm the expected result before reporting a bug'
+        : aiVerdict.confidence === 'low'
+          ? 'Low confidence verdict'
+          : undefined);
     const failStep = seen.status === 'passed' ? undefined : Math.min(seen.atStep ?? steps.length, steps.length);
+    const cost = o.cost ?? (mode === 'script' ? SCRIPT_REPLAY_COST : aiCostFor(n));
+    const startedAt = addMs(spec.startedAt, offsetMs);
+    offsetMs += durationMs;
 
     runResults.push({
       id: resultKey(spec.number, displayId),
@@ -335,10 +343,24 @@ function simulateRun(spec: RunSpec): void {
       })),
       ...(failStep && o.expected && o.found ? { failure: { stepIndex: failStep, expected: o.expected, found: o.found } } : {}),
       steps,
-      cost: o.cost ?? (mode === 'script' ? SCRIPT_REPLAY_COST : aiCostFor(n)),
+      cost,
       durationMs,
       flags: { ...(worthALook ? { worthALook } : {}), ...(visualChanges > 0 ? { visualChanges } : {}) },
-      ...(o.override ? { override: o.override } : {}),
+      ...(o.override ? { overrides: [o.override] } : {}),
+      // Evidence written when the result is created (D58).
+      stepsSource: intentSteps(t).source,
+      usage: usageFor(cost, mode, browsers.length, aiVerdict.status),
+      knowledgeUsed: knowledgeForRun(t, knowledge).map((k) => k.id),
+      logs: logsFor({
+        startedAt,
+        mode,
+        browsers,
+        viewport: `${DEFAULT_VIEWPORT.width}×${DEFAULT_VIEWPORT.height}`,
+        environment: projects[0]!.environments.find((e) => e.id === spec.environmentId)!.name,
+        steps,
+        status: aiVerdict.status,
+        reason: aiVerdict.reason,
+      }),
     });
 
     // After the test: scripts (BR-SCRIPT-01) and replay history (BR-VISUAL-02).
@@ -469,8 +491,8 @@ const CNT04_FAIL: Outcome = {
   note: 'The phone number links to WhatsApp instead of starting a call; unclear whether that is intended.',
   actions: {
     2: [
-      { text: "Found phone '+60123933860' on the page", raw: 'click(index=218)' },
-      { text: 'Read its link target', raw: 'evaluate(...)' },
+      { text: "Found phone '+60123933860' on the page", raw: 'click(index=218)', locator: 'a[href="https://wa.link/mgz96d"]' },
+      { text: 'Read its link target', raw: 'evaluate(...)', locator: 'a[href="https://wa.link/mgz96d"]' },
     ],
   },
 };
@@ -481,7 +503,18 @@ simulateRun({ number: 11, startedAt: '2026-10-28T09:00:00.000Z', environmentId: 
 simulateRun({
   number: 12, startedAt: '2026-11-03T08:30:00.000Z', environmentId: ENV.uat, scopeLabel: 'All tests', testIds: csvIds,
   outcomes: {
-    'NAV-01': { status: 'passed', visualChanges: { 2: 3 } }, // hero word, counters and carousel changed vs Run #9
+    // hero word, counters and carousel changed vs Run #9 (afterwards ignored at the same places)
+    'NAV-01': {
+      status: 'passed',
+      visualChanges: { 2: 3 },
+      visualRegions: {
+        2: [
+          { x: 0.18, y: 0.3, w: 0.32, h: 0.08 },
+          { x: 0.1, y: 0.62, w: 0.8, h: 0.12 },
+          { x: 0.05, y: 0.8, w: 0.9, h: 0.15 },
+        ],
+      },
+    },
     'CNT-03': { status: 'passed', cost: 0.51, worthALook: 'Passed using 38 of 40 AI steps' },
     'CNT-04': { ...CNT04_FAIL, cost: 0.07, durationMs: 174_000 },
     'ABT-03': { ...OUT['ABT-03'], cost: 0.18 },

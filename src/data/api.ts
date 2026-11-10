@@ -40,6 +40,9 @@ import { snapshotEnvironment } from '@/lib/runRules';
 export { UnsupportedImportFileError } from './mock/importFile';
 import { contentToSteps, normaliseHeader, parseBrowserList, planImport, readTemplateCsv, recognisedColumns, templateCsv, updateFromRow, type ImportPlan, type TemplateRow } from '@/lib/importRules';
 import { defaultTitle } from '@/lib/editorRules';
+import { appForStartPage, applyOverride, buildBugReportFor, canOverride, matchesResultFilters, NO_RESULT_FILTERS, setVisualDismissed, validateOverride, type BugReport, type ResultFilterState } from '@/lib/resultRules';
+import { CURRENT_USER } from './mock/seed';
+export type { BugReport };
 
 export class NotFoundError extends Error {
   constructor(what: string, id: ID) {
@@ -1047,23 +1050,96 @@ export async function getRun(runId: ID): Promise<Run> {
   engine.ensureEngine();
   return respond(() => find(getDb().runs, runId, 'Run'));
 }
-export async function listResults(runId: ID, filters?: ResultFilters): Promise<Result[]> {
-  if (filters && Object.keys(filters).length > 0) return notBuilt('listResults (filters)', 7);
-  return respond(() => getDb().results.filter((r) => r.runId === runId));
+/**
+ * Results of a run (one per test that ended). Tests of the run without a result are Not run (BR-STATUS-01, D55);
+ * the screen adds them. Filters follow BR-LIST-03 (status, reason, mode, search by ID/title, Worth a look).
+ */
+export async function listResults(runId: ID, filters: ResultFilters = {}): Promise<Result[]> {
+  return respond(() => {
+    const db = getDb();
+    const f: ResultFilterState = { ...NO_RESULT_FILTERS, ...filters };
+    return db.results
+      .filter((r) => r.runId === runId)
+      .filter((r) => {
+        const t = db.tests.find((x) => x.id === r.testId);
+        const name = t ? { displayId: t.testId, title: t.title } : { displayId: r.testSnapshot.testId, title: r.testSnapshot.title };
+        return matchesResultFilters({ status: r.status, reason: r.reason, mode: r.mode, worthALook: r.flags.worthALook, ...name }, f);
+      });
+  });
 }
 export async function getResult(resultId: ID): Promise<Result> {
   return respond(() => find(getDb().results, resultId, 'Result'));
 }
 
 // ---------- result actions ----------
-export async function overrideResult(_resultId: ID, _input: OverrideInput): Promise<Result> {
-  return notBuilt('overrideResult', 7);
+/** BR-ACTION-01 / BR-STATUS-05: new status with reason + proof; the AI verdict is kept; who and when are stored. */
+export async function overrideResult(resultId: ID, input: OverrideInput): Promise<Result> {
+  await delay();
+  const errors = validateOverride(input);
+  if (errors.reason || errors.proof) throw new Error(errors.reason ?? errors.proof);
+  return structuredClone(
+    mutate((db) => {
+      const r = find(db.results, resultId, 'Result');
+      if (!canOverride(r)) throw new Error('A Not run result has no verdict to override.');
+      const next = applyOverride(r, input, CURRENT_USER, new Date().toISOString());
+      db.results = db.results.map((x) => (x.id === resultId ? next : x));
+      return next;
+    }),
+  );
 }
-export async function markKnownIssue(_testIds: ID[], _input: KnownIssueInput): Promise<TestCase[]> {
-  return notBuilt('markKnownIssue', 7);
+/** BR-ACTION-02 / BR-STATUS-06: single or bulk; optional note and ticket reference; stored with who and when. Not a new version. */
+export async function markKnownIssue(testIds: ID[], input: KnownIssueInput): Promise<TestCase[]> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const at = new Date().toISOString();
+      return testIds.map((id) => {
+        const t = find(db.tests, id, 'Test');
+        t.knownIssue = { ...(input.note?.trim() ? { note: input.note.trim() } : {}), ...(input.ticketRef?.trim() ? { ticketRef: input.ticketRef.trim() } : {}), markedAt: at, by: CURRENT_USER };
+        return t;
+      });
+    }),
+  );
 }
-export async function buildBugReport(_resultId: ID): Promise<string> {
-  return notBuilt('buildBugReport', 7);
+/**
+ * BR-ACTION-03: the bug report of a result, as editable fields (the dialog formats them for Copy with formatBugReport).
+ * `visualStepIndex`: a report of the visual change at that step (6.2 Mark as bug). Shape to confirm (D60).
+ */
+export async function buildBugReport(resultId: ID, opts: { visualStepIndex?: number } = {}): Promise<BugReport> {
+  return respond(() => {
+    const db = getDb();
+    const result = find(db.results, resultId, 'Result');
+    const run = find(db.runs, result.runId, 'Run');
+    const test = db.tests.find((t) => t.id === result.testId);
+    const project = db.projects.find((p) => p.id === run.projectId);
+    const app = appForStartPage(test?.startPage, project?.apps ?? []);
+    const step = opts.visualStepIndex !== undefined ? result.steps.find((s) => s.index === opts.visualStepIndex) : undefined;
+    const previous = step?.visual?.previousScreenshotId ? db.results.find((r) => r.steps.some((s) => s.screenshotId === step.visual!.previousScreenshotId)) : undefined;
+    return buildBugReportFor({
+      result,
+      test: test ? { testId: test.testId, title: test.title, ...(test.expectedResult ? { expectedResult: test.expectedResult } : {}) } : result.testSnapshot,
+      ...(app ? { appName: app.name } : {}),
+      run,
+      ...(opts.visualStepIndex !== undefined
+        ? { visualStep: { index: opts.visualStepIndex, ...(previous ? { previousRunNumber: db.runs.find((x) => x.id === previous.runId)?.number } : {}) } }
+        : {}),
+    });
+  });
+}
+/**
+ * 6.2 Looks fine (dismissed = true) or its Undo (false). The flag stays on the step with who and when; flag counts
+ * leave it out (D59). Shape to confirm.
+ */
+export async function dismissVisualFlag(resultId: ID, stepIndex: number, dismissed: boolean): Promise<Result> {
+  await delay();
+  return structuredClone(
+    mutate((db) => {
+      const r = find(db.results, resultId, 'Result');
+      const next = setVisualDismissed(r, stepIndex, dismissed ? { by: CURRENT_USER, at: new Date().toISOString() } : null);
+      db.results = db.results.map((x) => (x.id === resultId ? next : x));
+      return next;
+    }),
+  );
 }
 
 // ---------- AI explore ----------

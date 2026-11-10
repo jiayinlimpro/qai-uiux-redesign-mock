@@ -62,7 +62,7 @@ export function HistoryTab({ test }: { test: TestCase }) {
                   <div className="flex flex-wrap gap-1">
                     <StatusChip status={r.status} />
                     {r.reason && <ReasonChip reason={r.reason} />}
-                    {r.override && <Chip tone="info">Overridden</Chip>}
+                    {r.overrides?.length ? <Chip tone="info">Overridden</Chip> : null}
                   </div>
                 </td>
               </tr>

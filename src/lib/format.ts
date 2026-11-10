@@ -22,6 +22,17 @@ export function formatDuration(ms: number): string {
   return `${sec}s`;
 }
 
+/** Money (USD) for results and runs: "$0.07", "$3.47" (BR-RUN-05). */
+export function formatCost(usd: number): string {
+  return `$${usd.toFixed(2)}`;
+}
+
+/** Time of day for logs: "08:31:05" (local time). */
+export function formatTime(iso: string): string {
+  const d = new Date(iso);
+  return [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
+}
+
 /** "Today 10:02", "Yesterday 16:40", "16 Oct" (this year), "16 Oct 2025". Local time. */
 export function formatStarted(iso: string, now: Date = new Date()): string {
   const d = new Date(iso);

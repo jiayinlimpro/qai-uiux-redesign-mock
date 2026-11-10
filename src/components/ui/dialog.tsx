@@ -9,8 +9,8 @@ interface DialogProps {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
-  /** 'md' = 720 px (forms), 'sm' = 480 px (confirmations). 08: dialogs 720–820 px. */
-  size?: 'sm' | 'md';
+  /** 'md' = 720 px (forms), 'sm' = 480 px (confirmations), 'lg' = 1200 px (overlays such as Visual compare). 08: dialogs 720–820 px. */
+  size?: 'sm' | 'md' | 'lg';
   /** Wraps body + footer in a form so Enter submits. */
   onSubmit?: () => void;
 }
@@ -58,7 +58,7 @@ export function Dialog({ title, onClose, children, footer, size = 'md', onSubmit
       }}
       className={cn(
         'max-h-[85vh] w-[calc(100%-2rem)] flex-col rounded-card border border-border bg-surface p-0 text-text shadow-xl backdrop:bg-backdrop open:flex',
-        size === 'md' ? 'max-w-[720px]' : 'max-w-[480px]',
+        size === 'lg' ? 'max-w-[1200px]' : size === 'md' ? 'max-w-[720px]' : 'max-w-[480px]',
       )}
     >
       <div className="flex items-center justify-between gap-4 border-b border-border px-6 py-4">

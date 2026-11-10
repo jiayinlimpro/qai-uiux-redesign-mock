@@ -93,7 +93,7 @@ describe('sample data matches docs/07', () => {
     expect(r.durationMs).toBe(174_000);
     const history = db.results
       .filter((x) => x.testId === cnt04.id)
-      .map((x) => `#${runNumberOf(x)} v${x.testVersion} ${x.status}${x.override ? ' (overridden)' : ''}`);
+      .map((x) => `#${runNumberOf(x)} v${x.testVersion} ${x.status}${x.overrides?.length ? ' (overridden)' : ''}`);
     expect(history).toEqual(['#5 v1 couldnt_complete', '#8 v1 passed (overridden)', '#11 v2 failed', '#12 v2 failed']);
   });
 
@@ -110,7 +110,11 @@ describe('sample data matches docs/07', () => {
   it('NAV-01: 3 changed areas at step 2 in #12, compared with the previous UAT replay (#9)', () => {
     const r = resultFor(12, 'NAV-01');
     expect(r.flags.visualChanges).toBe(3);
-    expect(r.steps[1]!.visual).toEqual({ previousScreenshotId: 'shot-9-nav-01-2', changedAreas: 3 });
+    expect(r.steps[1]!.visual).toMatchObject({ previousScreenshotId: 'shot-9-nav-01-2', changedAreas: 3 });
+    // D64: where they changed — the hero word, counters and carousel, later ignored at the same places
+    expect(r.steps[1]!.visual!.changedRegions).toHaveLength(3);
+    const ignored = db.tests.find((t) => t.testId === 'NAV-01')!.visual.ignoreAreas.map((a) => a.rect);
+    expect(r.steps[1]!.visual!.changedRegions!.map((g) => ({ x: g.x, y: g.y, width: g.w, height: g.h }))).toEqual(ignored);
     expect(test('NAV-01').visual.ignoreAreas.map((a) => a.label)).toEqual(['Hero rotating word', 'Statistics counters', 'Team carousel']);
   });
 
@@ -149,10 +153,10 @@ describe('sample data follows the business rules', () => {
   });
 
   it('BR-STATUS-05: overrides keep the AI verdict', () => {
-    const overridden = db.results.filter((r) => r.override);
+    const overridden = db.results.filter((r) => r.overrides?.length);
     expect(overridden.length).toBeGreaterThan(0);
     for (const r of overridden) {
-      expect(r.status).toBe(r.override!.status);
+      expect(r.status).toBe(r.overrides!.at(-1)!.status);
       expect(r.aiVerdict.status).not.toBe(r.status);
     }
   });

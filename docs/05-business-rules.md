@@ -8,7 +8,7 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 - **BR-STATUS-02** Pass rate = passed / (passed + failed). `couldnt_complete` and `not_run` are excluded and shown separately.
 - **BR-STATUS-03** Multi-browser roll-up for one result: failed if any browser failed; else couldnt_complete if any couldn't complete; else passed if all passed; else not_run. Show a per-browser breakdown. Label WebKit as "Safari (WebKit)".
 - **BR-STATUS-04** Data rows roll-up: passed only if every row met its expectation; show "k/n rows".
-- **BR-STATUS-05** An override replaces the status used in all counts; the AI verdict is kept and shown.
+- **BR-STATUS-05** An override replaces the status used in all counts; the AI verdict is kept and shown. Every override is kept as history; the newest applies (D62).
 - **BR-STATUS-06** Known issue: status unchanged; result labelled "Known issue".
 
 ## Failure reason (BR-REASON)
@@ -68,7 +68,7 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 ## Visual comparison (BR-VISUAL)
 - **BR-VISUAL-01** Project setting, default on: compares screenshots of script replays only.
 - **BR-VISUAL-02** Comparison point: end of each step. Compared with the **previous replay of the same test, environment, browser and viewport**. No previous replay → "No previous run to compare".
-- **BR-VISUAL-03** A difference is a **flag**, never a failure.
+- **BR-VISUAL-03** A difference is a **flag**, never a failure. **Looks fine** dismisses a flag: stored with who and when, the change is kept, and dismissed flags are not counted; Undo restores it (D59).
 - **BR-VISUAL-04** Per test: Exclude this test; ignore areas. An ignore area is drawn on a step's screenshot (stored as a share of the screenshot); until drawn it shows "Not drawn yet" and leaves nothing out (D45).
 - **BR-VISUAL-05** Script reset (BR-SCRIPT-02) restarts visual history for that test.
 - **BR-VISUAL-06** Pin a reference: [PARKED, low priority].
@@ -113,10 +113,10 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 - **BR-PROJECT-02** Importing a project that is already on this computer (same project): Replace it (runs and changes made here since the export are lost) · Import as a copy ("<name> (copy)", "(copy 2)"…, new IDs) · Cancel. (D34)
 
 ## Results actions (BR-ACTION)
-- **BR-ACTION-01** Override: single result only; new status Passed/Failed; reason (required) and proof file (required); shows "Overridden by <user> · <date>" and the AI verdict.
-- **BR-ACTION-02** Known issue: single or bulk; optional ticket reference text.
-- **BR-ACTION-03** Bug report: generated per result (title, environment, browser, run, steps to reproduce in plain language, expected, actual, screenshots), editable, Copy; bulk = one report per result.
-- **BR-ACTION-04** Re-run / Re-run with model: open the run dialog prefilled with the selection (and the chosen model).
+- **BR-ACTION-01** Override: single result only; new status Passed/Failed; reason (required) and proof file (required); shows "Overridden by <user> · <date>" and the AI verdict. Overriding again adds to the history (earlier overrides listed under History in the result detail); the newest applies (D62).
+- **BR-ACTION-02** Known issue: single (result detail › More, or Suites › More) or bulk (bulk bar); optional note and ticket reference; stored with who and when (CLAUDE.md rule 10, D63).
+- **BR-ACTION-03** Bug report: generated per result (title, environment, browser, run, steps to reproduce in plain language, expected, actual, screenshots), editable, Copy; bulk = one report per result. Only **Failed** results have a report; Visual compare › Mark as bug reports a visual change for any status; in bulk, other results are skipped with a message (D63).
+- **BR-ACTION-04** Re-run / Re-run with model: open the run dialog prefilled with the selection, the run's environment, and the run's model (or the chosen model) (D60). Deleted tests are left out.
 
 ## Lists and filters (BR-LIST)
 - **BR-LIST-01** Suites: tree by suite (alphabetical by suite name), "Not in a suite" last; within a suite by test ID. Filters: search (ID/title), latest status.

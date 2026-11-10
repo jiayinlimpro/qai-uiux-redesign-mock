@@ -14,6 +14,7 @@ import { useProject } from '@/app/projectContext';
 import { to } from '@/app/routes';
 import { plural } from '@/lib/format';
 import { latestComparison } from '@/lib/suiteRules';
+import { VisualCompare } from '@/components/VisualCompare';
 import { useSuites } from '../suitesContext';
 import type { SaveTest } from '../TestDetail';
 
@@ -28,10 +29,14 @@ export function VisualCheckTab({ test, save }: { test: TestCase; save: SaveTest 
   const history = useAsync(() => getTestHistory(test.id), [test.id, test.updatedAt]);
   const [status, setStatus] = useState<SaveStatus>(null);
   const [adding, setAdding] = useState(false);
+  // 6.2 Visual compare on a step of the latest comparison; `draw` opens it to draw an ignore area (D45).
+  const [compare, setCompare] = useState<{ stepIndex: number; draw?: { areaId: string; label: string } } | null>(null);
   const on = project.settings.visualComparison;
 
   const comparison = history.status === 'ready' ? latestComparison(history.data, s.runs) : null;
   const stepNames = comparison ? comparison.result.steps.map((st) => st.text) : test.steps;
+  /** A step can be drawn on when the latest comparison has its screenshot. */
+  const drawable = (stepIndex: number) => Boolean(comparison?.result.steps.find((st) => st.index === stepIndex)?.screenshotId);
 
   async function apply(change: (t: TestCase) => TestCase, text: string) {
     try {
@@ -113,10 +118,15 @@ export function VisualCheckTab({ test, save }: { test: TestCase; save: SaveTest 
                         )}
                       </td>
                       <td className="px-4 py-2 text-right">
-                        {/* 6.2 Visual compare opens from the result (Slice 7). */}
-                        <Link to={to.run(project.id, comparison.run.id, comparison.result.id)} className="text-accent underline underline-offset-2">
-                          Compare<span className="sr-only"> step {st.index}</span>
-                        </Link>
+                        {st.screenshotId ? (
+                          <Button size="sm" variant="ghost" className="text-accent underline underline-offset-2" onClick={() => setCompare({ stepIndex: st.index })}>
+                            Compare<span className="sr-only"> step {st.index}</span>
+                          </Button>
+                        ) : (
+                          <Link to={to.run(project.id, comparison.run.id, comparison.result.id)} className="text-accent underline underline-offset-2">
+                            Open result<span className="sr-only"> of step {st.index}</span>
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   );
@@ -142,6 +152,11 @@ export function VisualCheckTab({ test, save }: { test: TestCase; save: SaveTest 
               <Chip>
                 Step {a.stepIndex} · {a.label}
                 {!a.rect && <span className="ml-1 text-cc-text">· Not drawn yet</span>}
+                {!a.rect && drawable(a.stepIndex) && (
+                  <button type="button" className="ml-1 font-semibold text-accent underline underline-offset-2" onClick={() => setCompare({ stepIndex: a.stepIndex, draw: { areaId: a.id, label: a.label } })}>
+                    Draw<span className="sr-only"> {a.label}</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   aria-label={`Remove ignored area ${a.label}`}
@@ -176,18 +191,33 @@ export function VisualCheckTab({ test, save }: { test: TestCase; save: SaveTest 
           onClose={() => setAdding(false)}
           onAdd={(stepIndex, label) => {
             setAdding(false);
+            const id = `ia-${crypto.randomUUID().slice(0, 8)}`;
+            // D45: the area is saved first ("Not drawn yet"), then drawn on the step's screenshot in Visual compare.
             void apply(
-              (t) => ({ ...t, visual: { ...t.visual, ignoreAreas: [...t.visual.ignoreAreas, { id: `ia-${crypto.randomUUID().slice(0, 8)}`, stepIndex, label }] } }),
-              `Ignoring ${label} on step ${stepIndex}.`,
-            );
+              (t) => ({ ...t, visual: { ...t.visual, ignoreAreas: [...t.visual.ignoreAreas, { id, stepIndex, label }] } }),
+              drawable(stepIndex) ? `Added ${label}. Draw it on the screenshot.` : `Added ${label} on step ${stepIndex}. It can be drawn after the test's next script replay.`,
+            ).then(() => drawable(stepIndex) && setCompare({ stepIndex, draw: { areaId: id, label } }));
           }}
+        />
+      )}
+      {compare && comparison && (
+        <VisualCompare
+          result={comparison.result}
+          run={comparison.run}
+          test={test}
+          displayId={test.testId}
+          stepIndex={compare.stepIndex}
+          {...(compare.draw ? { draw: compare.draw } : {})}
+          onClose={() => setCompare(null)}
+          onResultChange={() => s.reload()}
+          onTestChange={() => s.reload()}
         />
       )}
     </div>
   );
 }
 
-/** Add an ignore area: step + name (D45). Until Slice 7 the area has no shape ("Not drawn yet"); then Add area opens 6.2 Visual compare on that step to draw it. */
+/** Add an ignore area: step + name (D45). It is saved "Not drawn yet", then Visual compare (6.2) opens on that step to draw it. */
 function AddAreaDialog({ steps, onClose, onAdd }: { steps: string[]; onClose: () => void; onAdd: (stepIndex: number, label: string) => void }) {
   const [step, setStep] = useState(1);
   const [label, setLabel] = useState('');

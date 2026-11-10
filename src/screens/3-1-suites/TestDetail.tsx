@@ -238,7 +238,7 @@ export function TestDetail() {
           {tab === 'history' && <HistoryTab test={test} />}
         </TabPanel>
       </div>
-      {knownIssue && <KnownIssueDialog test={test} save={save} onClose={() => setKnownIssue(false)} />}
+      {knownIssue && <KnownIssueDialog test={test} onClose={() => setKnownIssue(false)} />}
       {confirmDialog}
     </article>
   );

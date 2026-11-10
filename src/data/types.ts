@@ -40,7 +40,7 @@ export interface TestCase { id: ID; projectId: ID; suiteId: ID | null;          
   script: { state: 'none'|'recorded'|'reset'|'failed_ai'; fromRunId?: ID };
   visual: { excluded: boolean; ignoreAreas: { id: ID; stepIndex: number; label: string;
     rect?: { x: number; y: number; width: number; height: number } }[] };   // rect: share of the screenshot (0–1); absent = "Not drawn yet" (D45)
-  knownIssue?: { note?: string; ticketRef?: string; markedAt: string };
+  knownIssue?: { note?: string; ticketRef?: string; markedAt: string; by?: string };   // by: who marked it (CLAUDE.md rule 10)
   createdAt: string; updatedAt: string }
 export interface TestData { fields: { name: string; type: 'text'|'select'|'checkbox'|'date'; options?: string[] }[];
   rows: { id: ID; index: number; values: Record<string, string>; expected: 'accepted'|'rejected'; pageShows?: string; note?: string;
@@ -68,7 +68,7 @@ export interface Run { id: ID; projectId: ID; number: number; environmentId: ID;
   startedAt: string; finishedAt?: string; durationMs?: number; cost: number }   // durationMs: active time (pauses excluded)
 export interface Result { id: ID; runId: ID; testId: ID; testVersion: number; mode: Mode;
   testSnapshot: { testId: string; title: string };   // display ID + title when it ran; shown if the test is deleted (D46)
-  status: Status;                       // effective status (after override)
+  status: Status;                       // effective status (after the latest override)
   reason?: FailReason | CcReason;
   aiVerdict: { status: Status; reason?: FailReason | CcReason; confidence: 'high'|'medium'|'low' };
   perBrowser: { browser: Browser; status: Status }[];
@@ -77,10 +77,20 @@ export interface Result { id: ID; runId: ID; testId: ID; testVersion: number; mo
   steps: ResultStep[]; cost: number; durationMs: number;
   flags: { worthALook?: string; scriptReRecorded?: boolean; visualChanges?: number };
   note?: string;                        // e.g. "Skipped by user", "No allowed browser selected (test allows Chrome, Safari)"
-  override?: { status: 'passed'|'failed'; reason: string; proofName: string; by: string; at: string } }
+  overrides?: { status: 'passed'|'failed'; reason: string; proofName: string; by: string; at: string }[];   // history, oldest first; the newest applies (D62)
+  // Optional evidence, written when the result is created; empty → "Not recorded" (D58, CLAUDE.md rule 10)
+  stepsSource?: 'test'|'ai_derived';    // the test's own numbered steps, or derived by the AI from a single paragraph
+  usage?: { inputTokens: number; outputTokens: number };
+  knowledgeUsed?: ID[];                 // knowledge items the run gave the AI for this test
+  logs?: { at: string; level: 'info'|'warn'|'error'; text: string }[] }
 export interface ResultStep { index: number; text: string; status: Status; durationMs: number; screenshotId?: ID;
-  actions: { text: string; raw: string }[]; check?: { expected: string; found: string; ok: boolean };
-  aiReasoning?: string; visual?: { previousScreenshotId?: ID; changedAreas: number } }
+  actions: { text: string; raw: string; locator?: string }[]; check?: { expected: string; found: string; ok: boolean };
+  aiReasoning?: string;                 // one line, always shown
+  aiThought?: string;                   // full AI thought, shown with "Show technical details" (D58)
+  url?: string;                         // page URL at the end of the step (D58)
+  visual?: { previousScreenshotId?: ID; changedAreas: number;
+    changedRegions?: { x: number; y: number; w: number; h: number }[];   // where they changed (share of the screenshot, 0–1); absent → placeholder outlines (D64)
+    dismissed?: { by: string; at: string } } }   // "Looks fine" in Visual compare: kept, not counted as a flag (D59)
 
 export interface Chat { id: ID; projectId: ID; title: string; updatedAt: string; running: boolean; messages: ChatMessage[] }
 export type ChatMessage =

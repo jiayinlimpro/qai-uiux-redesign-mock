@@ -25,4 +25,5 @@ The prototype assumes the answers in "Assumed". Each links to the rules that dep
 | 20 | Will users choose the screen size (viewport) for a run, and which sizes? | No: every run is 1920×1080; `Run.viewport` exists and is shown read-only (D27) | BR-VISUAL-02 |
 | 21 | Should exported project files be encrypted (they can contain account passwords in readable form)? | No: plain file; "Include account passwords" option with a warning (D37) | D37 |
 | 22 | How does the real app read Excel (.xlsx) imports: a spreadsheet library in the app, or the engine? | Prototype reads CSV only; .xlsx is simulated with the seed CSV (D48) | BR-IMPORT-01 |
+| 23 | Can the engine return the changed screenshot regions (where each visual change is), not only how many areas changed? | Optional `ResultStep.visual.changedRegions`; without it the prototype outlines placeholder positions (D64) | BR-VISUAL-02/03 |
 | 19 | Result storage: keep Allure only as an optional export; QAI stores results in its own model (07). | Own model | 07 |
