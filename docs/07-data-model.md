@@ -29,7 +29,9 @@ interface KnowledgeItem { id: ID; projectId: ID; kind: 'document'|'skill';
 
 interface Suite { id: ID; projectId: ID; name: string; idPrefix: string }        // "09 Contact Us", "CNT"
 interface TestCase { id: ID; projectId: ID; suiteId: ID | null;                   // null = Not in a suite
-  testId: string;                // display ID, e.g. "CNT-04"
+  location: 'tray'|'suites'|'discarded';   // D65: 'suites' = the library; AI cases start in 'tray' (Ready for Suites); 'discarded' via Discard (any AI case, BR-EXPLORE-09)
+  locationChange?: { by: string; at: string; replacedTestId?: ID };   // last move / discard / replace: who and when (rule 10); Undo puts it back
+  testId: string;                // display ID, e.g. "CNT-04"; AI cases get a T- ID when moved (empty while in the tray or discarded)
   title: string; description?: string; preconditions?: string;
   steps: string[]; expectedResult?: string; expectedKeywords?: string; startPage?: string; browserPreference?: Browser[];
   linkedKnowledge: ID[];
@@ -37,7 +39,9 @@ interface TestCase { id: ID; projectId: ID; suiteId: ID | null;                 
   version: number; source: 'import'|'written'|'ai_explore'|'clone';
   clonedFromId?: ID;             // source 'clone': the original (internal id), shown as "Clone of <ID>"; not used for ordering (D41)
   isNew: boolean;                // BR-TEST-04
-  aiExploreFinding?: { kind: 'likely_bug'; chatId: ID; messageIndex: number }; // BR-EXPLORE-05: badge until the test's first run
+  aiValidationStatus?: 'not_checked'|'checked'|'needs_fixing';   // AI cases only (BR-EXPLORE-03); 'needs_fixing' → badge in Suites until the first run (BR-EXPLORE-05)
+  aiOrigin?: { chatId: ID; messageIndex: number };                // AI cases: the chat and its cases card (Open in chat / View in AI explore)
+  duplicateOf?: ID; duplicateChoice?: 'keep_both'|'replace'|'discard';   // tray: possible duplicate of a library test; must be chosen before moving (BR-EXPLORE-04)
   script: { state: 'none'|'recorded'|'reset'|'failed_ai'; fromRunId?: ID };
   visual: { excluded: boolean; ignoreAreas: { id: ID; stepIndex: number; label: string;
     rect?: { x: number; y: number; width: number; height: number } }[] };   // rect: share of the screenshot (0–1); absent = "Not drawn yet" (D45)
@@ -97,11 +101,7 @@ type ChatMessage =
   | { kind: 'user'; text: string }
   | { kind: 'ai'; text: string }
   | { kind: 'plan'; suites: number; scenarios: number; pagesExplored: number; usedKnowledge: ID[] }
-  | { kind: 'tests_ready'; proposals: Proposal[] };
-interface Proposal { id: ID; title: string; steps: string[]; expectedResult: string;
-  validation: 'validated'|'likely_bug'|'needs_attention';
-  duplicateOf?: ID; duplicateChoice?: 'keep_both'|'replace'|'skip'; ticked: boolean;
-  outcome?: { kind: 'added'; testId: ID } | { kind: 'replaced'; testId: ID } | { kind: 'skipped' } } // set by Add (D29)
+  | { kind: 'cases'; testIds: ID[] };   // the AI cases this turn wrote (TestCase ids); each shows its status and location (D65; replaces tests_ready + Proposal)
 ```
 
 ## Data layer (`src/data/api.ts`) — the only functions screens use
@@ -120,7 +120,9 @@ revealAccountPassword(accountId)                                    // Slice 3, 
 listKnowledge / saveKnowledge(item, file?) / deleteKnowledge        // a new file sets uploadedAt; delete unlinks it from tests
 updateProject(project)                                              // removing an environment or app deletes its accounts; runs keep their record
 listSuites / createSuite(projectId, name, idPrefix) / renameSuite(suiteId, name, idPrefix) / deleteSuite(suiteId)   // BR-SUITE; deleteSuite only when empty
-listTests(projectId, { search?, latestStatus? }) / getTest / cloneTests(ids) / moveTests(ids, suiteId|null)
+listLibraryTests(projectId, { search?, latestStatus? })              // BR-EXPLORE-07: the ONE function for library tests (location 'suites'); replaces listTests.
+                                                                     // Every Suites list, filter, run picker, run scope, count and Overview card uses it
+getTest / cloneTests(ids) / moveTests(ids, suiteId|null)
 deleteTests(ids) → deleted tests / restoreTests(tests)                // Undo (BR-TEST-06); restoreTests: shape to confirm
 saveTest(test)                                                      // the data layer sets version + script from what changed (BR-VERSION-01, BR-SCRIPT-02, BR-DATA-07)
 getLatestResult(testId) / getTestHistory(testId) / listLatestResults(projectId) → { testId: Result }   // listLatestResults: Slice 4, shape to confirm
@@ -141,7 +143,14 @@ markKnownIssue(testIds, { note?, ticketRef? }) → TestCase[]          // stores
 buildBugReport(resultId, { visualStepIndex? }) → BugReport           // { title, environment, steps[], expected, actual, screenshots[] },
                                                                      // editable; formatBugReport (lib) makes the Copy text (BR-ACTION-03, D60)
 dismissVisualFlag(resultId, stepIndex, dismissed) → Result           // 6.2 Looks fine / Undo, stores by + at (D59); shape to confirm
-listChats / getChat / sendChatMessage / addProposals(chatId, proposalIds) → TestCase[]
+listChats / getChat / sendChatMessage
+listTrayCases(projectId) → TestCase[]                                // Ready for Suites: location 'tray', from all chats (D65)
+updateTrayCase(test) → TestCase                                      // inline edit of small fields; no version (BR-EXPLORE-08)
+resolveDuplicate(testId, 'keep_both'|'replace'|'discard') → TestCase // 'discard' = discardCases([testId]) (BR-EXPLORE-04)
+discardCases(testIds) → TestCase[]                                   // any AI case, single or bulk: location 'discarded', by + at (BR-EXPLORE-09)
+listDiscardedCases(projectId) → TestCase[]                           // tray › Show discarded
+restoreToTray(testIds) → TestCase[]                                  // Restore to tray, and Undo of Discard or Move to Suites (replaced tests get their previous version back)
+moveToSuites(testIds) → { moved: TestCase[]; replaced: TestCase[]; blocked: { testId, reason }[] }   // BR-EXPLORE-05; shape to confirm
 subscribeRun(runId, cb)   // live progress + narration events (mock: timer-driven)
 ```
 Mock implementation: in-memory store seeded from fixtures; persist to localStorage; simulate latency (200–500 ms) and a live run via timers (`src/data/mock/runEngine.ts`: one tick per 500 ms, AI steps take 3 ticks, replay steps 1; a run that was running keeps going after a reload). Results carry mock technical evidence (`src/data/mock/evidence.ts`: plain-language actions with raw action + locator, page URL per step, the AI's full thought on AI steps, tokens from the cost, knowledge in scope, a short log; D58). Simulated outcome: a test whose previous result was Failed or Couldn't complete repeats it; a never-run Likely bug test fails as a product bug; everything else passes. Cost: AI run $0.05–$0.24, each replay $0.02.
@@ -155,11 +164,11 @@ Seed from `fixtures/qcfixer-tests-seed.csv` (83 tests in 12 categories → 12 su
 - **Knowledge** (qcfixer.com): documents "Contact form FRS.pdf" (FRS, Suite: 09 Contact Us; covers the enquiry form only, not how the phone number is linked, so CNT-04 stays Needs confirmation, BR-REASON-05) and "Customer website user stories.docx" (User stories, Project-wide); skills "testing-rules.md" (Instructions, Project-wide, Runs + AI explore) and "qcfixer-web" (Codebase, Suite: 01 Navigation, AI explore). The "Contact Us · explore on UAT" plan cites the Contact form FRS.
 - **Second project** "Client HRMS" (SIT, UAT, Prod; app "HR portal") with no suites and no runs (empty states).
 - **Global settings**: no AI provider, so first launch shows Welcome.
-- **Tests**: all 83 from the CSV, source `import`. Scripts follow from the runs: 72 `recorded`, 8 `failed_ai` (last AI run failed), FTR-02 and GEN-02 `none` (AI couldn't finish), CNT-03 `reset`. Edits: CNT-03 v2 (20 Oct, expected result) and v3 (3 Nov, test data); CNT-04 v2 (20 Oct, the paragraph split into 3 numbered steps; expected result unchanged from the CSV). Tests that have never run (T-01, T-02) show Not run (BR-STATUS-01). Two AI explore tests in Not in a suite, both New, prefix `T-` (BR-TEST-01), added from chat "Homepage and Contact Us": T-01 "Message field enforces length limit" (Validated, so its script is `recorded` from AI explore, BR-EXPLORE-06) and T-02 "Back to top button returns to the top" (Likely bug: Not run, `aiExploreFinding` → that chat's tests-ready message, BR-EXPLORE-05).
+- **Tests**: all 83 from the CSV, source `import`. Scripts follow from the runs: 72 `recorded`, 8 `failed_ai` (last AI run failed), FTR-02 and GEN-02 `none` (AI couldn't finish), CNT-03 `reset`. Edits: CNT-03 v2 (20 Oct, expected result) and v3 (3 Nov, test data); CNT-04 v2 (20 Oct, the paragraph split into 3 numbered steps; expected result unchanged from the CSV). Tests that have never run (T-01, T-02) show Not run (BR-STATUS-01). Every test has a `location`: the 83 CSV tests and T-01/T-02 are `suites` (the library). Two AI cases moved from Ready for Suites into Not in a suite, both New, prefix `T-` (BR-TEST-01), from chat "Homepage and Contact Us": T-01 "Message field enforces length limit" (Checked, so its script is `recorded` from AI explore, BR-EXPLORE-06) and T-02 "Back to top button returns to the top" (Needs fixing: Not run, "Needs fixing" badge, `aiOrigin` → that chat's cases card, BR-EXPLORE-05). **Ready for Suites** (location `tray`, from chat "Contact Us · explore on UAT"): 5 AI cases — "Contact form blocks empty submission" (Checked, possible duplicate of CNT-02, not resolved yet), "Contact form accepts a valid enquiry" (Checked), "Form keeps entered values after an error" (Not checked), "Office address opens a map" (Needs fixing), "Opening hours are shown" (Not checked, **no steps**, so it shows "Missing: steps" and cannot move). No discarded case in the sample.
 - **Test data** on CNT-03: fields {name}, {email}, {topic: select}; 5 rows (row 1 recorded; rows 2–4 vary email/email/name; row 5 varies topic).
 - **Runs** (all UAT, Chrome, unless noted): #1–#6 first AI runs suite by suite (Sept); #7 01 Navigation on **Prod** in Chrome/Firefox/Safari (WebKit), read-only tests only (no form submissions or data entry on Prod; checked by `seed.test.ts`); #8 CNT-04 (AI: Needs confirmation, overridden to Passed: one entry in `overrides`); #9 01 Navigation replays; #10 Data Consistency / Portfolio / News Feed re-check; #11 CNT-04 only, failed; **#12 completed, All tests (83): 72 passed · 8 failed · 3 couldn't complete, cost $3.47**; #13 interrupted (QAI closed) at 34/83 (31 passed, 3 failed: SVC-17, HOME-01, HOME-02; 49 not run; $1.12); #14 running (09 Contact Us, 4 tests, 2 done, CNT-03 running as Data rows); #14 runs slowly on purpose (`SEED_RUN_PACE` in seed.ts: about 30 minutes to complete) so the Running state stays visible for demos; checks that need the seed's fixed results stop #14 first. Script replays cost $0.02; run cost = sum of result costs. Every run's viewport is 1920×1080 (D27), and every run stores its environment snapshot (name + app URLs, BR-ENV-04).
 - **Run #12 non-passed results** (exactly these): failed — ABT-03 Product bug, FTR-04 Product bug, PRT-01 Product bug (portfolio never loads), CNT-04 Needs confirmation (phone link consistently opens WhatsApp instead of tel:, no linked document; BR-REASON-05), NWS-02 Test case unclear, CONS-02 Test case unclear, PRT-02/PRT-03 Blocked (by PRT-01, noted in the step's AI reasoning); couldn't complete — FTR-02 AI couldn't finish, GEN-02 AI couldn't finish (low confidence), WA-02 Environment down. Every one has a failure summary (step, expected, found). Worth a look: CNT-03 (passed using 38 of 40 AI steps), CNT-04 ("The behaviour looks deliberate; confirm the expected result before reporting a bug", Needs confirmation), GEN-02 (low confidence). Every seeded result has the D58 evidence (steps source, actions with locators, URLs, AI thoughts on AI steps, tokens, knowledge used, logs); script replays have no AI thought.
 - **CNT-04 full evidence** (use for the detailed result): 3 steps; step 2 failed: expected `tel:` link, found `https://wa.link/mgz96d`; actions "Found phone '+60123933860' on the page", "Read its link target"; raw `click(index=218)`, `evaluate(...)`; cost $0.07; duration 2m 54s; history: #12 v2 failed, #11 v2 failed, #8 v1 passed (overridden; AI verdict Needs confirmation), #5 v1 couldn't complete (service problem).
 - **Visual**: NAV-01 step 2 in #12 has 3 changed areas vs the previous UAT replay, Run #9, with their `changedRegions` (the places later ignored); afterwards ignore areas were added on NAV-01 step 2: "Hero rotating word", "Statistics counters", "Team carousel". Replays without an earlier replay on the same environment and browser have no comparison ("No previous run to compare").
-- **Chats**: "Contact Us · explore on UAT": user message, plan card (2 suites, 5 scenarios, 4 pages), tests ready card with 5 proposals (1.1 duplicate of CNT-02, 2.1 Likely bug, 2.2 Needs attention unticked). "Footer links · explore on UAT": AI turn still running (Running badge). "Homepage and Contact Us · explore on UAT": tests ready card with 2 proposals (Validated, Likely bug) with outcome "added" → T-01 and T-02 (D29).
+- **Chats**: "Contact Us · explore on UAT": user message, plan card (2 suites, 5 scenarios, 4 pages), cases card with the 5 AI cases now in Ready for Suites. "Footer links · explore on UAT": AI turn still running (Running badge). "Homepage and Contact Us · explore on UAT": cases card with T-01 and T-02, both moved (links to the tests in Suites). "Ready for Suites (5)" in the sidebar (D65).
 All counts in the UI are computed from this data (CLAUDE.md rule 5).

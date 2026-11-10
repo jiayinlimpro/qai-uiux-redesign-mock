@@ -29,7 +29,14 @@ Projects shell, project shell (sidebar, collapse toggle on edge, top bar breadcr
 **Accept**: summary buttons filter; reason options follow status; flat sort; cost per row; bulk bar only on selection; select all shown; result detail failure card, 3-level steps with failed step expanded, technical toggle; Override (requires reason + proof), Bug report copy, Known issue, Visual compare (previous vs this, Looks fine / Ignore area / Mark as bug).
 
 ## Slice 8 · Overview + AI explore
-**Accept**: resume banner, cards computed; AI explore chat list with Running badge, tests ready card (badges, inline duplicate choice, Needs attention unticked), Add N → Suites Not in a suite with New badges.
+**Accept** (D65):
+- Overview: resume banner; cards computed from library tests only.
+- Data layer: `TestCase.location` / `aiValidationStatus` / `aiOrigin` replace `Proposal` and `aiExploreFinding`; **`listLibraryTests`** is the one function for library tests and every Suites list, filter, run picker, run scope ("All tests"), count and Overview card uses it; **automated checks prove tray and discarded tests never appear in Suites, runs or counts**.
+- AI explore: chat list with Running badge; **Ready for Suites (n)** always visible under the chat history; chat cases card shows each case's status and where it is (In Ready for Suites · link to the test once moved · Replaced <ID> · Discarded); no approval in the chat.
+- Ready for Suites modal (70–80% of the screen): cases from all chats; status filter (Not checked · Checked · Needs fixing); missing steps flagged (warning icon + text) and not movable; possible duplicates resolved inline (Keep both · Replace existing · Discard) before moving; inline edit of small fields; Open in chat; no nested modals; Esc / outside click asks inline when cases are selected; selections persist after closing; empty state explains how cases arrive.
+- Bulk **Move to Suites** → Suites › Not in a suite, T- IDs, New badges; Replace existing updates the existing test; toast with Undo.
+- **Discard** for every AI case (row and bulk), record kept, toast with Undo; **Show discarded** filter with **Restore to tray**.
+- Moved Needs fixing tests show the "Needs fixing" badge until their first run (never counted as failed); Checked cases keep their script (first run replays).
 
 ## Slice 9 · Polish
 Empty/loading/error states for every screen; accessibility pass; consistency with glossary (no legacy terms).

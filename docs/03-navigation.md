@@ -38,7 +38,7 @@
 - Right: **AI explore** primary button (sparkle icon). Nothing else (no project switcher, no settings, no theme).
 
 ### C. AI explore workspace (focused)
-Replaces the whole window: header `← Back to project · AI explore · <project name>`; left = chat list of this project; right = chat. No project sidebar.
+Replaces the whole window: header `← Back to project · AI explore · <project name>`; left = chat list of this project and, under the chat history, always visible, **Ready for Suites (n)** (opens 3.5, a large centre modal); right = chat. No project sidebar.
 **Back to project** returns to the project screen AI explore was opened from (still true after switching chats); if AI explore was opened directly (no previous screen), it goes to the project's Overview.
 
 ### Not found and error screens
@@ -62,6 +62,7 @@ Replaces the whole window: header `← Back to project · AI explore · <project
 | 3.2 | New / edit test | `/p/:projectId/tests/new`, `/p/:projectId/tests/:testId/edit` | screens/04-suites.md |
 | 3.3 | Import (dialog) | `/p/:projectId/suites/import` | screens/04-suites.md |
 | 3.4 | AI explore | `/p/:projectId/explore`, `/p/:projectId/explore/:chatId` | screens/05-ai-explore.md |
+| 3.5 | Ready for Suites (modal over AI explore) | modal | screens/05-ai-explore.md |
 | 5.1 | Run dialog | modal, opened from many places | screens/06-runs.md |
 | 5.2 | Live run | `/p/:projectId/runs/:runId` (state Running) | screens/06-runs.md |
 | 5.3 | Paused / interrupted run | same route (state Paused/Interrupted) | screens/06-runs.md |
@@ -85,6 +86,9 @@ Replaces the whole window: header `← Back to project · AI explore · <project
 | Run results › result | Re-run / Re-run with model | Run dialog prefilled |
 | Overview | Resume | Paused/Interrupted run |
 | Overview | "Organise in Suites" | Suites, "Not in a suite" expanded |
-| AI explore | "Add N tests to Suites" | Suites, "Not in a suite" expanded, new tests highlighted |
-| Suites › test with "Likely bug" badge | "View in AI explore" | AI explore chat, scrolled to its tests-ready message: `explore/:chatId?message=<index>` (BR-EXPLORE-05) |
+| AI explore | "Ready for Suites (n)" | 3.5 Ready for Suites modal (cases from all chats) |
+| Ready for Suites › case | "Open in chat" | That chat, scrolled to its cases card: `explore/:chatId?message=<index>` |
+| Ready for Suites | Move to Suites | Stays in the modal; toast with Undo; the tests are in Suites › "Not in a suite", marked New |
+| AI explore chat › moved case | Link "<ID> in Suites" | Suites › that test |
+| Suites › test with "Needs fixing" badge | "View in AI explore" | AI explore chat, scrolled to its cases card: `explore/:chatId?message=<index>` (BR-EXPLORE-05) |
 | Any test/suite selection | Run | Run dialog → Live run |

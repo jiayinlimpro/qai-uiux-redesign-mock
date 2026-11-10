@@ -1,16 +1,29 @@
-# Screens · 3.4 AI explore
+# Screens · 3.4 AI explore and 3.5 Ready for Suites
 
+## 3.4 AI explore
 **Purpose** Create tests with AI by exploring an app or planning from documents. Agents (planner / generator / validator) are invisible to the user.
 **Layout** Focused workspace (no project sidebar):
 - Header: ← Back to project · "AI explore" · project name. **Back to project** returns to the project screen AI explore was opened from (also after switching chats); opened directly → the project's Overview (03 § C).
-- Left (chat list): New chat (primary) · "This project" list; each chat: title, date, **Running** badge if an AI turn is active (BR-EXPLORE-02).
+- Left: New chat (primary) · "This project" chat list (title, date, **Running** badge if an AI turn is active, BR-EXPLORE-02) · under the chat history, always visible: **Ready for Suites (n)** (n = AI cases waiting in the tray, from all chats of the project; shown also when 0) → opens 3.5.
 - Right: conversation, composer at bottom.
 
 **Conversation elements**
 - User messages; AI messages; **plan summary card** ("2 suites · 5 scenarios · View plan"; "Explored 4 pages on UAT · used: <knowledge items>").
-- **Tests ready card**: header "<n> tests ready · Created and validated"; one row per proposed test: checkbox · title · validation badge (Validated / Likely bug / Needs attention) · duplicate warning with inline Keep both / Replace existing / Skip · **View** (preview of steps and expected result in a side sheet). Needs attention unticked by default. Footer note "Ticked tests go to Suites under Not in a suite, marked New." Primary button **Add N tests to Suites** (N = ticked) → navigate to 3.1.
-  After Add, each decided proposal stores its outcome (`Proposal.outcome`, D29) and its row shows it instead of the checkbox: **Added as T-01** · **Replaced CNT-02** (duplicate resolved with Replace existing) · **Skipped** (duplicate resolved with Skip). Unticked proposals stay **pending** (no outcome): they keep their checkbox and can still be added. While any are pending, the button reads **Add N more tests to Suites** (N = ticked pending); when none are pending, the button is hidden (D30). Display built in Slice 8.
-- Composer: message textarea · starter chips (Explore · Plan from documents · Create tests) · knowledge chip ("Knowledge: n items") · Attach · Send.
+- **Cases card** (the AI wrote test cases; no approval here, D65): "<n> test cases · sent to Ready for Suites"; one row per case: title · validation status (**Not checked** · **Checked** · **Needs fixing**, BR-EXPLORE-03) · where it is now: **In Ready for Suites** · once moved, a link to the test in Suites (**"CNT-07 in Suites"** / **"Replaced CNT-02"**) · **Discarded**. Button **Open Ready for Suites**. No checkboxes, no Add button.
+- Composer: message textarea · starter chips (Explore · Plan from documents · Create tests) · knowledge chip ("Knowledge: n items") · Attach · Send. Bigger changes to a case are asked for here ("Open in chat" from 3.5 lands on the case's cases card).
 
 **Not built now** [PARKED]: environment selector, working state with Stop and live progress, plan checklist before creating tests, guided next-step buttons, context launches from suites/documents.
 **States** Empty chat: short intro + starter chips. AI working (prototype): simulated "Exploring…" message with spinner. Error: "AI provider unavailable" inline with Retry.
+
+## 3.5 Ready for Suites (modal over AI explore)
+**Purpose** The project-level tray where every test case the AI produces waits until the tester moves it into Suites (D65). AI cases have the same fields as imported tests and behave like an import.
+**Layout** Large centre modal (70–80% of the screen), title "Ready for Suites", lists cases from **all chats** of the project.
+- Top: status filter **All · Not checked · Checked · Needs fixing** (with counts) · **Show discarded** (toggle: lists discarded cases instead, each with **Restore to tray**) · "Select all shown (n)".
+- Rows: checkbox · title · validation status chip · from chat (name, **Open in chat**) · warnings: a case without test steps shows a warning icon and "Missing: steps" (text, not colour or symbol alone) and cannot be moved · possible duplicate: "Similar to CNT-02" with inline **Keep both · Replace existing · Discard** (must be chosen before the case can move) · row action **Discard** (every case, BR-EXPLORE-09).
+- Expanding a row shows the fields (title, preconditions, steps, expected result, expected keywords, start page, browser preference). **Small fields are edited inline** (title, expected result, expected keywords, start page, browser preference); steps and preconditions are changed by asking in the chat (**Open in chat**). No dialogs open from this modal (**no nested modals**).
+- Footer / bulk bar: "<n> selected" · **Discard** · **Move to Suites** (primary). With Show discarded on: "<n> selected" · **Restore to tray**. Selected cases that cannot move (missing steps, unresolved duplicate) are listed inline with the reason; the others move.
+**Behaviour**
+- **Move to Suites** moves the selected cases to Suites › **Not in a suite** (BR-EXPLORE-05): each gets a T- ID (BR-TEST-01) and the **New** badge (BR-TEST-04); a case resolved with **Replace existing** updates that test instead (like an import Update, BR-IMPORT-06). Any validation status can be moved. Toast "Moved <n> tests to Suites · Not in a suite" with **Undo**. The tester then organises them with Move to suite… in Suites.
+- **Discard** (any case, single or bulk; also a duplicate's choice) applies at once: the case leaves the tray (location Discarded, who and when kept); toast with **Undo**; the chat shows "Discarded". **Show discarded** lists them; **Restore to tray** puts them back with their validation status (BR-EXPLORE-09).
+- **Closing**: Esc, the close button or a click outside closes the modal; when cases are selected, an inline bar inside the modal asks first ("Close with <n> selected? Your selection is kept." · Close · Keep open), not a second dialog. **Selections persist** after closing and reopening (for this project, this session).
+**States** Empty: "Nothing waiting. When the AI writes test cases in a chat, they appear here, ready to move into Suites." Loading; error with Retry. Filter with no match: "No cases with this status" + Show all.

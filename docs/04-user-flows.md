@@ -15,7 +15,7 @@ Screen IDs refer to `03-navigation.md`. Each flow lists entry → steps → exit
 ## F3 · Get tests into the library (three ways)
 - **Import**: 3.1 → Import → **3.3**: download template (if needed) → choose CSV/XLSX → file check (recognised / ignored columns, rows read) → duplicates choice → Import → suites created from category; rows without category in "Not in a suite".
 - **Write**: 3.1 → New test → **3.2** → Save → test appears in its suite.
-- **AI explore**: top bar AI explore → **3.4** → chat (explore an app or plan from documents) → "tests ready" card → tick tests (resolve duplicates inline) → **Add N tests to Suites** → 3.1 with "Not in a suite" open, new tests marked New → select → **Move to suite…**.
+- **AI explore**: top bar AI explore → **3.4** → chat (explore an app or plan from documents) → the AI writes test cases; each goes straight to **Ready for Suites** with a validation status (Not checked · Checked · Needs fixing) and the chat shows it → **Ready for Suites (n)** → **3.5** (cases from all chats; filter by status; resolve possible duplicates: Keep both · Replace existing · Discard; fix small fields inline, bigger changes in the chat) → select → **Move to Suites** (toast with Undo) → 3.1 "Not in a suite", new tests marked New → select → **Move to suite…**. (D65)
 
 ## F4 · Run (main loop)
 1. Select tests or suites in **3.1** (or a single test → Run) → **5.1 Run dialog**.

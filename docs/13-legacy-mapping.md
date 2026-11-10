@@ -29,7 +29,7 @@ Legacy references are sections of `reference/legacy-user-manual-v2.0.pdf`.
 | Report results tree, attachments (5.5, 9) | Run results + result detail (tiers) |
 | Parameterized tests (7) | Test data tab + Data rows mode |
 | Openworld Planner/Generator/Healer, artifacts, chats (8) | AI explore (agents invisible; validation at creation) |
-| Open in Upload tab (8.9) | Removed: Add N tests to Suites |
+| Open in Upload tab (8.9) | Removed: Ready for Suites › Move to Suites (D65) |
 | Select / retry / delete (9.3) | Bulk bar in Run results; delete in Suites |
 | Failure types (9.5) | Failure reasons (BR-REASON) |
 | Graphs, Timeline (9.6) | Removed |

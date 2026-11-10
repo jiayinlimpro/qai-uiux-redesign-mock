@@ -8,13 +8,13 @@
 - Header: "Suites" · New test · Import · (when selection) **Move to suite… · Clone · Run N selected** (primary).
 - Search (ID or title) · Latest status filter (All / Passed / Failed / Couldn't complete / Not run) · count text · Clear filters.
 - Tree: suite rows (checkbox selects visible tests, mixed when some are selected; expand/collapse arrow, name, "<n> tests"; **menu: Rename suite (name + ID prefix) · Delete suite**, only when empty, otherwise "Move or delete its tests first.", BR-SUITE); suites start collapsed, the selected test's suite opens; test rows (checkbox, ID, title, **New** badge if applicable, **Likely bug** badge if applicable (BR-EXPLORE-05), **status dot** with text label for screen readers and tooltip).
-- "Not in a suite" group last (tests from AI explore or imports without category); hidden when empty.
+- "Not in a suite" group last (tests moved from Ready for Suites, or imports without category); hidden when empty. The tree shows library tests only (BR-EXPLORE-07): AI cases still in Ready for Suites or discarded never appear.
 - **Move to suite…** (dialog): an existing suite · Not in a suite · **New suite…** (name + ID prefix, prefix suggested from the name). Tests from Not in a suite get the destination prefix (T-01 → CNT-05); other IDs stay (BR-TEST-05).
 - With a filter active, suites with matches auto-expand and show "<n> match".
 Status dot colours: passed green, failed orange-red, couldn't complete amber, not run hollow grey ring.
 
 ### Right: test detail
-- Breadcrumb "<suite> › <ID>", title, chips: version (vN), Source (CSV import / Written / AI explore / Clone of <ID>), Known issue (when marked), Script (recorded / none yet / none: last AI run failed / reset after edit). **Likely bug** badge until the test's first run, with tooltip "Found during AI explore, not yet confirmed by a run" and link "View in AI explore" (BR-EXPLORE-05).
+- Breadcrumb "<suite> › <ID>", title, chips: version (vN), Source (CSV import / Written / AI explore / Clone of <ID>), Known issue (when marked), Script (recorded / none yet / none: last AI run failed / reset after edit). **Needs fixing** badge (AI cases moved with that validation status) until the test's first run, with tooltip "AI explore could not make this test pass (the fix failed or the site looks broken). Not yet confirmed by a run." and link "View in AI explore" (BR-EXPLORE-05, D65).
 - Actions: Run (primary) · Edit · Clone · More (Move to suite, Mark known issue, Delete).
 - **Latest strip** (one line): "Latest" + status chip + reason chip + "Run #12 · UAT · Chrome · 16 Oct" (environment from the run snapshot, BR-ENV-04) + **Open result** link. (No full result here.) Never run: "Not run · This test hasn't run yet."
 - The open tab is in the address (`?tab=`); ←/→ move between tabs.
