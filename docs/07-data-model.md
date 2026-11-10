@@ -143,7 +143,10 @@ markKnownIssue(testIds, { note?, ticketRef? }) → TestCase[]          // stores
 buildBugReport(resultId, { visualStepIndex? }) → BugReport           // { title, environment, steps[], expected, actual, screenshots[] },
                                                                      // editable; formatBugReport (lib) makes the Copy text (BR-ACTION-03, D60)
 dismissVisualFlag(resultId, stepIndex, dismissed) → Result           // 6.2 Looks fine / Undo, stores by + at (D59); shape to confirm
-listChats / getChat / sendChatMessage
+listChats(projectId) (newest first) / getChat
+createChat(projectId, firstMessage) → Chat                           // New chat: the first Send creates it; shape to confirm
+sendChatMessage(chatId, text) → Chat                                 // one AI turn at a time (AiTurnRunningError, BR-EXPLORE-02); mock: simulated turn,
+                                                                     // 3 canned AI cases in the tray after a few seconds, labelled simulated (D66)
 listTrayCases(projectId) → TestCase[]                                // Ready for Suites: location 'tray', from all chats (D65)
 updateTrayCase(test) → TestCase                                      // inline edit of small fields; no version (BR-EXPLORE-08)
 resolveDuplicate(testId, 'keep_both'|'replace'|'discard') → TestCase // 'discard' = discardCases([testId]) (BR-EXPLORE-04)
@@ -153,7 +156,7 @@ restoreToTray(testIds) → TestCase[]                                  // Restor
 moveToSuites(testIds) → { moved: TestCase[]; replaced: TestCase[]; blocked: { testId, reason }[] }   // BR-EXPLORE-05; shape to confirm
 subscribeRun(runId, cb)   // live progress + narration events (mock: timer-driven)
 ```
-Mock implementation: in-memory store seeded from fixtures; persist to localStorage; simulate latency (200–500 ms) and a live run via timers (`src/data/mock/runEngine.ts`: one tick per 500 ms, AI steps take 3 ticks, replay steps 1; a run that was running keeps going after a reload). Results carry mock technical evidence (`src/data/mock/evidence.ts`: plain-language actions with raw action + locator, page URL per step, the AI's full thought on AI steps, tokens from the cost, knowledge in scope, a short log; D58). Simulated outcome: a test whose previous result was Failed or Couldn't complete repeats it; a never-run Likely bug test fails as a product bug; everything else passes. Cost: AI run $0.05–$0.24, each replay $0.02.
+Mock-only store fields (not domain types): `accountPasswords`, `replacedTests` (a library test before an AI case replaced it, for Undo, D65), `simulatedTurns` (chat → when the simulated reply is due, so a turn keeps going after a reload, D66). Mock implementation: in-memory store seeded from fixtures; persist to localStorage; simulate latency (200–500 ms) and a live run via timers (`src/data/mock/runEngine.ts`: one tick per 500 ms, AI steps take 3 ticks, replay steps 1; a run that was running keeps going after a reload). Results carry mock technical evidence (`src/data/mock/evidence.ts`: plain-language actions with raw action + locator, page URL per step, the AI's full thought on AI steps, tokens from the cost, knowledge in scope, a short log; D58). Simulated outcome: a test whose previous result was Failed or Couldn't complete repeats it; a never-run Likely bug test fails as a product bug; everything else passes. Cost: AI run $0.05–$0.24, each replay $0.02.
 
 ## Sample data (one consistent world)
 Fake data, not a source of truth: it may change, as long as it stays consistent with the business rules (D24).

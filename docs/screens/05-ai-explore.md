@@ -13,7 +13,9 @@
 - Composer: message textarea · starter chips (Explore · Plan from documents · Create tests) · knowledge chip ("Knowledge: n items") · Attach · Send. Bigger changes to a case are asked for here ("Open in chat" from 3.5 lands on the case's cases card).
 
 **Not built now** [PARKED]: environment selector, working state with Stop and live progress, plan checklist before creating tests, guided next-step buttons, context launches from suites/documents.
-**States** Empty chat: short intro + starter chips. AI working (prototype): simulated "Exploring…" message with spinner. Error: "AI provider unavailable" inline with Retry.
+**States** New chat (no chat selected): short intro + starter chips; the first Send creates the chat. AI working: "Exploring…" with spinner and the Running badge; Send waits for the reply; the turn keeps running when the user leaves. Error: the send error inline with Retry. Loading / error for the chat and the chat list.
+**Prototype turn (D66)**: no AI is connected, so a turn is simulated and labelled "Simulated (prototype)": after a few seconds an AI reply and a cases card with **3 AI cases** in Ready for Suites that demo the tray rules: one **Not checked** with steps · one **Needs fixing** without steps ("Missing: steps", not movable) · one **Checked** possible duplicate of an existing library test (Keep both / Replace existing / Discard).
+**Plan card**: "View plan" is **parked** with the plan checklist (09, Sprint 3 item 3-03); the card shows the counts and the knowledge used. **Knowledge chip** counts documents and the skills whose Used by includes AI explore.
 
 ## 3.5 Ready for Suites (modal over AI explore)
 **Purpose** The project-level tray where every test case the AI produces waits until the tester moves it into Suites (D65). AI cases have the same fields as imported tests and behave like an import.

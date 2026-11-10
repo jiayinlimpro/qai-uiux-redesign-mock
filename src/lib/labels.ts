@@ -47,3 +47,10 @@ export const sourceLabels: Record<TestCase['source'], string> = {
   ai_explore: 'Source: AI explore',
   clone: 'Source: Clone',
 };
+
+/** BR-EXPLORE-03 (glossary "Validation status"): Not checked · Checked · Needs fixing. */
+export const validationLabels: Record<NonNullable<TestCase['aiValidationStatus']>, string> = {
+  not_checked: 'Not checked',
+  checked: 'Checked',
+  needs_fixing: 'Needs fixing',
+};

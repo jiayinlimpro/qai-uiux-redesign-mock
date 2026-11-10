@@ -4,10 +4,10 @@
 **Purpose** Daily starting point: what needs attention.
 **Content (top to bottom)**
 1. Header: project name, "<n> apps · <environment names>"; buttons New test, Import, Run… (primary).
-2. **Interrupted run banner** (only if a run is Interrupted/Paused): "Run #13 was interrupted at test 34 of 83 · All tests · UAT" → Resume (→ 5.3) · Discard.
-3. Three cards: **New from AI explore** ("<n> tests not in a suite" → Organise in Suites; hidden if 0) · **Last completed run** (number, date, passed/failed/couldn't complete chips) · **Needs attention** (failed + couldn't complete count; [PROPOSAL] worth-a-look count) → Open run.
-4. Suites table: Suite · Tests · Latest status chips (passed/failed/couldn't complete/not run) · Last run · Run button.
-5. Recent runs table: Run · Scope · Environment · State · Cost.
+2. **Interrupted run banner** (only if a run is Interrupted/Paused): "Run #13 was interrupted at test 34 of 83 · All tests · UAT" + second line with the pause reason ("stopped when the app closed") → **Resume** (→ 5.3) · **Stop run** (same as Stop, BR-RUN-15 / D55, after a confirmation: Completed, "Stopped at 34/83", remaining tests Not run and re-runnable; the banner disappears; D67).
+3. Three cards (library tests only, BR-EXPLORE-07): **New from AI explore** ("<n> tests not in a suite" → Organise in Suites, which opens Suites with Not in a suite expanded; hidden if 0) · **Last completed run** (newest Completed run, a stopped one included with "Stopped at x/y"; number, date, passed/failed/couldn't complete chips) · **Needs attention** (failed + couldn't complete count; [PROPOSAL] worth-a-look count) → Open run.
+4. Suites table: Suite · Tests · Latest status chips (passed/failed/couldn't complete/not run) · Last run (the newest run that ran any of its tests) · Run button. Suites alphabetically, then Not in a suite when it has tests.
+5. Recent runs table (newest 3) + All runs: Run · Scope · Environment · State · Cost ("so far" while not completed).
 **Not included** Graphs, timeline, trend charts [PARKED as Overview metrics].
 **States** New project empty state with four entry actions: Import tests · Write a test · Explore with AI · Set up Knowledge.
 

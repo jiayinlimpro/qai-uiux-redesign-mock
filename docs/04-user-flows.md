@@ -43,7 +43,7 @@ Entry: 6.1 (from the finished run, Runs list, Overview, or a test's latest strip
 4. Every re-run goes through the run dialog and creates a new run.
 
 ## F6 · Interrupted or paused run
-1. App closed or crashed mid-run → next launch: **1.4 Overview** banner "Run #N interrupted at X of Y" → Resume / Discard. Runs list shows "Interrupted".
+1. App closed or crashed mid-run → next launch: **1.4 Overview** banner "Run #N interrupted at X of Y" → Resume / Stop run (D67). Runs list shows "Interrupted".
 2. Resume → **5.3** → "Resume from test X+1" → **5.2**. [DEV-CONFIRM: progress saved per test]
 3. (Proposed) provider down or site not responding repeatedly → run auto-pauses with reason → Resume / Stop. [DEV-CONFIRM: today the engine continues and fails the remaining tests]
 

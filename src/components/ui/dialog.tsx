@@ -24,6 +24,10 @@ interface DialogProps {
 export function Dialog({ title, onClose, children, footer, size = 'md', onSubmit, closeOnBackdrop }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  const onCloseRef = useRef(onClose);
+  /** Escape already reported through the cancel event: a forced close that follows must not report it again. */
+  const cancelReported = useRef(false);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     const el = ref.current;
@@ -37,7 +41,20 @@ export function Dialog({ title, onClose, children, footer, size = 'md', onSubmit
       el.querySelector<HTMLElement>('input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled])') ??
       el.querySelector<HTMLElement>('button:not([disabled])');
     first?.focus();
+    // The browser may close a modal on Escape without letting us cancel it (no recent user activation). React still
+    // owns the dialog: show it again and let the caller decide what closing means (e.g. ask first).
+    let unmounting = false;
+    const onNativeClose = () => {
+      // The close event is queued: ignore one from an earlier close if the dialog is open again (e.g. React's dev re-mount).
+      if (unmounting || el.open) return;
+      el.showModal();
+      if (cancelReported.current) cancelReported.current = false;
+      else onCloseRef.current();
+    };
+    el.addEventListener('close', onNativeClose);
     return () => {
+      unmounting = true;
+      el.removeEventListener('close', onNativeClose);
       el.close();
       if (trigger?.isConnected) trigger.focus();
     };
@@ -60,6 +77,7 @@ export function Dialog({ title, onClose, children, footer, size = 'md', onSubmit
       }}
       onCancel={(e) => {
         e.preventDefault(); // Escape: let the caller close (keeps React in charge of state)
+        cancelReported.current = !e.defaultPrevented || !e.cancelable;
         onClose();
       }}
       className={cn(
