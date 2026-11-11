@@ -1,6 +1,6 @@
 # 15 · Decisions since the plan that change or add scope
 
-Decisions D24–D69 (`12-decision-log.md`) compared with the original spec. One line each: what changed and where.
+Decisions D24–D71 (`12-decision-log.md`) compared with the original spec. One line each: what changed and where.
 **Changed** = the spec said something else. **Added** = the spec was silent or vague and the prototype now does it.
 Decisions that only clarify wording or implementation, without changing scope, are listed at the end.
 
@@ -49,6 +49,8 @@ Decisions that only clarify wording or implementation, without changing scope, a
 | D66 | Added | Prototype AI turn simulated and labelled, writing 3 demo cases | BR-EXPLORE-02 · 3.4 |
 | D67 | Changed | Overview banner offers Resume · Stop run (not Discard) | BR-RUN-15 · 1.4 |
 | D68 | Added | Ready for Suites gaps closed (replaced cases, Undo limits, tones, Overview table details) | 3.5, 1.4 |
+| D70 | Changed | AI explore uses the old QAI chat layout (greeting, suggestion cards, composer card) with our features; starters become cards; Enter sends | 3.4 |
+| D71 | Added | AI explore chat list collapses to a 64 px rail like the project sidebar, remembered separately | 3.4 |
 
 **Clarifications without a scope change**: D26 (hash addresses, all routes in `routes.ts`), D31 (the breadcrumb shows
 pages, not selections), D69 (the banned legacy "Upload" means test-file upload; Knowledge keeps "Upload").

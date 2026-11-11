@@ -50,6 +50,9 @@ export default {
         h3: ['18px', { lineHeight: '26px', fontWeight: '600' }],
         h2: ['20px', { lineHeight: '28px', fontWeight: '600' }],
         h1: ['22px', { lineHeight: '30px', fontWeight: '600' }],
+        // AI explore new-chat greeting (screens/05-ai-explore.md, D70)
+        display: ['48px', { lineHeight: '56px', fontWeight: '500' }],
+        'display-sub': ['32px', { lineHeight: '40px', fontWeight: '500' }],
       },
       borderRadius: {
         control: '8px',

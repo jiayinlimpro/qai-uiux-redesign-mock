@@ -38,7 +38,7 @@
 - Right: **AI explore** primary button (sparkle icon). Nothing else (no project switcher, no settings, no theme).
 
 ### C. AI explore workspace (focused)
-Replaces the whole window: header `← Back to project · AI explore · <project name>`; left = chat list of this project and, under the chat history, always visible, **Ready for Suites (n)** (opens 3.5, a large centre modal); right = chat. No project sidebar.
+Replaces the whole window: header `← Back to project · AI explore · <project name>`; left = chat list of this project and, under the chat history, always visible, **Ready for Suites (n)** (opens 3.5, a large centre modal); right = chat. No project sidebar. The chat list collapses to a 64 px rail with the same round edge toggle as the project sidebar, remembered separately (D71).
 **Back to project** returns to the project screen AI explore was opened from (still true after switching chats); if AI explore was opened directly (no previous screen), it goes to the project's Overview.
 
 ### Not found and error screens
