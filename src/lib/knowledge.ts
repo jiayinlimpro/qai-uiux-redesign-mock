@@ -130,20 +130,20 @@ export function checkExtensionFolder(paths: string[]): { folder: string; missing
 
 // ---------- accounts (BR-ENV-03) ----------
 /**
- * BR-ENV-03: accounts are resolved by role + app + environment, so that combination must be unique.
+ * BR-ENV-03: accounts are resolved by role + platform + environment, so that combination must be unique.
  * Returns the other account with the same combination, if any (role compared case-insensitively).
  */
 export function duplicateAccount(
-  accounts: Pick<Account, 'id' | 'role' | 'appId' | 'environmentId'>[],
-  candidate: Pick<Account, 'role' | 'appId' | 'environmentId'> & { id?: string },
-): Pick<Account, 'id' | 'role' | 'appId' | 'environmentId'> | undefined {
+  accounts: Pick<Account, 'id' | 'role' | 'platformId' | 'environmentId'>[],
+  candidate: Pick<Account, 'role' | 'platformId' | 'environmentId'> & { id?: string },
+): Pick<Account, 'id' | 'role' | 'platformId' | 'environmentId'> | undefined {
   const role = candidate.role.trim().toLowerCase();
   return accounts.find(
-    (a) => a.id !== candidate.id && a.role.trim().toLowerCase() === role && a.appId === candidate.appId && a.environmentId === candidate.environmentId,
+    (a) => a.id !== candidate.id && a.role.trim().toLowerCase() === role && a.platformId === candidate.platformId && a.environmentId === candidate.environmentId,
   );
 }
 
-// ---------- removing environments and apps (2.1) ----------
+// ---------- removing environments and platforms (2.4) ----------
 /** What depends on an environment: removing one that has accounts or runs asks for confirmation. */
 export function environmentUsage(environmentId: string, accounts: Pick<Account, 'environmentId'>[], runs: Pick<Run, 'environmentId'>[]) {
   return {
@@ -152,8 +152,8 @@ export function environmentUsage(environmentId: string, accounts: Pick<Account, 
   };
 }
 
-export function appAccountCount(appId: string, accounts: Pick<Account, 'appId'>[]): number {
-  return accounts.filter((a) => a.appId === appId).length;
+export function platformAccountCount(platformId: string, accounts: Pick<Account, 'platformId'>[]): number {
+  return accounts.filter((a) => a.platformId === platformId).length;
 }
 
 // ---------- run defaults (2.2, BR-RUN-12) ----------

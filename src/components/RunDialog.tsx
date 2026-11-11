@@ -36,7 +36,7 @@ export function RunDialog({ testIds, onClose, presetModel, presetEnvironmentId }
     return { tests, suites, models };
   }, [project.id]);
 
-  const defaultEnv = project.environments.find((e) => project.apps.some((a) => a.urls[e.id])) ?? project.environments[0];
+  const defaultEnv = project.environments.find((e) => project.platforms.some((a) => a.urls[e.id])) ?? project.environments[0];
   const [environmentId, setEnvironmentId] = useState(presetEnvironmentId && project.environments.some((e) => e.id === presetEnvironmentId) ? presetEnvironmentId : (defaultEnv?.id ?? ''));
   const [model, setModel] = useState(presetModel ?? project.defaultModel);
   const [browsers, setBrowsers] = useState<Browser[]>(['chrome']);

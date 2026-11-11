@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Link, Outlet, useLocation, useMatches, useParams } from 'react-router-dom';
-import { BookOpen, ChevronLeft, ChevronRight, House, List, Play, SlidersHorizontal, Sparkles, type LucideIcon } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, House, List, Play, Server, SlidersHorizontal, Sparkles, type LucideIcon } from 'lucide-react';
 import { getProject } from '@/data/api';
 import type { Project } from '@/data/types';
 import { buttonClasses } from '@/components/ui/button';
@@ -20,6 +20,7 @@ const sectionNav: { section: ProjectSection; icon: LucideIcon; to: (projectId: s
   { section: 'overview', icon: House, to: to.overview },
   { section: 'suites', icon: List, to: to.suites },
   { section: 'runs', icon: Play, to: to.runs },
+  { section: 'environments', icon: Server, to: to.environments }, // D72: above Knowledge
   { section: 'knowledge', icon: BookOpen, to: to.knowledge },
   { section: 'project-settings', icon: SlidersHorizontal, to: to.projectSettings },
 ];
@@ -31,7 +32,7 @@ const sectionNav: { section: ProjectSection; icon: LucideIcon; to: (projectId: s
 export function ProjectShell() {
   const { projectId = '' } = useParams();
   const project = useAsync(() => getProject(projectId), [projectId]);
-  // After an edit (Knowledge, Project settings) screens call reload; the current project stays on screen meanwhile.
+  // After an edit (Environments, Project settings) screens call reload; the current project stays on screen meanwhile.
   const [latest, setLatest] = useState<Project | null>(null);
   const reload = useCallback(async () => {
     const next = await getProject(projectId);

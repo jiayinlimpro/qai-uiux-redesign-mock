@@ -4,7 +4,7 @@ Implement rules as pure functions in `src/lib/` with the rule ID in a comment, a
 Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine behaviour must be confirmed (see 10).
 
 ## Status (BR-STATUS)
-- **BR-STATUS-01** Statuses: `passed`, `failed` (the app did not meet the expected result), `couldnt_complete` (no verdict: system, AI or environment problem), `not_run` (deselected, stopped, interrupted, or never executed). A test that has never run shows **Not run**, never a blank status.
+- **BR-STATUS-01** Statuses: `passed`, `failed` (the platform did not meet the expected result), `couldnt_complete` (no verdict: system, AI or environment problem), `not_run` (deselected, stopped, interrupted, or never executed). A test that has never run shows **Not run**, never a blank status.
 - **BR-STATUS-02** Pass rate = passed / (passed + failed). `couldnt_complete` and `not_run` are excluded and shown separately.
 - **BR-STATUS-03** Multi-browser roll-up for one result: failed if any browser failed; else couldnt_complete if any couldn't complete; else passed if all passed; else not_run. Show a per-browser breakdown. Label WebKit as "Safari (WebKit)".
 - **BR-STATUS-04** Data rows roll-up: passed only if every row met its expectation; show "k/n rows".
@@ -17,8 +17,8 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 - **BR-REASON-03** Every failed/couldnt_complete result has exactly one reason, set by the system; users cannot edit it (they can override the status).
 - **BR-REASON-04** Each reason has one recommended action (see 04 · F5) shown in the result detail.
 - **BR-REASON-05** Product bug vs Needs confirmation (changed: D28):
-  - **Product bug**: the app is clearly broken (error, crash, missing element, wrong data), **or** a linked document confirms the expectation.
-  - **Needs confirmation**: the app behaves consistently but differently from the test, and no linked document confirms which is right.
+  - **Product bug**: the platform is clearly broken (error, crash, missing element, wrong data), **or** a linked document confirms the expectation.
+  - **Needs confirmation**: the platform behaves consistently but differently from the test, and no linked document confirms which is right.
   [DEV-CONFIRM detection]
 - **BR-REASON-06** A low-confidence verdict gets a "Low confidence" note and counts as Worth a look [PROPOSAL].
 
@@ -28,7 +28,7 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 - **BR-RUN-03** AI runs always use Chrome (product behaviour, not configurable). Selected other browsers replay the script once one exists. If the AI run fails, the other browsers are `not_run` for that result. [DEV-CONFIRM same-run replay]
 - **BR-RUN-04** Parallel: if enabled (project default / advanced), tests run in parallel automatically; otherwise they queue.
 - **BR-RUN-05** Cost: shown per result, per run and "so far" during a run. **No cost or time estimates anywhere.**
-- **BR-RUN-06** Auto-retry only for system causes (rate limit, timeout, provider error); never for real app failures. [DEV-CONFIRM: today "Retry after failed" retries everything]
+- **BR-RUN-06** Auto-retry only for system causes (rate limit, timeout, provider error); never for real platform failures. [DEV-CONFIRM: today "Retry after failed" retries everything]
 - **BR-RUN-07** If a script replay cannot find an element, the system re-runs that test with AI automatically and records a new script; the result is flagged "Script re-recorded". [DEV-CONFIRM]
 - **BR-RUN-08** Automatic repair of a script may change locators and waits, **never** expected values or checks.
 - **BR-RUN-09** Pre-flight check after Start run: AI key/model valid (block), environment URL reachable (warn), browser launches (block). A block stops the start; warnings offer "Start anyway" (D57). [DEV-CONFIRM feasibility]
@@ -133,6 +133,6 @@ Flag when any: passed using ≥ 90% of max AI steps; agent and judge disagree; l
 
 ## Environments (BR-ENV)
 - **BR-ENV-01** Environment differences are handled by **separate test cases** (clone), not variants.
-- **BR-ENV-02** App URL resolves from the run's environment; an app with no URL for that environment → affected tests are Not run with note "No URL for <environment>".
-- **BR-ENV-03** Accounts are resolved by role + app + environment, so that combination is unique per project.
-- **BR-ENV-04** A run stores a snapshot of its environment when it starts: the environment name and every app's URL in it. Run history shows the snapshot even if the environment is later renamed or deleted, or a URL changes. (D36)
+- **BR-ENV-02** Platform URL resolves from the run's environment; a platform with no URL for that environment → affected tests are Not run with note "No URL for <environment>".
+- **BR-ENV-03** Accounts are resolved by role + platform + environment, so that combination is unique per project.
+- **BR-ENV-04** A run stores a snapshot of its environment when it starts: the environment name and every platform's URL in it. Run history shows the snapshot even if the environment is later renamed or deleted, or a URL changes. (D36)

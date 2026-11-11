@@ -18,17 +18,17 @@ describe('BR-RUN-02 modeFor', () => {
 describe('BR-ENV-04 snapshotEnvironment', () => {
   const project = {
     environments: [{ id: 'uat', name: 'UAT' }, { id: 'prod', name: 'Prod' }],
-    apps: [
+    platforms: [
       { id: 'web', name: 'Customer website', urls: { uat: 'https://uat.x', prod: 'https://x' } },
       { id: 'admin', name: 'Admin portal', urls: { uat: 'https://uat-admin.x', prod: null } },
     ],
   };
-  it('records the environment name and each app URL used', () => {
+  it('records the environment name and each platform URL used', () => {
     expect(snapshotEnvironment(project, 'prod')).toEqual({
       name: 'Prod',
-      apps: [
-        { appId: 'web', name: 'Customer website', url: 'https://x' },
-        { appId: 'admin', name: 'Admin portal', url: null },
+      platforms: [
+        { platformId: 'web', name: 'Customer website', url: 'https://x' },
+        { platformId: 'admin', name: 'Admin portal', url: null },
       ],
     });
   });

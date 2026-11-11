@@ -27,11 +27,11 @@ export function knowledgeForRun<K extends Pick<KnowledgeItem, 'id' | 'kind' | 's
 }
 
 /**
- * BR-ENV-04: a run stores a snapshot of its environment (name + every app's URL in it) when it starts,
+ * BR-ENV-04: a run stores a snapshot of its environment (name + every platform's URL in it) when it starts,
  * so history shows what was used even after the environment is renamed or deleted, or a URL changes.
  */
-export function snapshotEnvironment(project: Pick<Project, 'environments' | 'apps'>, environmentId: ID): EnvironmentSnapshot {
+export function snapshotEnvironment(project: Pick<Project, 'environments' | 'platforms'>, environmentId: ID): EnvironmentSnapshot {
   const env = project.environments.find((e) => e.id === environmentId);
   if (!env) throw new Error(`Environment not found: ${environmentId}`);
-  return { name: env.name, apps: project.apps.map((a) => ({ appId: a.id, name: a.name, url: a.urls[environmentId] ?? null })) };
+  return { name: env.name, platforms: project.platforms.map((a) => ({ platformId: a.id, name: a.name, url: a.urls[environmentId] ?? null })) };
 }

@@ -109,7 +109,7 @@ export function SuitesScreen() {
       <div className="flex h-full items-start justify-center p-10">
         <div className="max-w-md rounded-card border border-border bg-surface px-8 py-10 text-center">
           <h1 className="text-h2">No tests yet</h1>
-          <p className="mt-1 text-text-muted">Bring in your test cases, write one, or let the AI propose tests by exploring your app.</p>
+          <p className="mt-1 text-text-muted">Bring in your test cases, write one, or let the AI propose tests by exploring your platform.</p>
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             <Link to={to.importTests(project.id)} className={buttonClasses()}>
               Import

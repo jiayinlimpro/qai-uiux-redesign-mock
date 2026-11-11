@@ -2,7 +2,7 @@
  * Metadata attached to routes (react-router `handle`), read by the project shell
  * for the active sidebar item and the breadcrumb (docs/03-navigation.md).
  */
-export type ProjectSection = 'overview' | 'suites' | 'runs' | 'knowledge' | 'project-settings';
+export type ProjectSection = 'overview' | 'suites' | 'runs' | 'environments' | 'knowledge' | 'project-settings';
 
 export interface RouteHandle {
   /** Sidebar item highlighted and second breadcrumb crumb. */
@@ -15,6 +15,7 @@ export const sectionLabels: Record<ProjectSection, string> = {
   overview: 'Overview',
   suites: 'Suites',
   runs: 'Runs',
+  environments: 'Environments',
   knowledge: 'Knowledge',
   'project-settings': 'Project settings',
 };

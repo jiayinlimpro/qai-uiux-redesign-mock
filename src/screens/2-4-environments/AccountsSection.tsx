@@ -12,34 +12,34 @@ import { useConfirm } from '@/components/useConfirm';
 import { useProject } from '@/app/projectContext';
 import { duplicateAccount } from '@/lib/knowledge';
 
-const appName = (p: Project, id: string) => p.apps.find((a) => a.id === id)?.name ?? 'Removed app';
+const platformName = (p: Project, id: string) => p.platforms.find((a) => a.id === id)?.name ?? 'Removed platform';
 const envName = (p: Project, id: string) => p.environments.find((e) => e.id === id)?.name ?? 'Removed environment';
 
-/** Knowledge › Accounts: Role · App · Environment · Username · Password (masked, reveal on click) · Edit. */
+/** Environments › Accounts: Role · Platform · Environment · Username · Password (masked, reveal on click) · Edit. */
 export function AccountsSection({ accounts, onChanged }: { accounts: Account[]; onChanged: () => void }) {
   const project = useProject();
   const [editing, setEditing] = useState<Account | 'new' | null>(null);
   const [status, setStatus] = useState<SaveStatus>(null);
-  const noApps = project.apps.length === 0;
+  const noPlatforms = project.platforms.length === 0;
 
   return (
     <SectionCard
       id="accounts"
       title="Accounts"
       action={
-        <Button size="sm" disabled={noApps} onClick={() => setEditing('new')}>
+        <Button size="sm" disabled={noPlatforms} onClick={() => setEditing('new')}>
           Add account
         </Button>
       }
     >
       {accounts.length === 0 ? (
-        <SectionEmpty>{noApps ? 'Add an app in Apps and environments first, then add the logins tests use.' : 'No accounts yet. Add the logins your tests use, per role, app and environment.'}</SectionEmpty>
+        <SectionEmpty>{noPlatforms ? 'Add a platform in Platforms and environments first, then add the logins tests use.' : 'No accounts yet. Add the logins your tests use, per role, platform and environment.'}</SectionEmpty>
       ) : (
         <Table>
           <thead>
             <tr>
               <Th>Role</Th>
-              <Th>App</Th>
+              <Th>Platform</Th>
               <Th>Environment</Th>
               <Th>Username</Th>
               <Th>Password</Th>
@@ -52,10 +52,10 @@ export function AccountsSection({ accounts, onChanged }: { accounts: Account[]; 
             {accounts.map((a) => (
               <Tr key={a.id}>
                 <Td>{a.role}</Td>
-                <Td>{appName(project, a.appId)}</Td>
+                <Td>{platformName(project, a.platformId)}</Td>
                 <Td>{envName(project, a.environmentId)}</Td>
                 <Td>{a.username}</Td>
-                <Td>{a.hasPassword ? <PasswordCell account={a} label={`${a.role}, ${appName(project, a.appId)}, ${envName(project, a.environmentId)}`} /> : <span className="text-text-muted">Not set</span>}</Td>
+                <Td>{a.hasPassword ? <PasswordCell account={a} label={`${a.role}, ${platformName(project, a.platformId)}, ${envName(project, a.environmentId)}`} /> : <span className="text-text-muted">Not set</span>}</Td>
                 <Td className="text-right">
                   <Button size="sm" onClick={() => setEditing(a)}>
                     Edit<span className="sr-only"> account {a.role}</span>
@@ -123,7 +123,7 @@ function AccountDialog({ account, accounts, onClose, onDone }: { account?: Accou
   const project = useProject();
   const [form, setForm] = useState({
     role: account?.role ?? '',
-    appId: account?.appId ?? project.apps[0]?.id ?? '',
+    platformId: account?.platformId ?? project.platforms[0]?.id ?? '',
     environmentId: account?.environmentId ?? project.environments[0]?.id ?? '',
     username: account?.username ?? '',
     password: '',
@@ -135,7 +135,7 @@ function AccountDialog({ account, accounts, onClose, onDone }: { account?: Accou
 
   const clash = form.role.trim() !== '' && duplicateAccount(accounts, { ...form, id: account?.id }); // BR-ENV-03
   const errors = {
-    role: form.role.trim() === '' ? 'Enter a role, e.g. Admin.' : clash ? 'An account for this role, app and environment already exists.' : undefined,
+    role: form.role.trim() === '' ? 'Enter a role, e.g. Admin.' : clash ? 'An account for this role, platform and environment already exists.' : undefined,
     username: form.username.trim() === '' ? 'Enter the username.' : undefined,
     password: !account?.hasPassword && form.password === '' ? 'Enter the password.' : undefined,
   };
@@ -146,7 +146,7 @@ function AccountDialog({ account, accounts, onClose, onDone }: { account?: Accou
     if (Object.values(errors).some(Boolean)) return;
     setState({ kind: 'saving' });
     try {
-      await saveAccount({ ...(account ? { id: account.id } : {}), projectId: project.id, role: form.role, appId: form.appId, environmentId: form.environmentId, username: form.username }, form.password);
+      await saveAccount({ ...(account ? { id: account.id } : {}), projectId: project.id, role: form.role, platformId: form.platformId, environmentId: form.environmentId, username: form.username }, form.password);
       onDone(account ? 'Account saved.' : 'Account added.');
     } catch (e) {
       setState({ kind: 'error', message: e instanceof DuplicateAccountError ? e.message : errorText(e) });
@@ -155,7 +155,7 @@ function AccountDialog({ account, accounts, onClose, onDone }: { account?: Accou
 
   async function remove() {
     if (!account) return;
-    const ok = await confirm({ title: `Delete the ${account.role} account?`, danger: true, confirmLabel: 'Delete account', body: <p>Tests that log in as {account.role} in this app and environment will no longer find a login.</p> });
+    const ok = await confirm({ title: `Delete the ${account.role} account?`, danger: true, confirmLabel: 'Delete account', body: <p>Tests that log in as {account.role} in this platform and environment will no longer find a login.</p> });
     if (!ok) return;
     try {
       await deleteAccount(account.id);
@@ -188,10 +188,10 @@ function AccountDialog({ account, accounts, onClose, onDone }: { account?: Accou
         <Field label="Role" required error={show('role')} hint="How tests refer to this login, e.g. Admin, Registered customer.">
           {(p) => <Input {...p} value={form.role} onChange={(e) => set({ role: e.target.value })} />}
         </Field>
-        <Field label="App" required>
+        <Field label="Platform" required>
           {(p) => (
-            <Select {...p} value={form.appId} onChange={(e) => set({ appId: e.target.value })}>
-              {project.apps.map((a) => (
+            <Select {...p} value={form.platformId} onChange={(e) => set({ platformId: e.target.value })}>
+              {project.platforms.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
                 </option>

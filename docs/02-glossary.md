@@ -4,11 +4,11 @@ Use these terms exactly, in code and UI. One term = one meaning.
 
 | Term | Definition | Notes |
 |---|---|---|
-| **Project** | One client system under test (may contain several apps). Top-level container for everything below. | Created by the user. Exported/imported for handover. |
-| **App** | One application inside a project, e.g. "Customer website", "Admin portal". | Defined in Knowledge. |
-| **Environment** | A named deployment of the project's apps, e.g. Dev, UAT, Prod. **Names and number are user-defined per project.** | Each App has a URL per Environment (may be empty). A run uses exactly one environment. |
-| **Account** | Login for a role in an app and environment (role, app, environment, username, password). | Tests refer to roles in plain language ("log in to Admin portal as Admin"); the AI resolves URL + account for the run's environment. |
-| **Knowledge item** | Anything the AI may read: Document (FRS, user stories…) or Skill (instructions, codebase, reference file). Has a **scope**: project, suite or test. | Apps/Environments/Accounts are also edited on the Knowledge screen. |
+| **Project** | One client system under test (may contain several platforms). Top-level container for everything below. | Created by the user. Exported/imported for handover. |
+| **Platform** | One application inside a project, e.g. "Customer website", "Admin portal". | Defined in **Environments** (2.4) with a URL per environment. Called "App" before D73. |
+| **Environment** | A named deployment of the project's platforms, e.g. Dev, UAT, Prod. **Names and number are user-defined per project.** | Each Platform has a URL per Environment (may be empty). A run uses exactly one environment. |
+| **Account** | Login for a role in a platform and environment (role, platform, environment, username, password). | Tests refer to roles in plain language ("log in to Admin portal as Admin"); the AI resolves URL + account for the run's environment. |
+| **Knowledge item** | Anything the AI may read: Document (FRS, user stories…) or Skill (instructions, codebase, reference file). Has a **scope**: project, suite or test. | Edited on the **Knowledge** screen (2.1). Platforms, environments and accounts are on the **Environments** screen (2.4, D72). |
 | **Suite** | A group of test cases, normally one module or function area (e.g. "09 Contact Us"). The test library. | NOT a result grouping. A test belongs to at most one suite. |
 | **Not in a suite** | The place in the Suites list for test cases without a suite (moved from Ready for Suites, or imported without a category). | Tests here are normal, runnable tests. |
 | **Test case** (test) | One check: ID, title, preconditions, steps, expected result, optional expected keywords, optional test data, linked knowledge. Has a **version** number. | The central object. |
@@ -27,7 +27,7 @@ Use these terms exactly, in code and UI. One term = one meaning.
 | **Known issue** | A user mark on a test/result: failing for a known, reported reason. | Still runs and is recorded. |
 | **Visual comparison** | Project-level option: script replays compare screenshots at the end of each step with the **previous run** of the same test. Differences are **flagged, never failed**. | Per-test exclusion; ignore areas. |
 | **Ignore area** | A region of a step's screenshot excluded from visual comparison (rotating banners, counters). | Per test. |
-| **AI explore** | The workspace where the user chats with the AI to explore an app or plan from documents; the AI writes **AI cases**. | Chats belong to a project. |
+| **AI explore** | The workspace where the user chats with the AI to explore a platform or plan from documents; the AI writes **AI cases**. | Chats belong to a project. |
 | **AI case** | A test case written by AI explore. Same fields as an imported test. Starts in **Ready for Suites**; becomes a normal library test when moved. | No approval in the chat, no Draft status (D65). |
 | **Ready for Suites** | The project-level tray where AI cases from all chats wait until the tester moves them into Suites ("Not in a suite"). | Opened from "Ready for Suites (n)" in AI explore. |
 | **Validation status** | How far AI explore got with an AI case: **Not checked** (generated, not run) · **Checked** (ran and passed, including auto-fixed) · **Needs fixing** (the fix failed, or the site looks broken; possible bugs share this status for now). | Not a run status: a test's status still comes only from runs. |

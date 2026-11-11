@@ -68,12 +68,12 @@ return value were decided by the prototype and need the backend's agreement.
 | `resetSettings()` / `factoryReset()` | `GlobalSettings` / `void` | **Shape to confirm** | 2.3 › Data. |
 | **Projects** | | | |
 | `listProjects()` / `getProject(id)` | `Project[]` / `Project` | Stable | |
-| `createProject(input)` / `updateProject(project)` / `deleteProject(id)` | `Project` / `Project` / `void` | Stable | Unique names (BR-PROJECT-01); removing an environment or app removes its accounts. |
+| `createProject(input)` / `updateProject(project)` / `deleteProject(id)` | `Project` / `Project` / `void` | Stable | Unique names (BR-PROJECT-01); removing an environment or platform removes its accounts. |
 | `exportProject(id, { includePasswords })` | `Blob` | Stable | Passwords readable unless excluded (D37, open question 21). |
 | `importProject(file, onExisting?)` | `Project` | Stable | `ProjectExistsError` without a choice (BR-PROJECT-02). |
 | `loadSampleData()` | `void` | Prototype only | Remove with the mock. |
 | **Knowledge** | | | |
-| `listAccounts` / `saveAccount(account, password?)` / `deleteAccount` | | `saveAccount`: **shape to confirm** | Password write-only; role + app + environment unique (BR-ENV-03). |
+| `listAccounts` / `saveAccount(account, password?)` / `deleteAccount` | | `saveAccount`: **shape to confirm** | Password write-only; role + platform + environment unique (BR-ENV-03). |
 | `revealAccountPassword(accountId)` | `string` | **Shape to confirm** | Only on an explicit "Show password" click (D40). |
 | `listKnowledge` / `saveKnowledge(item, file?)` / `deleteKnowledge` | | `saveKnowledge`: **shape to confirm** | Mock keeps metadata only; a new file sets `uploadedAt`. |
 | **Suites and tests** | | | |
@@ -193,7 +193,7 @@ npm run build      # typecheck + production build
 ## 7. Screenshots (`reference/prototype-screens/`)
 
 Default state of every screen and dialog, fresh sample data, 1440 px wide, named by screen ID (03):
-1-1 Welcome · 1-2 Projects · 1-3 New project · 1-4 Overview · 2-1 Knowledge · 2-2 Project settings · 2-3 Global settings ·
+1-1 Welcome · 1-2 Projects · 1-3 New project · 1-4 Overview · 2-1 Knowledge · 2-2 Project settings · 2-3 Global settings · 2-4 Environments ·
 3-1 Suites (and test detail: Definition, Test data, Visual check, History) · 3-2 New test, Edit test · 3-3 Import ·
 3-4 AI explore (new chat, a chat) · 3-5 Ready for Suites · 5-1 Run dialog · 5-2 Live run · 5-3 Paused / interrupted run ·
 5-4 Runs · 6-1 Run results (default, and a failed result) · 6-2 Visual compare · 6-3 Override · 6-4 Bug report.

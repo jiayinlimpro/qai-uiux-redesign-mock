@@ -45,7 +45,7 @@ describe('projects (Slice 2)', () => {
       name: ' Shop ',
       defaultModel: 'gpt-4.1',
       environments: [{ id: 'e1', name: 'SIT' }],
-      apps: [{ id: 'a1', name: 'Store', urls: { e1: 'https://sit.shop.test' } }],
+      platforms: [{ id: 'a1', name: 'Store', urls: { e1: 'https://sit.shop.test' } }],
     });
     expect(p.name).toBe('Shop');
     expect(p.settings.visualComparison).toBe(true);
@@ -113,7 +113,7 @@ describe('Slice 2 review changes', () => {
   });
 
   it('BR-PROJECT-01: blocks duplicate project names on create and rename (case-insensitive)', async () => {
-    const input = { name: 'QCFIXER.COM', defaultModel: 'gpt-4.1', environments: [{ id: 'e', name: 'UAT' }], apps: [] };
+    const input = { name: 'QCFIXER.COM', defaultModel: 'gpt-4.1', environments: [{ id: 'e', name: 'UAT' }], platforms: [] };
     await expect(api.createProject(input)).rejects.toBeInstanceOf(api.DuplicateProjectNameError);
     const hr = await api.getProject('p-hrms');
     await expect(api.updateProject({ ...hr, name: ' qcfixer.com ' })).rejects.toBeInstanceOf(api.DuplicateProjectNameError);
@@ -152,7 +152,7 @@ describe('Slice 2 review changes', () => {
   it('BR-PROJECT-01 on import: a different project with a taken name becomes "<name> (2)"', async () => {
     const file = await fileOf(await api.exportProject('p-hrms'));
     await api.deleteProject('p-hrms');
-    await api.createProject({ name: 'Client HRMS', defaultModel: 'gpt-4.1', environments: [{ id: 'e', name: 'UAT' }], apps: [] });
+    await api.createProject({ name: 'Client HRMS', defaultModel: 'gpt-4.1', environments: [{ id: 'e', name: 'UAT' }], platforms: [] });
     expect((await api.importProject(file)).name).toBe('Client HRMS (2)');
   });
 

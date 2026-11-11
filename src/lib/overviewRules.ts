@@ -18,7 +18,7 @@ export function resumeBannerText(run: Pick<Run, 'number' | 'state' | 'progress' 
 }
 
 export const pauseReasonText: Record<NonNullable<Run['pauseReason']>, string> = {
-  app_closed: 'stopped when the app closed',
+  app_closed: 'stopped when QAI closed',
   provider_unavailable: 'paused: the AI provider stayed unavailable',
   environment_unresponsive: 'paused: the environment stopped responding',
   preflight_blocked: 'paused: the pre-flight check blocked it',

@@ -109,25 +109,25 @@ export interface PreflightCheck {
 
 /**
  * BR-RUN-09 [DEV-CONFIRM] pre-flight after Start run: AI key/model (block), environment URL reachable (warn), browser
- * launches (block). Prototype: the model must be offered by an AI provider with a key; the environment warns for apps
+ * launches (block). Prototype: the model must be offered by an AI provider with a key; the environment warns for platforms
  * with no URL in it (BR-ENV-02); browsers always launch.
  */
-export function preflight(project: Pick<Project, 'apps' | 'environments'>, environmentId: ID, model: string, providers: Pick<AiProvider, 'defaultModel' | 'hasSecret' | 'label'>[], offeredModels: string[]): PreflightCheck[] {
+export function preflight(project: Pick<Project, 'platforms' | 'environments'>, environmentId: ID, model: string, providers: Pick<AiProvider, 'defaultModel' | 'hasSecret' | 'label'>[], offeredModels: string[]): PreflightCheck[] {
   const env = project.environments.find((e) => e.id === environmentId);
   const keyOk = providers.some((p) => p.hasSecret);
   const modelOk = offeredModels.includes(model);
-  const missing = project.apps.filter((a) => !a.urls[environmentId]);
+  const missing = project.platforms.filter((a) => !a.urls[environmentId]);
   return [
     keyOk && modelOk
       ? { id: 'ai', label: 'API key accepted, model available', status: 'pass' }
       : { id: 'ai', label: 'AI model not available', status: 'block', detail: keyOk ? `${model} is not offered by your AI providers. Choose another model or add a provider in Global settings.` : 'No AI provider key. Add one in Global settings.' },
     missing.length === 0
-      ? { id: 'environment', label: `${env?.name ?? 'Environment'} apps reachable`, status: 'pass' }
+      ? { id: 'environment', label: `${env?.name ?? 'Environment'} platforms reachable`, status: 'pass' }
       : {
           id: 'environment',
           label: `${missing.map((a) => a.name).join(', ')} ${missing.length === 1 ? 'has' : 'have'} no URL for ${env?.name ?? 'this environment'}`,
           status: 'warn',
-          detail: 'Tests that need it will fail to open the app. Add the URL in Knowledge › Apps and environments.',
+          detail: 'Tests that need it will fail to open the platform. Add the URL in Environments › Platforms and environments.',
         },
     { id: 'browser', label: 'Browser launches', status: 'pass' },
   ];

@@ -14,14 +14,14 @@ interface GlobalSettings { providers: AiProvider[]; costSaving: CostSaving; them
 
 interface Project { id: ID; name: string; createdAt: string; defaultModel: string;
   environments: Environment[];            // ordered, user-named
-  apps: App[];
+  platforms: Platform[];
   settings: ProjectSettings }
 interface Environment { id: ID; name: string }                 // "Dev", "UAT", "SIT"...
-interface App { id: ID; name: string; urls: Record<ID /*environmentId*/, string | null> }
+interface Platform { id: ID; name: string; urls: Record<ID /*environmentId*/, string | null> }
 interface ProjectSettings { visualComparison: boolean; browserExtensionPath?: string;
   runDefaults: { headless: boolean; parallel: boolean; workers: number; maxAiSteps: number; maxActionsPerStep: number } }
 
-interface Account { id: ID; projectId: ID; role: string; appId: ID; environmentId: ID; username: string; hasPassword: boolean }
+interface Account { id: ID; projectId: ID; role: string; platformId: ID; environmentId: ID; username: string; hasPassword: boolean }
 type Scope = { kind: 'project' } | { kind: 'suite'; suiteId: ID } | { kind: 'test'; testId: ID };
 interface KnowledgeItem { id: ID; projectId: ID; kind: 'document'|'skill';
   docType?: 'frs'|'user_stories'|'other'; skillKind?: 'instructions'|'codebase'|'reference';
@@ -59,10 +59,10 @@ type CcReason = 'environment_down'|'service_problem'|'ai_couldnt_finish';
 type Mode = 'ai'|'script'|'data_rows';
 
 interface Viewport { width: number; height: number }
-interface EnvironmentSnapshot { name: string; apps: { appId: ID; name: string; url: string | null }[] }   // BR-ENV-04
+interface EnvironmentSnapshot { name: string; platforms: { platformId: ID; name: string; url: string | null }[] }   // BR-ENV-04
 interface Run { id: ID; projectId: ID; number: number; environmentId: ID; browsers: Browser[];
   viewport: Viewport;                   // default 1920×1080; target = browser + viewport (BR-VISUAL-02)
-  environment: EnvironmentSnapshot;     // name + app URLs as used by this run; history shows it even after a rename/delete (BR-ENV-04, D36)
+  environment: EnvironmentSnapshot;     // name + platform URLs as used by this run; history shows it even after a rename/delete (BR-ENV-04, D36)
   model: string; forceAi: boolean;
   state: RunState; scopeLabel: string; testIds: ID[];
   progress: { done: number; total: number; currentTestId?: ID };
@@ -115,10 +115,10 @@ exportProject(projectId, { includePasswords = true })               // D37: pass
 importProject(file, onExisting?: 'replace' | 'copy')                 // rejects ProjectExistsError when no choice given (BR-PROJECT-02)
                                                                      // create/update/import reject DuplicateProjectNameError (BR-PROJECT-01)
 loadSampleData()                                                     // PROTOTYPE ONLY (Global settings › Advanced, developer mode); remove with the mock
-listAccounts / saveAccount(account, password?) / deleteAccount     // password write-only; empty keeps it; BR-ENV-03 unique role+app+env
-revealAccountPassword(accountId)                                    // Slice 3, shape to confirm: only on an explicit "Show password" click (2.1)
+listAccounts / saveAccount(account, password?) / deleteAccount     // password write-only; empty keeps it; BR-ENV-03 unique role+platform+env
+revealAccountPassword(accountId)                                    // Slice 3, shape to confirm: only on an explicit "Show password" click (2.4)
 listKnowledge / saveKnowledge(item, file?) / deleteKnowledge        // a new file sets uploadedAt; delete unlinks it from tests
-updateProject(project)                                              // removing an environment or app deletes its accounts; runs keep their record
+updateProject(project)                                              // removing an environment or platform deletes its accounts; runs keep their record
 listSuites / createSuite(projectId, name, idPrefix) / renameSuite(suiteId, name, idPrefix) / deleteSuite(suiteId)   // BR-SUITE; deleteSuite only when empty
 listLibraryTests(projectId, { search?, latestStatus? })              // BR-EXPLORE-07: the ONE function for library tests (location 'suites'); replaces listTests.
                                                                      // Every Suites list, filter, run picker, run scope, count and Overview card uses it
@@ -163,13 +163,13 @@ Fake data, not a source of truth: it may change, as long as it stays consistent 
 Implemented in `src/data/mock/seed.ts` as a **timeline** (import → runs #1–#14 and test edits in date order), so script state, run mode, versions and visual history follow BR-RUN-02, BR-SCRIPT-01/02, BR-VERSION-01 and BR-VISUAL-02 automatically. `seed.test.ts` checks the facts below and the rules.
 
 Seed from `fixtures/qcfixer-tests-seed.csv` (83 tests in 12 categories → 12 suites; `category` → suite name; `task_id` prefix → suite idPrefix). CSV tasks are single paragraphs, so each imported test has one step; results show AI-derived intent steps (screens/07-results.md).
-- **Project** "qcfixer.com"; environments Dev, UAT, Prod; apps "Customer website" (UAT https://uat.qcfixer.com, Prod https://www.qcfixer.com, Dev empty) and "Admin portal" (UAT only). Accounts: Admin (Admin portal, UAT), Registered customer (Customer website, UAT), both with a (fake) password the mock keeps outside the domain types. Default model `gpt-4.1`; run defaults: workers 2, max AI steps 40, max actions 10.
+- **Project** "qcfixer.com"; environments Dev, UAT, Prod; platforms "Customer website" (UAT https://uat.qcfixer.com, Prod https://www.qcfixer.com, Dev empty) and "Admin portal" (UAT only). Accounts: Admin (Admin portal, UAT), Registered customer (Customer website, UAT), both with a (fake) password the mock keeps outside the domain types. Default model `gpt-4.1`; run defaults: workers 2, max AI steps 40, max actions 10.
 - **Knowledge** (qcfixer.com): documents "Contact form FRS.pdf" (FRS, Suite: 09 Contact Us; covers the enquiry form only, not how the phone number is linked, so CNT-04 stays Needs confirmation, BR-REASON-05) and "Customer website user stories.docx" (User stories, Project-wide); skills "testing-rules.md" (Instructions, Project-wide, Runs + AI explore) and "qcfixer-web" (Codebase, Suite: 01 Navigation, AI explore). The "Contact Us · explore on UAT" plan cites the Contact form FRS.
-- **Second project** "Client HRMS" (SIT, UAT, Prod; app "HR portal") with no suites and no runs (empty states).
+- **Second project** "Client HRMS" (SIT, UAT, Prod; platform "HR portal") with no suites and no runs (empty states).
 - **Global settings**: no AI provider, so first launch shows Welcome.
 - **Tests**: all 83 from the CSV, source `import`. Scripts follow from the runs: 72 `recorded`, 8 `failed_ai` (last AI run failed), FTR-02 and GEN-02 `none` (AI couldn't finish), CNT-03 `reset`. Edits: CNT-03 v2 (20 Oct, expected result) and v3 (3 Nov, test data); CNT-04 v2 (20 Oct, the paragraph split into 3 numbered steps; expected result unchanged from the CSV). Tests that have never run (T-01, T-02) show Not run (BR-STATUS-01). Every test has a `location`: the 83 CSV tests and T-01/T-02 are `suites` (the library). Two AI cases moved from Ready for Suites into Not in a suite, both New, prefix `T-` (BR-TEST-01), from chat "Homepage and Contact Us": T-01 "Message field enforces length limit" (Checked, so its script is `recorded` from AI explore, BR-EXPLORE-06) and T-02 "Back to top button returns to the top" (Needs fixing: Not run, "Needs fixing" badge, `aiOrigin` → that chat's cases card, BR-EXPLORE-05). **Ready for Suites** (location `tray`, from chat "Contact Us · explore on UAT"): 5 AI cases — "Contact form blocks empty submission" (Checked, possible duplicate of CNT-02, not resolved yet), "Contact form accepts a valid enquiry" (Checked), "Form keeps entered values after an error" (Not checked), "Office address opens a map" (Needs fixing), "Opening hours are shown" (Not checked, **no steps**, so it shows "Missing: steps" and cannot move). No discarded case in the sample.
 - **Test data** on CNT-03: fields {name}, {email}, {topic: select}; 5 rows (row 1 recorded; rows 2–4 vary email/email/name; row 5 varies topic).
-- **Runs** (all UAT, Chrome, unless noted): #1–#6 first AI runs suite by suite (Sept); #7 01 Navigation on **Prod** in Chrome/Firefox/Safari (WebKit), read-only tests only (no form submissions or data entry on Prod; checked by `seed.test.ts`); #8 CNT-04 (AI: Needs confirmation, overridden to Passed: one entry in `overrides`); #9 01 Navigation replays; #10 Data Consistency / Portfolio / News Feed re-check; #11 CNT-04 only, failed; **#12 completed, All tests (83): 72 passed · 8 failed · 3 couldn't complete, cost $3.47**; #13 interrupted (QAI closed) at 34/83 (31 passed, 3 failed: SVC-17, HOME-01, HOME-02; 49 not run; $1.12); #14 running (09 Contact Us, 4 tests, 2 done, CNT-03 running as Data rows); #14 runs slowly on purpose (`SEED_RUN_PACE` in seed.ts: about 30 minutes to complete) so the Running state stays visible for demos; checks that need the seed's fixed results stop #14 first. Script replays cost $0.02; run cost = sum of result costs. Every run's viewport is 1920×1080 (D27), and every run stores its environment snapshot (name + app URLs, BR-ENV-04).
+- **Runs** (all UAT, Chrome, unless noted): #1–#6 first AI runs suite by suite (Sept); #7 01 Navigation on **Prod** in Chrome/Firefox/Safari (WebKit), read-only tests only (no form submissions or data entry on Prod; checked by `seed.test.ts`); #8 CNT-04 (AI: Needs confirmation, overridden to Passed: one entry in `overrides`); #9 01 Navigation replays; #10 Data Consistency / Portfolio / News Feed re-check; #11 CNT-04 only, failed; **#12 completed, All tests (83): 72 passed · 8 failed · 3 couldn't complete, cost $3.47**; #13 interrupted (QAI closed) at 34/83 (31 passed, 3 failed: SVC-17, HOME-01, HOME-02; 49 not run; $1.12); #14 running (09 Contact Us, 4 tests, 2 done, CNT-03 running as Data rows); #14 runs slowly on purpose (`SEED_RUN_PACE` in seed.ts: about 30 minutes to complete) so the Running state stays visible for demos; checks that need the seed's fixed results stop #14 first. Script replays cost $0.02; run cost = sum of result costs. Every run's viewport is 1920×1080 (D27), and every run stores its environment snapshot (name + platform URLs, BR-ENV-04).
 - **Run #12 non-passed results** (exactly these): failed — ABT-03 Product bug, FTR-04 Product bug, PRT-01 Product bug (portfolio never loads), CNT-04 Needs confirmation (phone link consistently opens WhatsApp instead of tel:, no linked document; BR-REASON-05), NWS-02 Test case unclear, CONS-02 Test case unclear, PRT-02/PRT-03 Blocked (by PRT-01, noted in the step's AI reasoning); couldn't complete — FTR-02 AI couldn't finish, GEN-02 AI couldn't finish (low confidence), WA-02 Environment down. Every one has a failure summary (step, expected, found). Worth a look: CNT-03 (passed using 38 of 40 AI steps), CNT-04 ("The behaviour looks deliberate; confirm the expected result before reporting a bug", Needs confirmation), GEN-02 (low confidence). Every seeded result has the D58 evidence (steps source, actions with locators, URLs, AI thoughts on AI steps, tokens, knowledge used, logs); script replays have no AI thought.
 - **CNT-04 full evidence** (use for the detailed result): 3 steps; step 2 failed: expected `tel:` link, found `https://wa.link/mgz96d`; actions "Found phone '+60123933860' on the page", "Read its link target"; raw `click(index=218)`, `evaluate(...)`; cost $0.07; duration 2m 54s; history: #12 v2 failed, #11 v2 failed, #8 v1 passed (overridden; AI verdict Needs confirmation), #5 v1 couldn't complete (service problem).
 - **Visual**: NAV-01 step 2 in #12 has 3 changed areas vs the previous UAT replay, Run #9, with their `changedRegions` (the places later ignored); afterwards ignore areas were added on NAV-01 step 2: "Hero rotating word", "Statistics counters", "Team carousel". Replays without an earlier replay on the same environment and browser have no comparison ("No previous run to compare").

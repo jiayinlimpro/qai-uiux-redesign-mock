@@ -4,11 +4,11 @@ import { createProject, DuplicateProjectNameError, listProjects } from '@/data/a
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input } from '@/components/ui/field';
-import { AppsEnvironmentsGrid, type GridValue } from '@/components/AppsEnvironmentsGrid';
+import { PlatformsEnvironmentsGrid, type GridValue } from '@/components/PlatformsEnvironmentsGrid';
 import { ProjectModelSelect } from '@/components/ProjectModelSelect';
 import { useAsync } from '@/app/hooks/useAsync';
 import { to } from '@/app/routes';
-import { hasErrors, isProjectNameTaken, toProjectApps, validateNewProject } from '@/lib/projectRules';
+import { hasErrors, isProjectNameTaken, toProjectPlatforms, validateNewProject } from '@/lib/projectRules';
 
 const newKey = (prefix: string) => `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
 const DEFAULT_ENVIRONMENTS = ['Dev', 'UAT', 'Prod'];
@@ -19,7 +19,7 @@ export function NewProjectDialog() {
   const [name, setName] = useState('');
   const [grid, setGrid] = useState<GridValue>(() => ({
     environments: DEFAULT_ENVIRONMENTS.map((n) => ({ id: newKey('env'), name: n })),
-    apps: [{ id: newKey('app'), name: '', urls: {} }],
+    platforms: [{ id: newKey('platform'), name: '', urls: {} }],
   }));
   const [model, setModel] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -32,7 +32,7 @@ export function NewProjectDialog() {
   const errors = validateNewProject({ name, ...grid }, existingNames);
   // Other errors show after Create; a duplicate name shows inline as you type (BR-PROJECT-01).
   const duplicate = name.trim() !== '' && isProjectNameTaken(name, existingNames);
-  const shown = submitted ? errors : { environmentNames: {}, appNames: {}, ...(duplicate ? { name: errors.name } : {}) };
+  const shown = submitted ? errors : { environmentNames: {}, platformNames: {}, ...(duplicate ? { name: errors.name } : {}) };
   const close = () => navigate(to.projects());
 
   async function create() {
@@ -45,7 +45,7 @@ export function NewProjectDialog() {
         name,
         defaultModel: model,
         environments: grid.environments.map((e) => ({ id: e.id, name: e.name.trim() })),
-        apps: toProjectApps(grid.environments, grid.apps),
+        platforms: toProjectPlatforms(grid.environments, grid.platforms),
       });
       navigate(to.overview(project.id));
     } catch (e) {
@@ -74,19 +74,19 @@ export function NewProjectDialog() {
           {(p) => <Input {...p} value={name} onChange={(e) => setName(e.target.value)} />}
         </Field>
 
-        <section aria-labelledby="apps-envs-heading">
-          <AppsEnvironmentsGrid
+        <section aria-labelledby="platforms-envs-heading">
+          <PlatformsEnvironmentsGrid
             value={grid}
             onChange={setGrid}
             errors={shown}
             heading={
-              <h3 id="apps-envs-heading" className="text-label text-text-muted">
-                Apps and environments (optional, can add later)
+              <h3 id="platforms-envs-heading" className="text-label text-text-muted">
+                Platforms and environments (optional, can add later)
               </h3>
             }
           />
           <p className="mt-2 text-label font-normal text-text-muted">
-            Environment names and number are up to you (e.g. SIT, Staging, Pre-prod). Accounts, documents and skills are added in Knowledge.
+            Environment names and number are up to you (e.g. SIT, Staging, Pre-prod). Accounts are added in Environments; documents and skills in Knowledge.
           </p>
         </section>
 

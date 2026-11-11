@@ -6,21 +6,21 @@ import { countRunStatuses } from './status';
 
 // ---------- 1.3 New project ----------
 export interface NewProjectEnvironment { id: string; name: string }
-export interface NewProjectApp { id: string; name: string; urls: Record<string, string> }
-export interface NewProjectForm { name: string; environments: NewProjectEnvironment[]; apps: NewProjectApp[] }
+export interface NewProjectPlatform { id: string; name: string; urls: Record<string, string> }
+export interface NewProjectForm { name: string; environments: NewProjectEnvironment[]; platforms: NewProjectPlatform[] }
 
 export interface NewProjectErrors {
   name?: string;
   environments?: string; // whole-grid message, e.g. "Add at least one environment"
   environmentNames: Record<string, string>; // by environment id
-  appNames: Record<string, string>; // by app id
+  platformNames: Record<string, string>; // by platform id
 }
 
 const norm = (s: string) => s.trim().toLowerCase();
 
-/** An app row with no name and no URLs is an unused row: it is dropped, not an error. */
-export function isEmptyAppRow(app: NewProjectApp): boolean {
-  return app.name.trim() === '' && Object.values(app.urls).every((u) => u.trim() === '');
+/** A platform row with no name and no URLs is an unused row: it is dropped, not an error. */
+export function isEmptyPlatformRow(platform: NewProjectPlatform): boolean {
+  return platform.name.trim() === '' && Object.values(platform.urls).every((u) => u.trim() === '');
 }
 
 /**
@@ -28,18 +28,18 @@ export function isEmptyAppRow(app: NewProjectApp): boolean {
  * environment names required and unique; at least one environment.
  */
 export function validateNewProject(form: NewProjectForm, existingNames: string[] = []): NewProjectErrors {
-  const errors: NewProjectErrors = validateAppsEnvironments(form.environments, form.apps);
+  const errors: NewProjectErrors = validatePlatformsEnvironments(form.environments, form.platforms);
   const nameError = projectNameError(form.name, existingNames);
   if (nameError) errors.name = nameError;
   return errors;
 }
 
 /**
- * The apps × environments grid (1.3 New project, 2.1 Knowledge): environment names required and unique
- * (case and spaces ignored); at least one environment; an app with a URL needs a name.
+ * The platforms × environments grid (1.3 New project, 2.4 Environments): environment names required and unique
+ * (case and spaces ignored); at least one environment; a platform with a URL needs a name.
  */
-export function validateAppsEnvironments(environments: NewProjectEnvironment[], apps: NewProjectApp[]): NewProjectErrors {
-  const errors: NewProjectErrors = { environmentNames: {}, appNames: {} };
+export function validatePlatformsEnvironments(environments: NewProjectEnvironment[], platforms: NewProjectPlatform[]): NewProjectErrors {
+  const errors: NewProjectErrors = { environmentNames: {}, platformNames: {} };
   if (environments.length === 0) errors.environments = 'Add at least one environment.';
   const seen = new Map<string, number>();
   for (const env of environments) seen.set(norm(env.name), (seen.get(norm(env.name)) ?? 0) + 1);
@@ -47,21 +47,21 @@ export function validateAppsEnvironments(environments: NewProjectEnvironment[], 
     if (env.name.trim() === '') errors.environmentNames[env.id] = 'Enter an environment name.';
     else if ((seen.get(norm(env.name)) ?? 0) > 1) errors.environmentNames[env.id] = 'Environment names must be different.';
   }
-  for (const app of apps) {
-    if (!isEmptyAppRow(app) && app.name.trim() === '') errors.appNames[app.id] = 'Enter an app name.';
+  for (const platform of platforms) {
+    if (!isEmptyPlatformRow(platform) && platform.name.trim() === '') errors.platformNames[platform.id] = 'Enter a platform name.';
   }
   return errors;
 }
 
-/** Grid rows → project apps: empty rows dropped, names trimmed, empty URLs stored as null (07: URL may be empty). */
-export function toProjectApps(environments: NewProjectEnvironment[], apps: NewProjectApp[]): { id: string; name: string; urls: Record<string, string | null> }[] {
-  return apps
-    .filter((a) => !isEmptyAppRow(a))
+/** Grid rows → project platforms: empty rows dropped, names trimmed, empty URLs stored as null (07: URL may be empty). */
+export function toProjectPlatforms(environments: NewProjectEnvironment[], platforms: NewProjectPlatform[]): { id: string; name: string; urls: Record<string, string | null> }[] {
+  return platforms
+    .filter((a) => !isEmptyPlatformRow(a))
     .map((a) => ({ id: a.id, name: a.name.trim(), urls: Object.fromEntries(environments.map((e) => [e.id, a.urls[e.id]?.trim() || null])) }));
 }
 
 export function hasErrors(e: NewProjectErrors): boolean {
-  return Boolean(e.name || e.environments) || Object.keys(e.environmentNames).length > 0 || Object.keys(e.appNames).length > 0;
+  return Boolean(e.name || e.environments) || Object.keys(e.environmentNames).length > 0 || Object.keys(e.platformNames).length > 0;
 }
 
 // ---------- project names (BR-PROJECT-01, BR-PROJECT-02) ----------

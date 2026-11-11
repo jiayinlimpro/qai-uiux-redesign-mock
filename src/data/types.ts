@@ -13,14 +13,14 @@ export interface GlobalSettings { providers: AiProvider[]; costSaving: CostSavin
 
 export interface Project { id: ID; name: string; createdAt: string; defaultModel: string;
   environments: Environment[];            // ordered, user-named
-  apps: App[];
+  platforms: Platform[];
   settings: ProjectSettings }
 export interface Environment { id: ID; name: string }                 // "Dev", "UAT", "SIT"...
-export interface App { id: ID; name: string; urls: Record<ID /*environmentId*/, string | null> }
+export interface Platform { id: ID; name: string; urls: Record<ID /*environmentId*/, string | null> }
 export interface ProjectSettings { visualComparison: boolean; browserExtensionPath?: string;
   runDefaults: { headless: boolean; parallel: boolean; workers: number; maxAiSteps: number; maxActionsPerStep: number } }
 
-export interface Account { id: ID; projectId: ID; role: string; appId: ID; environmentId: ID; username: string; hasPassword: boolean }
+export interface Account { id: ID; projectId: ID; role: string; platformId: ID; environmentId: ID; username: string; hasPassword: boolean }
 export type Scope = { kind: 'project' } | { kind: 'suite'; suiteId: ID } | { kind: 'test'; testId: ID };
 export interface KnowledgeItem { id: ID; projectId: ID; kind: 'document'|'skill';
   docType?: 'frs'|'user_stories'|'other'; skillKind?: 'instructions'|'codebase'|'reference';
@@ -59,10 +59,10 @@ export type Mode = 'ai'|'script'|'data_rows';
 
 export interface Viewport { width: number; height: number }
 /** What the run's environment was when the run started (BR-ENV-04). */
-export interface EnvironmentSnapshot { name: string; apps: { appId: ID; name: string; url: string | null }[] }
+export interface EnvironmentSnapshot { name: string; platforms: { platformId: ID; name: string; url: string | null }[] }
 export interface Run { id: ID; projectId: ID; number: number; environmentId: ID; browsers: Browser[];
   viewport: Viewport;                   // default 1920×1080; target = browser + viewport (BR-VISUAL-02)
-  environment: EnvironmentSnapshot;     // name + app URLs as used by this run; history shows it even after a rename/delete (BR-ENV-04, D36)
+  environment: EnvironmentSnapshot;     // name + platform URLs as used by this run; history shows it even after a rename/delete (BR-ENV-04, D36)
   model: string; forceAi: boolean;
   state: RunState; scopeLabel: string; testIds: ID[];
   progress: { done: number; total: number; currentTestId?: ID };

@@ -2,7 +2,7 @@
  * Mock run engine (prototype only): drives running runs with a timer, step by step, and writes results like a real run
  * would. Developers replace it with the real engine; api.ts is the only caller.
  *
- * Simulated outcome ("the app has not changed"): a test repeats its last failure / couldn't-complete; a never-run
+ * Simulated outcome ("the platform has not changed"): a test repeats its last failure / couldn't-complete; a never-run
  * Needs fixing AI case fails (the run confirms the problem, BR-EXPLORE-05); everything else passes.
  */
 import type { Browser, ID, Result, ResultStep, Run, Status } from '../types';
@@ -194,7 +194,7 @@ function narrate(run: Run, a: Active): Narration {
           : target && /click|open|choose|select/i.test(stepText)
             ? `Clicking ‘${target}’`
             : 'Checking what the step asks for';
-  const app = run.environment.apps.find((x) => x.url);
+  const platform = run.environment.platforms.find((x) => x.url);
   return {
     runId: run.id,
     testId: a.testId,
@@ -209,12 +209,12 @@ function narrate(run: Run, a: Active): Narration {
     checks: a.steps.slice(0, a.step + 1).map((s, i) => ({ text: `Step ${i + 1}: ${s.length > 60 ? `${s.slice(0, 60)}…` : s.replace(/\.$/, '')}`, status: i < a.step ? 'passed' : 'waiting' })),
     ...(a.plan.mode !== 'script' ? { aiSteps: { used: a.aiSteps, max: run.advanced?.maxAiSteps ?? 40 } } : {}),
     reasoning: `I am on step ${a.step + 1} of ${a.steps.length}. ${doing}. When the page matches what the step describes, I move to the next step; if it does not, I record what I found.`,
-    url: app?.url ?? 'No URL for this environment',
+    url: platform?.url ?? 'No URL for this environment',
     browser: a.plan.browsers.includes('chrome') || a.plan.mode !== 'script' ? 'chrome' : a.plan.browsers[0]!,
   };
 }
 
-/** Previous result of this test before this run (the "app has not changed" outcome comes from it). */
+/** Previous result of this test before this run (the "platform has not changed" outcome comes from it). */
 function previousResult(testId: ID, runNumber: number): Result | undefined {
   const db = getDb();
   const number = new Map(db.runs.map((r) => [r.id, r.number]));
@@ -246,8 +246,8 @@ function finish(runId: ID, a: Active, forced?: 'not_run', note?: string): void {
     const scriptFrom = test.script.fromRunId ? (db.runs.find((r) => r.id === test.script.fromRunId)?.number ?? 0) : 0;
     const prevReplay = a.plan.mode === 'script' && !test.visual.excluded ? previousReplay(db, test.id, run, scriptFrom) : undefined;
     // Evidence written when the result is created (D58): URL, actions with locators, AI thought, usage, knowledge, logs.
-    const appUrl = run.environment.apps.find((x) => x.url)?.url ?? null;
-    const urls = urlsFor(a.steps, startUrl(test, appUrl));
+    const platformUrl = run.environment.platforms.find((x) => x.url)?.url ?? null;
+    const urls = urlsFor(a.steps, startUrl(test, platformUrl));
     const steps: ResultStep[] = a.steps.map((text, i) => {
       const index = i + 1;
       const s: Status = forced ? (index <= a.step ? 'passed' : 'not_run') : index < stopAt ? 'passed' : index === stopAt ? status : 'not_run';

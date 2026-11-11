@@ -32,7 +32,7 @@ export function TechnicalTab({ result, run, test, knowledge, runs }: { result: R
           <dt className="text-text-muted">Environment</dt>
           <dd>
             {run.environment.name}
-            {run.environment.apps.filter((a) => a.url).map((a) => ` · ${a.name} ${a.url}`).join('')}
+            {run.environment.platforms.filter((a) => a.url).map((a) => ` · ${a.name} ${a.url}`).join('')}
           </dd>
         </dl>
       </Section>

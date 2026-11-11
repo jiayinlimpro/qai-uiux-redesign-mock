@@ -17,6 +17,7 @@
 │ Overview     │                                                │
 │ Suites       │                                                │
 │ Runs         │                                                │
+│ Environments │                                                │
 │ Knowledge    │                                                │
 │ Project settings                                              │
 │ ──────────── │                                                │
@@ -26,7 +27,7 @@
 **Sidebar (full height)**
 - Top: QAI brand mark + "QAI". **The brand is a link to All projects** (tooltip "All projects") in both states.
 - Project card (expanded only): "‹ All projects" link, project name. Nothing else.
-- Nav items with icon + label: Overview, Suites, Runs, Knowledge, Project settings. Active item highlighted.
+- Nav items with icon + label: Overview, Suites, Runs, **Environments**, Knowledge, Project settings (Environments above Knowledge, D72). Active item highlighted.
 - Bottom (separated): Global settings. (Theme is NOT here; it is in Global settings.)
 - **Collapse/expand**: a small round icon button straddling the sidebar's right edge, vertically aligned with the top bar. Chevron points left (collapse) / right (expand). `aria-label` changes accordingly.
 - Collapsed: 64 px icon rail, tooltips on hover/focus, project card hidden, brand mark only (still links to All projects). **No separate back button when collapsed.**
@@ -57,7 +58,8 @@ Replaces the whole window: header `← Back to project · AI explore · <project
 | 2.3 | Global settings | `/settings` | screens/01-global.md |
 | 1.4 | Project overview | `/p/:projectId` | screens/02-project.md |
 | 2.2 | Project settings | `/p/:projectId/settings` | screens/02-project.md |
-| 2.1 | Knowledge | `/p/:projectId/knowledge` | screens/03-knowledge.md |
+| 2.4 | Environments (platforms × environments, accounts) | `/p/:projectId/environments` | screens/03-knowledge.md |
+| 2.1 | Knowledge (documents, skills) | `/p/:projectId/knowledge` | screens/03-knowledge.md |
 | 3.1 | Suites (list + test detail) | `/p/:projectId/suites` and `/p/:projectId/suites/:testId?tab=` | screens/04-suites.md |
 | 3.2 | New / edit test | `/p/:projectId/tests/new`, `/p/:projectId/tests/:testId/edit` | screens/04-suites.md |
 | 3.3 | Import (dialog) | `/p/:projectId/suites/import` | screens/04-suites.md |

@@ -15,16 +15,16 @@ describe('accounts (Slice 3)', () => {
   });
 
   it('adds and edits an account; an empty password keeps the saved one', async () => {
-    const a = await api.saveAccount({ projectId: 'p-qcfixer', role: 'Admin', appId: 'app-admin', environmentId: 'env-prod', username: 'prod.admin' }, 'p1');
+    const a = await api.saveAccount({ projectId: 'p-qcfixer', role: 'Admin', platformId: 'platform-admin', environmentId: 'env-prod', username: 'prod.admin' }, 'p1');
     expect(a.hasPassword).toBe(true);
     const edited = await api.saveAccount({ ...a, username: 'prod.admin2' }, '');
     expect(edited).toMatchObject({ id: a.id, username: 'prod.admin2', hasPassword: true });
     expect(await api.revealAccountPassword(a.id)).toBe('p1');
   });
 
-  it('BR-ENV-03: role + app + environment is unique', async () => {
+  it('BR-ENV-03: role + platform + environment is unique', async () => {
     await expect(
-      api.saveAccount({ projectId: 'p-qcfixer', role: 'admin', appId: 'app-admin', environmentId: 'env-uat', username: 'x' }, 'p'),
+      api.saveAccount({ projectId: 'p-qcfixer', role: 'admin', platformId: 'platform-admin', environmentId: 'env-uat', username: 'x' }, 'p'),
     ).rejects.toBeInstanceOf(api.DuplicateAccountError);
   });
 
@@ -35,31 +35,31 @@ describe('accounts (Slice 3)', () => {
   });
 });
 
-describe('apps and environments (Slice 3)', () => {
+describe('platforms and environments (Slice 3)', () => {
   it('removing an environment removes its accounts and URLs, keeps runs', async () => {
     const p = await api.getProject('p-qcfixer');
     await api.updateProject({ ...p, environments: p.environments.filter((e) => e.id !== 'env-uat') });
     const after = await api.getProject('p-qcfixer');
     expect(after.environments.map((e) => e.name)).toEqual(['Dev', 'Prod']);
-    expect(after.apps.every((a) => !('env-uat' in a.urls))).toBe(true);
+    expect(after.platforms.every((a) => !('env-uat' in a.urls))).toBe(true);
     expect(await api.listAccounts('p-qcfixer')).toEqual([]);
     expect((await api.listRuns('p-qcfixer')).length).toBe(14);
   });
 
-  it('removing an app removes its accounts', async () => {
+  it('removing a platform removes its accounts', async () => {
     const p = await api.getProject('p-qcfixer');
-    await api.updateProject({ ...p, apps: p.apps.filter((a) => a.id !== 'app-admin') });
+    await api.updateProject({ ...p, platforms: p.platforms.filter((a) => a.id !== 'platform-admin') });
     expect((await api.listAccounts('p-qcfixer')).map((a) => a.role)).toEqual(['Registered customer']);
   });
 
   it('renames environments and edits URLs without touching accounts', async () => {
     const p = await api.getProject('p-qcfixer');
     const environments = p.environments.map((e) => (e.id === 'env-uat' ? { ...e, name: 'SIT' } : e));
-    const apps = p.apps.map((a) => (a.id === 'app-admin' ? { ...a, urls: { ...a.urls, 'env-prod': 'https://admin.qcfixer.com' } } : a));
-    await api.updateProject({ ...p, environments, apps });
+    const platforms = p.platforms.map((a) => (a.id === 'platform-admin' ? { ...a, urls: { ...a.urls, 'env-prod': 'https://admin.qcfixer.com' } } : a));
+    await api.updateProject({ ...p, environments, platforms });
     const after = await api.getProject('p-qcfixer');
     expect(after.environments.map((e) => e.name)).toEqual(['Dev', 'SIT', 'Prod']);
-    expect(after.apps.find((a) => a.id === 'app-admin')!.urls['env-prod']).toBe('https://admin.qcfixer.com');
+    expect(after.platforms.find((a) => a.id === 'platform-admin')!.urls['env-prod']).toBe('https://admin.qcfixer.com');
     expect((await api.listAccounts('p-qcfixer')).length).toBe(2);
   });
 });
@@ -107,7 +107,7 @@ describe('BR-ENV-04: history keeps the environment snapshot', () => {
     await api.updateProject({ ...renamed, environments: renamed.environments.filter((e) => e.id !== 'env-uat') });
     const r12 = await api.getRun('run-12');
     expect(r12.environment.name).toBe('UAT');
-    expect(r12.environment.apps.find((a) => a.name === 'Customer website')!.url).toBe('https://uat.qcfixer.com');
+    expect(r12.environment.platforms.find((a) => a.name === 'Customer website')!.url).toBe('https://uat.qcfixer.com');
   });
 });
 
@@ -120,5 +120,16 @@ describe('D37 export without account passwords', () => {
     expect(parsed.accounts.every((a) => !a.hasPassword)).toBe(true);
     expect(parsed.accountPasswords).toEqual([]);
     expect(await (await api.exportProject('p-qcfixer')).text()).toContain('Uat-Admin-2026!'); // default: included
+  });
+});
+
+describe('older project files (before D73: apps → platforms)', () => {
+  it('importing an export that still says "apps" / "appId" works', async () => {
+    const blob = await api.exportProject('p-qcfixer');
+    const legacy = (await blob.text()).replace(/"platforms"/g, '"apps"').replace(/"platformId"/g, '"appId"');
+    const imported = await api.importProject(new File([legacy], 'old.json'), 'copy');
+    expect(imported.platforms.map((p) => p.name)).toEqual(['Customer website', 'Admin portal']);
+    const accounts = await api.listAccounts(imported.id);
+    expect(accounts.every((a) => imported.platforms.some((p) => p.id === a.platformId))).toBe(true);
   });
 });

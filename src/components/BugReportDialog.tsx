@@ -112,7 +112,7 @@ export function BugReportDialog({ items, onClose }: { items: BugReportItem[]; on
           )}
           <div className="flex flex-col gap-3">
             <Field label="Title">{(p) => <Input {...p} value={r.title} onChange={(e) => update(i, { title: e.target.value })} />}</Field>
-            <Field label="Environment" hint="Environment · app · browser · screen size · run · date">
+            <Field label="Environment" hint="Environment · platform · browser · screen size · run · date">
               {(p) => <Input {...p} value={r.environment} onChange={(e) => update(i, { environment: e.target.value })} />}
             </Field>
             <Field label="Steps to reproduce" hint="One step per line">

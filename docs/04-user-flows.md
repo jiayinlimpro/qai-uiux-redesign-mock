@@ -3,19 +3,19 @@
 Screen IDs refer to `03-navigation.md`. Each flow lists entry → steps → exit.
 
 ## F1 · First launch
-1. App opens → no AI provider configured → **1.1 Welcome**.
+1. QAI opens → no AI provider configured → **1.1 Welcome**.
 2. Choose provider, enter key (provider-specific fields), choose default model. Optionally expand "Save AI cost with Browser Use + Jev" and fill it.
 3. Continue → **1.2 Projects** (empty state: "Create your first project").
 
 ## F2 · Create a project
-1. 1.2 → New project → **1.3**: name, apps × environments (rename/add environments), default model → Create.
+1. 1.2 → New project → **1.3**: name, platforms × environments (rename/add environments), default model → Create.
 2. → **1.4 Overview** (empty states point to Knowledge, Import, New test, AI explore).
-3. Optional: **2.1 Knowledge** → accounts per role and environment, documents, skills.
+3. Optional: **2.4 Environments** → platform URLs per environment, accounts per role, platform and environment; **2.1 Knowledge** → documents, skills.
 
 ## F3 · Get tests into the library (three ways)
 - **Import**: 3.1 → Import → **3.3**: download template (if needed) → choose CSV/XLSX → file check (recognised / ignored columns, rows read) → duplicates choice → Import → suites created from category; rows without category in "Not in a suite".
 - **Write**: 3.1 → New test → **3.2** → Save → test appears in its suite.
-- **AI explore**: top bar AI explore → **3.4** → chat (explore an app or plan from documents) → the AI writes test cases; each goes straight to **Ready for Suites** with a validation status (Not checked · Checked · Needs fixing) and the chat shows it → **Ready for Suites (n)** → **3.5** (cases from all chats; filter by status; resolve possible duplicates: Keep both · Replace existing · Discard; fix small fields inline, bigger changes in the chat) → select → **Move to Suites** (toast with Undo) → 3.1 "Not in a suite", new tests marked New → select → **Move to suite…**. (D65)
+- **AI explore**: top bar AI explore → **3.4** → chat (explore a platform or plan from documents) → the AI writes test cases; each goes straight to **Ready for Suites** with a validation status (Not checked · Checked · Needs fixing) and the chat shows it → **Ready for Suites (n)** → **3.5** (cases from all chats; filter by status; resolve possible duplicates: Keep both · Replace existing · Discard; fix small fields inline, bigger changes in the chat) → select → **Move to Suites** (toast with Undo) → 3.1 "Not in a suite", new tests marked New → select → **Move to suite…**. (D65)
 
 ## F4 · Run (main loop)
 1. Select tests or suites in **3.1** (or a single test → Run) → **5.1 Run dialog**.
@@ -32,7 +32,7 @@ Entry: 6.1 (from the finished run, Runs list, Overview, or a test's latest strip
 |---|---|---|
 | Product bug | Copy bug report (6.4) → paste into ClickUp | After developer fix: Re-run that test (5.1) |
 | Needs confirmation | Confirm with BA/PM | Bug report, or Edit test |
-| Test data problem | Fix account/data in Knowledge (2.1) | Re-run |
+| Test data problem | Fix the account in Environments (2.4) or the test data in Suites | Re-run |
 | Test case unclear | Edit test (3.2, "Save and re-run") | Run dialog prefilled |
 | Blocked | Fix the root failure first | Re-run the group |
 | Environment down | Check the site | Re-run |
@@ -43,7 +43,7 @@ Entry: 6.1 (from the finished run, Runs list, Overview, or a test's latest strip
 4. Every re-run goes through the run dialog and creates a new run.
 
 ## F6 · Interrupted or paused run
-1. App closed or crashed mid-run → next launch: **1.4 Overview** banner "Run #N interrupted at X of Y" → Resume / Stop run (D67). Runs list shows "Interrupted".
+1. QAI closed or crashed mid-run → next launch: **1.4 Overview** banner "Run #N interrupted at X of Y" → Resume / Stop run (D67). Runs list shows "Interrupted".
 2. Resume → **5.3** → "Resume from test X+1" → **5.2**. [DEV-CONFIRM: progress saved per test]
 3. (Proposed) provider down or site not responding repeatedly → run auto-pauses with reason → Resume / Stop. [DEV-CONFIRM: today the engine continues and fails the remaining tests]
 

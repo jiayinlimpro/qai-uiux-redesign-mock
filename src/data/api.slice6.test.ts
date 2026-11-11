@@ -35,7 +35,7 @@ describe('planRun (BR-RUN-02, D53)', () => {
 });
 
 describe('preflight (BR-RUN-09)', () => {
-  it('warns for apps without a URL in the environment', async () => {
+  it('warns for platforms without a URL in the environment', async () => {
     await api.saveProvider({ kind: 'openai', label: 'OpenAI', defaultModel: 'gpt-4.1' }, { apiKey: 'k' });
     expect((await api.runPreflight('p-qcfixer', 'env-uat', 'gpt-4.1')).map((c) => c.status)).toEqual(['pass', 'pass', 'pass']);
     expect((await api.runPreflight('p-qcfixer', 'env-prod', 'gpt-4.1'))[1]).toMatchObject({ status: 'warn', label: 'Admin portal has no URL for Prod' });
@@ -54,7 +54,7 @@ describe('a simulated run (BR-RUN-01/03/05, BR-SCRIPT-01)', () => {
       { browser: 'chrome', status: 'passed' },
       { browser: 'firefox', status: 'passed' },
     ]);
-    expect(by('t-cnt-04')).toMatchObject({ mode: 'ai', status: 'failed', reason: 'needs_confirmation' }); // the app has not changed
+    expect(by('t-cnt-04')).toMatchObject({ mode: 'ai', status: 'failed', reason: 'needs_confirmation' }); // the platform has not changed
     expect(by('t-cnt-04').perBrowser).toEqual([
       { browser: 'chrome', status: 'failed' },
       { browser: 'firefox', status: 'not_run' }, // BR-RUN-03

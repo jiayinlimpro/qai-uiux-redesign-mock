@@ -32,9 +32,9 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(
 const quotedIn = (text: string) => [...text.matchAll(/'([^']{2,40})'/g)].map((m) => m[1]!);
 const isMenuName = (s: string) => /^[A-Z][A-Za-z]*( [A-Z][A-Za-z]*){0,3}$/.test(s);
 
-/** Start URL of a test in a run: the environment's URL of the app, with the path of the test's start page. */
-export function startUrl(t: Pick<TestCase, 'startPage'>, appUrl: string | null): string {
-  const base = (appUrl ?? 'https://app.example.test').replace(/\/$/, '');
+/** Start URL of a test in a run: the environment's URL of the platform, with the path of the test's start page. */
+export function startUrl(t: Pick<TestCase, 'startPage'>, platformUrl: string | null): string {
+  const base = (platformUrl ?? 'https://app.example.test').replace(/\/$/, '');
   try {
     return t.startPage ? `${base}${new URL(t.startPage).pathname}` : `${base}/`;
   } catch {

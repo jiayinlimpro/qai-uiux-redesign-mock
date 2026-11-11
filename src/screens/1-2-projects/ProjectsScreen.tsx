@@ -106,7 +106,7 @@ export function ProjectsScreen() {
             <thead>
               <tr>
                 <Th>Project</Th>
-                <Th>Apps</Th>
+                <Th>Platforms</Th>
                 <Th>Suites</Th>
                 <Th>Last run</Th>
                 <Th>Needs attention</Th>
@@ -186,7 +186,7 @@ function ProjectTableRow({ row, onExport, onRename, onDelete }: { row: ProjectRo
           {project.name}
         </Link>
       </Td>
-      <Td>{project.apps.length > 0 ? project.apps.map((a) => a.name).join(', ') : <span className="text-text-muted">No apps yet</span>}</Td>
+      <Td>{project.platforms.length > 0 ? project.platforms.map((a) => a.name).join(', ') : <span className="text-text-muted">No platforms yet</span>}</Td>
       <Td>{suiteCount}</Td>
       <Td>{lastRun ? `Run #${lastRun.number} · ${runStateLabels[lastRun.state]}` : <span className="text-text-muted">No runs yet</span>}</Td>
       <Td>

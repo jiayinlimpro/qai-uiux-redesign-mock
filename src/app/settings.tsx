@@ -20,7 +20,7 @@ export function useGlobalSettings(): SettingsContextValue {
   return value;
 }
 
-/** Loads global settings once for the whole app and applies the theme choice to <html data-theme>. */
+/** Loads global settings once for the whole of QAI and applies the theme choice to <html data-theme>. */
 export function SettingsRoot({ children }: { children?: ReactNode }) {
   const initial = useAsync(getGlobalSettings, []);
   const [latest, setLatest] = useState<GlobalSettings | null>(null);

@@ -20,8 +20,8 @@ Legacy references are sections of `reference/legacy-user-manual-v2.0.pdf`.
 | Skills (4) | Knowledge (scoped: project / suite / test) |
 | Upload task file, editable table (5.2–5.3) | Import (template) + Suites + Edit test |
 | task_id, task_content, expected_result, title, description, category | Test ID, Steps, Expected result, Title, Description, Suite |
-| base_url | Start page; App URL per environment |
-| credentials | Knowledge › Accounts (by role) |
+| base_url | Start page; Platform URL per environment |
+| credentials | Environments › Accounts (by role) |
 | expected_keywords | Text that must appear (More options) |
 | Copilot Mode | Automatic mode + Force AI |
 | Skill / extension_path / llm_provider / model_name columns | Linked knowledge / project setting / run model |

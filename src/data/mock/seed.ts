@@ -31,7 +31,7 @@ import { knowledgeForRun, modeFor, snapshotEnvironment } from '@/lib/runRules';
 import { sumCost } from '@/lib/status';
 import { actionsFor, aiThoughtFor, deriveSteps, intentSteps, logsFor, startUrl, urlsFor, usageFor } from './evidence';
 
-export const SEED_VERSION = 13;
+export const SEED_VERSION = 14;
 
 /**
  * Mock engine pace for seeded demo runs: timer ticks per work tick (normal runs: 1). Run #14 has 14 work ticks left
@@ -62,7 +62,7 @@ export interface MockDb {
 const P_QC = 'p-qcfixer';
 const P_HRMS = 'p-hrms';
 const ENV = { dev: 'env-dev', uat: 'env-uat', prod: 'env-prod' } as const;
-const APP = { customer: 'app-customer', admin: 'app-admin' } as const;
+const PLATFORM = { customer: 'platform-customer', admin: 'platform-admin' } as const;
 const testKey = (displayId: string): ID => `t-${displayId.toLowerCase()}`;
 const runKey = (n: number): ID => `run-${n}`;
 const resultKey = (runNumber: number, displayId: string): ID => `res-${runNumber}-${displayId.toLowerCase()}`;
@@ -111,13 +111,13 @@ const projects: Project[] = [
       { id: ENV.uat, name: 'UAT' },
       { id: ENV.prod, name: 'Prod' },
     ],
-    apps: [
+    platforms: [
       {
-        id: APP.customer,
+        id: PLATFORM.customer,
         name: 'Customer website',
         urls: { [ENV.dev]: null, [ENV.uat]: 'https://uat.qcfixer.com', [ENV.prod]: 'https://www.qcfixer.com' },
       },
-      { id: APP.admin, name: 'Admin portal', urls: { [ENV.dev]: null, [ENV.uat]: 'https://uat-admin.qcfixer.com', [ENV.prod]: null } },
+      { id: PLATFORM.admin, name: 'Admin portal', urls: { [ENV.dev]: null, [ENV.uat]: 'https://uat-admin.qcfixer.com', [ENV.prod]: null } },
     ],
     settings: { visualComparison: true /* BR-VISUAL-01 */, runDefaults },
   },
@@ -131,9 +131,9 @@ const projects: Project[] = [
       { id: 'env-hrms-uat', name: 'UAT' },
       { id: 'env-hrms-prod', name: 'Prod' },
     ],
-    apps: [
+    platforms: [
       {
-        id: 'app-hrms-portal',
+        id: 'platform-hrms-portal',
         name: 'HR portal',
         urls: { 'env-hrms-sit': 'https://sit.hrms.example.com', 'env-hrms-uat': 'https://uat.hrms.example.com', 'env-hrms-prod': null },
       },
@@ -143,8 +143,8 @@ const projects: Project[] = [
 ];
 
 const accounts: Account[] = [
-  { id: 'acc-admin', projectId: P_QC, role: 'Admin', appId: APP.admin, environmentId: ENV.uat, username: 'qa.admin', hasPassword: true },
-  { id: 'acc-customer', projectId: P_QC, role: 'Registered customer', appId: APP.customer, environmentId: ENV.uat, username: 'qa.customer@qcfixer.test', hasPassword: true },
+  { id: 'acc-admin', projectId: P_QC, role: 'Admin', platformId: PLATFORM.admin, environmentId: ENV.uat, username: 'qa.admin', hasPassword: true },
+  { id: 'acc-customer', projectId: P_QC, role: 'Registered customer', platformId: PLATFORM.customer, environmentId: ENV.uat, username: 'qa.customer@qcfixer.test', hasPassword: true },
 ];
 
 // ---------- suites and tests from the CSV (BR-IMPORT-*) ----------
@@ -273,8 +273,8 @@ function buildSteps(runNumber: number, t: TestCase, mode: Mode, o: Outcome, dura
   const executed = Math.min(stopAt, texts.length);
   const each = Math.round(durationMs / Math.max(executed, 1));
   const previous = mode === 'script' ? replayHistory.get(replayKey(t.id, environmentId, 'chrome')) : undefined;
-  const appUrl = snapshotEnvironment(projects[0]!, environmentId).apps.find((a) => a.appId === APP.customer)?.url ?? null;
-  const urls = urlsFor(texts, startUrl(t, appUrl));
+  const platformUrl = snapshotEnvironment(projects[0]!, environmentId).platforms.find((a) => a.platformId === PLATFORM.customer)?.url ?? null;
+  const urls = urlsFor(texts, startUrl(t, platformUrl));
   return texts.map((text, i) => {
     const index = i + 1;
     const status: Status = index < stopAt ? 'passed' : index === stopAt ? o.status : 'not_run';
@@ -490,7 +490,7 @@ simulateRun({
 // CNT-04 evidence (07): step 2 failed, expected tel: link, found wa.link; $0.07; 2m 54s.
 const CNT04_FAIL: Outcome = {
   status: 'failed',
-  // BR-REASON-05: the app consistently links the phone to WhatsApp, not tel:, and no linked document says which is right.
+  // BR-REASON-05: the platform consistently links the phone to WhatsApp, not tel:, and no linked document says which is right.
   reason: 'needs_confirmation',
   atStep: 2,
   expected: 'tel: link',

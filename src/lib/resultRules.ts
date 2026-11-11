@@ -2,7 +2,7 @@
  * Run results rules (screens/07-results.md, 6.1–6.4): rows, sorting, filters, reason guidance, version line,
  * override, visual flags, bug report. Pure functions; the rule ID is in each comment.
  */
-import type { App, Browser, CcReason, FailReason, ID, Mode, Result, ResultStep, Run, Status, Suite, TestCase, TestData } from '@/data/types';
+import type { Platform, Browser, CcReason, FailReason, ID, Mode, Result, ResultStep, Run, Status, Suite, TestCase, TestData } from '@/data/types';
 import { browserLabels, modeLabels, reasonLabels } from './labels';
 import { compareTestIds } from './suiteRules';
 import { formatDate } from './format';
@@ -125,9 +125,9 @@ export function shownRows<R extends ResultRow>(rows: R[], f: ResultFilterState):
 
 // ---------- reason guidance (BR-REASON-04, 04 · F5) ----------
 export const reasonGuidance: Record<Reason, { explanation: string; action: string }> = {
-  product_bug: { explanation: 'The app clearly does not work (an error, crash, missing element or wrong data), or a linked document confirms the expected result.', action: 'Copy the bug report into ClickUp; re-run the test after the fix.' },
+  product_bug: { explanation: 'The platform clearly does not work (an error, crash, missing element or wrong data), or a linked document confirms the expected result.', action: 'Copy the bug report into ClickUp; re-run the test after the fix.' },
   needs_confirmation: { explanation: 'The behaviour looks deliberate and no linked document confirms the expected result.', action: 'Confirm with the BA or PM, then report a bug or edit the test.' },
-  test_data_problem: { explanation: 'The account or data the test needs did not work.', action: 'Fix the account or data in Knowledge, then re-run.' },
+  test_data_problem: { explanation: 'The account or data the test needs did not work.', action: 'Fix the account in Environments or the test data in Suites, then re-run.' },
   test_case_unclear: { explanation: 'The steps or the expected result can be read more than one way.', action: 'Edit the test (Save and re-run).' },
   blocked: { explanation: 'An earlier failure stopped this test from reaching its checks.', action: 'Fix the root failure first, then re-run the group.' },
   environment_down: { explanation: 'The site did not respond.', action: 'Check the site, then re-run.' },
@@ -268,7 +268,7 @@ export function clampRect(r: Rect): Rect {
 export interface BugReport {
   resultId: ID;
   title: string;
-  /** env · app · browser · viewport · run · date */
+  /** env · platform · browser · viewport · run · date */
   environment: string;
   steps: string[];
   expected: string;
@@ -276,11 +276,11 @@ export interface BugReport {
   screenshots: { stepIndex: number; screenshotId: ID }[];
 }
 
-/** Bug reports describe app problems: Failed results only (D63). Visual compare › Mark as bug reports a visual change for any status. */
+/** Bug reports describe platform problems: Failed results only (D63). Visual compare › Mark as bug reports a visual change for any status. */
 export const hasBugReport = (r: Pick<Result, 'status'>) => r.status === 'failed';
 
-/** The app a test uses: the one whose URL (in any environment) has the test's start page host. */
-export function appForStartPage(startPage: string | undefined, apps: Pick<App, 'id' | 'name' | 'urls'>[]): Pick<App, 'id' | 'name' | 'urls'> | undefined {
+/** The platform a test uses: the one whose URL (in any environment) has the test's start page host. */
+export function platformForStartPage(startPage: string | undefined, platforms: Pick<Platform, 'id' | 'name' | 'urls'>[]): Pick<Platform, 'id' | 'name' | 'urls'> | undefined {
   if (!startPage) return undefined;
   const host = (u: string) => {
     try {
@@ -290,18 +290,18 @@ export function appForStartPage(startPage: string | undefined, apps: Pick<App, '
     }
   };
   const h = host(startPage);
-  return h ? apps.find((a) => Object.values(a.urls).some((u) => u && host(u) === h)) : undefined;
+  return h ? platforms.find((a) => Object.values(a.urls).some((u) => u && host(u) === h)) : undefined;
 }
 
 /**
- * BR-ACTION-03: generated per result — title, environment (env · app · browser · viewport · run · date), steps to
+ * BR-ACTION-03: generated per result — title, environment (env · platform · browser · viewport · run · date), steps to
  * reproduce in plain language (up to the failing step), expected, actual, screenshots. `visualStep` → a report of
  * a visual change at that step (6.2 Mark as bug).
  */
 export function buildBugReportFor(opts: {
   result: Result;
   test: { testId: string; title: string; expectedResult?: string } ;
-  appName?: string;
+  platformName?: string;
   run: Pick<Run, 'number' | 'environment' | 'viewport' | 'startedAt'>;
   visualStep?: { index: number; previousRunNumber?: number };
 }): BugReport {
@@ -310,7 +310,7 @@ export function buildBugReportFor(opts: {
   const upTo = result.steps.filter((s) => s.index <= failing);
   const step = result.steps.find((s) => s.index === failing);
   const browser = result.perBrowser.find((b) => b.status === result.status)?.browser ?? result.perBrowser[0]?.browser ?? 'chrome';
-  const environment = [run.environment.name, opts.appName, `${browserLabels[browser]} ${run.viewport.width}×${run.viewport.height}`, `Run #${run.number}, ${formatDate(run.startedAt)}`]
+  const environment = [run.environment.name, opts.platformName, `${browserLabels[browser]} ${run.viewport.width}×${run.viewport.height}`, `Run #${run.number}, ${formatDate(run.startedAt)}`]
     .filter(Boolean)
     .join(' · ');
   if (opts.visualStep) {

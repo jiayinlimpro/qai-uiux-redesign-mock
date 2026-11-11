@@ -277,7 +277,7 @@ describe('sample data follows the business rules', () => {
   });
 
   it('BR-ENV-02: every run environment has a URL for the Customer website', () => {
-    const customer = qc.apps.find((a) => a.name === 'Customer website')!;
+    const customer = qc.platforms.find((a) => a.name === 'Customer website')!;
     for (const r of db.runs) expect(customer.urls[r.environmentId]).toBeTruthy();
   });
 });
@@ -306,8 +306,8 @@ describe('knowledge and accounts sample data (Slice 3)', () => {
   it('every account with hasPassword has a stored password, and no other passwords exist', () => {
     expect(Object.keys(db.accountPasswords).sort()).toEqual(db.accounts.filter((a) => a.hasPassword).map((a) => a.id).sort());
   });
-  it('BR-ENV-03: account role + app + environment is unique', () => {
-    const keys = db.accounts.map((a) => `${a.projectId}|${a.role.toLowerCase()}|${a.appId}|${a.environmentId}`);
+  it('BR-ENV-03: account role + platform + environment is unique', () => {
+    const keys = db.accounts.map((a) => `${a.projectId}|${a.role.toLowerCase()}|${a.platformId}|${a.environmentId}`);
     expect(new Set(keys).size).toBe(keys.length);
   });
   it('AI explore plans only cite knowledge that exists', () => {
@@ -317,13 +317,13 @@ describe('knowledge and accounts sample data (Slice 3)', () => {
 });
 
 describe('BR-ENV-04 run environment snapshot', () => {
-  it('every run stores its environment name and the app URLs it used', () => {
+  it('every run stores its environment name and the platform URLs it used', () => {
     for (const r of db.runs) {
       const env = qc.environments.find((e) => e.id === r.environmentId)!;
       expect(r.environment.name).toBe(env.name);
-      expect(r.environment.apps).toEqual(qc.apps.map((a) => ({ appId: a.id, name: a.name, url: a.urls[r.environmentId] ?? null })));
+      expect(r.environment.platforms).toEqual(qc.platforms.map((a) => ({ platformId: a.id, name: a.name, url: a.urls[r.environmentId] ?? null })));
     }
-    expect(run(7).environment).toMatchObject({ name: 'Prod', apps: [{ name: 'Customer website', url: 'https://www.qcfixer.com' }, { name: 'Admin portal', url: null }] });
+    expect(run(7).environment).toMatchObject({ name: 'Prod', platforms: [{ name: 'Customer website', url: 'https://www.qcfixer.com' }, { name: 'Admin portal', url: null }] });
   });
 });
 

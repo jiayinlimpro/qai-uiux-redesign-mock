@@ -49,7 +49,7 @@ export function OverviewScreen() {
       <div className="flex h-full items-start justify-center p-10">
         <div className="max-w-lg rounded-card border border-border bg-surface px-8 py-10 text-center">
           <h1 className="text-h2">{project.name} has no tests yet</h1>
-          <p className="mt-1 text-text-muted">Start by bringing in tests, writing one, or letting the AI explore your app. Knowledge helps the AI log in and understand the app.</p>
+          <p className="mt-1 text-text-muted">Start by bringing in tests, writing one, or letting the AI explore your platform. Environments tell tests where to run and how to log in; Knowledge helps the AI understand the platform.</p>
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             <Link to={to.importTests(project.id)} className={buttonClasses()}>
               Import tests
@@ -60,8 +60,8 @@ export function OverviewScreen() {
             <Link to={to.explore(project.id)} state={exploreState} className={buttonClasses({ variant: 'primary' })}>
               Explore with AI
             </Link>
-            <Link to={to.knowledge(project.id)} className={buttonClasses()}>
-              Set up Knowledge
+            <Link to={to.environments(project.id)} className={buttonClasses()}>
+              Set up environments
             </Link>
           </div>
         </div>
@@ -98,7 +98,7 @@ export function OverviewScreen() {
           <p className="text-label font-normal text-text-muted">Project</p>
           <h1 className="text-h1">{project.name}</h1>
           <p className="text-text-muted">
-            {plural(project.apps.length, 'app')} · environments: {project.environments.map((e) => e.name).join(', ')}
+            {plural(project.platforms.length, 'platform')} · environments: {project.environments.map((e) => e.name).join(', ')}
           </p>
         </div>
         <div className="flex gap-2">

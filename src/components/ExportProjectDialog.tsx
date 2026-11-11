@@ -43,7 +43,7 @@ export function ExportProjectDialog({ project, onClose, onDone }: { project: Pro
       <div className="mt-4">
         <Checkbox label="Include account passwords" checked={includePasswords} onChange={(e) => setIncludePasswords(e.target.checked)} aria-describedby="export-pw-note" />
         <p id="export-pw-note" className="ml-6 mt-1 text-label font-normal text-text-muted">
-          {includePasswords ? 'The recipient can run tests that log in straight away.' : 'Accounts are exported without passwords; the recipient adds them in Knowledge.'}
+          {includePasswords ? 'The recipient can run tests that log in straight away.' : 'Accounts are exported without passwords; the recipient adds them in Environments.'}
         </p>
       </div>
       {includePasswords && (

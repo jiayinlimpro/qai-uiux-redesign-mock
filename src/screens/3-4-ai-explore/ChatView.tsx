@@ -18,7 +18,7 @@ import { validationTone } from './ReadyForSuites';
 
 /** New-chat suggestion cards (D70): our three starters; a click fills the message. */
 const STARTERS = [
-  { label: 'Explore', icon: Compass, title: 'Explore an app', description: 'The AI explores the app on an environment and writes test cases for what it finds.', text: 'Explore the app on UAT and write test cases for ' },
+  { label: 'Explore', icon: Compass, title: 'Explore a platform', description: 'The AI explores the platform on an environment and writes test cases for what it finds.', text: 'Explore the platform on UAT and write test cases for ' },
   { label: 'Plan from documents', icon: FileText, title: 'Plan from documents', description: 'The AI reads the linked FRS or user stories and writes test cases for the flows they describe.', text: 'Plan test cases from the linked documents for ' },
   { label: 'Create tests', icon: ListChecks, title: 'Create tests', description: 'Describe what to check and the AI writes the test cases.', text: 'Create test cases for ' },
 ];
@@ -88,7 +88,7 @@ export function ChatView({ chatId, onChanged, onOpenTray, onCreated, version }: 
               <h1 className="text-display text-accent">Hello there</h1>
               <p className="text-display-sub text-text">What should I put to the test today?</p>
               <p className="max-w-3xl text-text-muted">
-                AI explore explores your app or plans from your documents and writes test cases. They go to{' '}
+                AI explore explores your platform or plans from your documents and writes test cases. They go to{' '}
                 <span className="font-semibold text-text">Ready for Suites</span>, where you choose what moves into Suites. Start from a suggestion or write your own message.
               </p>
               <ul aria-label="Suggestions" className="mt-4 grid gap-4 sm:grid-cols-3">

@@ -312,7 +312,7 @@ function EditorForm({ test, data }: { test?: TestCase; data: Data }) {
           <summary className="cursor-pointer font-semibold text-text-muted">More options</summary>
           <div className="mt-3 flex flex-col gap-4">
             <Field label="Description">{(p) => <Textarea {...p} value={form.description} onChange={(e) => set({ description: e.target.value })} />}</Field>
-            <Field label="Start page" hint="Optional URL the test starts from. Empty: the app's URL for the run's environment (BR-ENV-02).">
+            <Field label="Start page" hint="Optional URL the test starts from. Empty: the platform's URL for the run's environment (BR-ENV-02).">
               {(p) => <Input {...p} type="url" placeholder="https://…" value={form.startPage} onChange={(e) => set({ startPage: e.target.value })} />}
             </Field>
             <fieldset>

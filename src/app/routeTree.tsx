@@ -14,6 +14,7 @@ import { NewProjectDialog } from '@/screens/1-3-new-project/NewProjectDialog';
 import { GlobalSettingsScreen } from '@/screens/2-3-global-settings/GlobalSettingsScreen';
 import { OverviewScreen } from '@/screens/1-4-overview/OverviewScreen';
 import { KnowledgeScreen } from '@/screens/2-1-knowledge/KnowledgeScreen';
+import { EnvironmentsScreen } from '@/screens/2-4-environments/EnvironmentsScreen';
 import { ProjectSettingsScreen } from '@/screens/2-2-project-settings/ProjectSettingsScreen';
 import { NoTestSelected, SuitesScreen } from '@/screens/3-1-suites/SuitesScreen';
 import { TestDetail } from '@/screens/3-1-suites/TestDetail';
@@ -49,6 +50,7 @@ const screens: RouteObject[] = [
     element: <ProjectShell />,
     children: [
       { index: true, element: <OverviewScreen />, handle: handle({ section: 'overview' }) },
+      { path: paths.environments, element: <EnvironmentsScreen />, handle: handle({ section: 'environments' }) },
       { path: paths.knowledge, element: <KnowledgeScreen />, handle: handle({ section: 'knowledge' }) },
       { path: paths.projectSettings, element: <ProjectSettingsScreen />, handle: handle({ section: 'project-settings' }) },
       {

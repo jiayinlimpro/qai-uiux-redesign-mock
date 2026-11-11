@@ -82,13 +82,13 @@ describe('BR-VISUAL-01 visualSummary', () => {
 describe('BR-RUN-09 preflight', () => {
   const project = {
     environments: [{ id: 'uat', name: 'UAT' }, { id: 'dev', name: 'Dev' }],
-    apps: [{ id: 'web', name: 'Customer website', urls: { uat: 'https://uat', dev: null } }],
+    platforms: [{ id: 'web', name: 'Customer website', urls: { uat: 'https://uat', dev: null } }],
   };
   const providers = [{ defaultModel: 'gpt-4.1', hasSecret: true, label: 'OpenAI' }];
   it('passes with a key, an offered model and URLs', () => {
     expect(preflight(project, 'uat', 'gpt-4.1', providers, ['gpt-4.1']).map((c) => c.status)).toEqual(['pass', 'pass', 'pass']);
   });
-  it('warns for an app without a URL; blocks a model no provider offers', () => {
+  it('warns for a platform without a URL; blocks a model no provider offers', () => {
     const checks = preflight(project, 'dev', 'old-model', providers, ['gpt-4.1']);
     expect(checks.map((c) => c.status)).toEqual(['block', 'warn', 'pass']);
     expect(checks[1]!.label).toBe('Customer website has no URL for Dev');

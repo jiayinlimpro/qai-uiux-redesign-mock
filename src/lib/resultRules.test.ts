@@ -3,7 +3,7 @@ import type { Result, ResultStep } from '@/data/types';
 import {
   applyOverride,
   latestOverride,
-  appForStartPage,
+  platformForStartPage,
   browserMarks,
   buildBugReportFor,
   buildResultRows,
@@ -207,20 +207,20 @@ describe('ignore area drawing (BR-VISUAL-04, D45)', () => {
 });
 
 describe('bug report (BR-ACTION-03)', () => {
-  const run = { number: 12, environment: { name: 'UAT', apps: [] }, viewport: { width: 1920, height: 1080 }, startedAt: '2026-11-03T08:30:00.000Z' };
+  const run = { number: 12, environment: { name: 'UAT', platforms: [] }, viewport: { width: 1920, height: 1080 }, startedAt: '2026-11-03T08:30:00.000Z' };
   it('only Failed results have one (D63)', () => {
     expect(hasBugReport({ status: 'failed' })).toBe(true);
     expect(hasBugReport({ status: 'couldnt_complete' })).toBe(false);
     expect(hasBugReport({ status: 'passed' })).toBe(false);
   });
-  it('finds the app by the start page host in any environment', () => {
-    const apps = [{ id: 'a', name: 'Customer website', urls: { uat: 'https://uat.qcfixer.com', prod: 'https://www.qcfixer.com' } }];
-    expect(appForStartPage('https://www.qcfixer.com/', apps)?.name).toBe('Customer website');
-    expect(appForStartPage('https://other.test/', apps)).toBeUndefined();
-    expect(appForStartPage(undefined, apps)).toBeUndefined();
+  it('finds the platform by the start page host in any environment', () => {
+    const platforms = [{ id: 'a', name: 'Customer website', urls: { uat: 'https://uat.qcfixer.com', prod: 'https://www.qcfixer.com' } }];
+    expect(platformForStartPage('https://www.qcfixer.com/', platforms)?.name).toBe('Customer website');
+    expect(platformForStartPage('https://other.test/', platforms)).toBeUndefined();
+    expect(platformForStartPage(undefined, platforms)).toBeUndefined();
   });
   it('title, environment, steps up to the failing step, expected, actual, screenshots', () => {
-    const r = buildBugReportFor({ result: result(), test: { testId: 'CNT-04', title: 'Contact phone and email links' }, appName: 'Customer website', run });
+    const r = buildBugReportFor({ result: result(), test: { testId: 'CNT-04', title: 'Contact phone and email links' }, platformName: 'Customer website', run });
     expect(r).toMatchObject({
       title: 'Contact phone and email links: https://wa.link/mgz96d',
       environment: 'UAT · Customer website · Chrome 1920×1080 · Run #12, 3 Nov 2026',

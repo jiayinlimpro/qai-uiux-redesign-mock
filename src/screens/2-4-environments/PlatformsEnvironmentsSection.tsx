@@ -2,29 +2,29 @@ import { useState } from 'react';
 import { getProject, updateProject } from '@/data/api';
 import type { Account, Project, Run } from '@/data/types';
 import { Button } from '@/components/ui/button';
-import { AppsEnvironmentsGrid, type GridValue } from '@/components/AppsEnvironmentsGrid';
+import { PlatformsEnvironmentsGrid, type GridValue } from '@/components/PlatformsEnvironmentsGrid';
 import { SectionCard } from '@/components/SectionCard';
 import { StatusLine, errorText, type SaveStatus } from '@/components/StatusLine';
 import { useConfirm } from '@/components/useConfirm';
 import { useProject, useReloadProject } from '@/app/projectContext';
-import { appAccountCount, environmentUsage } from '@/lib/knowledge';
-import { hasErrors, toProjectApps, validateAppsEnvironments } from '@/lib/projectRules';
+import { platformAccountCount, environmentUsage } from '@/lib/knowledge';
+import { hasErrors, toProjectPlatforms, validatePlatformsEnvironments } from '@/lib/projectRules';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 function gridOf(project: Project): GridValue {
   return {
     environments: project.environments.map((e) => ({ ...e })),
-    apps: project.apps.map((a) => ({ id: a.id, name: a.name, urls: Object.fromEntries(Object.entries(a.urls).map(([k, v]) => [k, v ?? ''])) })),
+    platforms: project.platforms.map((a) => ({ id: a.id, name: a.name, urls: Object.fromEntries(Object.entries(a.urls).map(([k, v]) => [k, v ?? ''])) })),
   };
 }
 
 /**
- * Knowledge › Apps and environments: interactive grid (screens/03-knowledge.md).
+ * Environments › Platforms and environments: interactive grid (screens/03-knowledge.md § 2.4).
  * Edits are kept as a draft and saved with Save / Cancel. Removing an environment that has accounts or runs
- * (or an app that has accounts) asks for confirmation first; on Save its accounts are removed, runs keep their record.
+ * (or a platform that has accounts) asks for confirmation first; on Save its accounts are removed, runs keep their record.
  */
-export function AppsEnvironmentsSection({ accounts, runs, onSaved }: { accounts: Account[]; runs: Run[]; onSaved: () => void }) {
+export function PlatformsEnvironmentsSection({ accounts, runs, onSaved }: { accounts: Account[]; runs: Run[]; onSaved: () => void }) {
   const project = useProject();
   const reloadProject = useReloadProject();
   const [draft, setDraft] = useState<GridValue>(() => gridOf(project));
@@ -35,8 +35,8 @@ export function AppsEnvironmentsSection({ accounts, runs, onSaved }: { accounts:
 
   const saved = gridOf(project);
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
-  const errors = validateAppsEnvironments(draft.environments, draft.apps);
-  const shown = submitted ? errors : { environmentNames: {}, appNames: {} };
+  const errors = validatePlatformsEnvironments(draft.environments, draft.platforms);
+  const shown = submitted ? errors : { environmentNames: {}, platformNames: {} };
 
   async function confirmRemoveEnvironment(env: { id: string; name: string }): Promise<boolean> {
     const use = environmentUsage(env.id, accounts, runs);
@@ -55,13 +55,13 @@ export function AppsEnvironmentsSection({ accounts, runs, onSaved }: { accounts:
     });
   }
 
-  async function confirmRemoveApp(app: { id: string; name: string }): Promise<boolean> {
-    const n = appAccountCount(app.id, accounts);
+  async function confirmRemovePlatform(platform: { id: string; name: string }): Promise<boolean> {
+    const n = platformAccountCount(platform.id, accounts);
     if (n === 0) return true;
     return confirm({
-      title: `Remove ${app.name.trim() || 'this app'}?`,
+      title: `Remove ${platform.name.trim() || 'this platform'}?`,
       danger: true,
-      confirmLabel: 'Remove app',
+      confirmLabel: 'Remove platform',
       body: <p>Its {plural(n, 'account')} will be deleted when you save.</p>,
     });
   }
@@ -72,7 +72,7 @@ export function AppsEnvironmentsSection({ accounts, runs, onSaved }: { accounts:
     setSaving(true);
     try {
       const latest = await getProject(project.id);
-      await updateProject({ ...latest, environments: draft.environments.map((e) => ({ id: e.id, name: e.name.trim() })), apps: toProjectApps(draft.environments, draft.apps) });
+      await updateProject({ ...latest, environments: draft.environments.map((e) => ({ id: e.id, name: e.name.trim() })), platforms: toProjectPlatforms(draft.environments, draft.platforms) });
       const next = await reloadProject();
       if (next) setDraft(gridOf(next));
       setSubmitted(false);
@@ -86,8 +86,8 @@ export function AppsEnvironmentsSection({ accounts, runs, onSaved }: { accounts:
   }
 
   return (
-    <SectionCard id="apps-environments" title="Apps and environments" description="Name environments the way your company does. Add, rename or remove columns.">
-      <AppsEnvironmentsGrid
+    <SectionCard id="platforms-environments" title="Platforms and environments" description="Name environments the way your company does. Add, rename or remove columns.">
+      <PlatformsEnvironmentsGrid
         value={draft}
         onChange={(v) => {
           setDraft(v);
@@ -95,10 +95,10 @@ export function AppsEnvironmentsSection({ accounts, runs, onSaved }: { accounts:
         }}
         errors={shown}
         confirmRemoveEnvironment={confirmRemoveEnvironment}
-        confirmRemoveApp={confirmRemoveApp}
+        confirmRemovePlatform={confirmRemovePlatform}
       />
       <p className="mt-2 text-label font-normal text-text-muted">
-        The run dialog lists these environments; every app resolves to the chosen environment's URL. Leave a cell empty if an app has no such environment.
+        The run dialog lists these environments; every platform resolves to the chosen environment's URL. Leave a cell empty if a platform has no such environment.
       </p>
       <div className="mt-3 flex items-center gap-2">
         <Button variant="primary" size="sm" disabled={!dirty || saving} onClick={() => void save()}>

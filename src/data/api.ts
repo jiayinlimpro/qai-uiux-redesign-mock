@@ -40,7 +40,7 @@ import { snapshotEnvironment } from '@/lib/runRules';
 export { UnsupportedImportFileError } from './mock/importFile';
 import { contentToSteps, normaliseHeader, parseBrowserList, planImport, readTemplateCsv, recognisedColumns, templateCsv, updateFromRow, type ImportPlan, type TemplateRow } from '@/lib/importRules';
 import { defaultTitle } from '@/lib/editorRules';
-import { appForStartPage, applyOverride, buildBugReportFor, canOverride, matchesResultFilters, NO_RESULT_FILTERS, setVisualDismissed, validateOverride, type BugReport, type ResultFilterState } from '@/lib/resultRules';
+import { platformForStartPage, applyOverride, buildBugReportFor, canOverride, matchesResultFilters, NO_RESULT_FILTERS, setVisualDismissed, validateOverride, type BugReport, type ResultFilterState } from '@/lib/resultRules';
 import { CURRENT_USER } from './mock/seed';
 import { AI_CASE_FIELDS, isLibraryTest, moveBlockerLabels, moveBlockers, TRAY_INLINE_FIELDS } from '@/lib/exploreRules';
 export type { BugReport };
@@ -214,7 +214,7 @@ export class LastProviderError extends Error {
   }
 }
 /**
- * Models offered by a provider. Real app: asked from the provider. Mock: a fixed list per provider.
+ * Models offered by a provider. Real QAI: asked from the provider. Mock: a fixed list per provider.
  * AWS Bedrock uses a typed model id instead (1.1). Shape to confirm.
  */
 export async function listModels(kind: AiProvider['kind']): Promise<string[]> {
@@ -249,7 +249,7 @@ export async function backUpEverything(): Promise<Blob> {
 /** Replaces everything with the backup's contents. */
 export async function restoreFromBackup(file: File): Promise<void> {
   await delay();
-  const parsed = await readJson(file);
+  const parsed = upgradeLegacyFields(await readJson(file));
   if (!isRecord(parsed) || parsed.format !== BACKUP_FORMAT || !isRecord(parsed.data) || !Array.isArray(parsed.data.projects)) {
     throw new InvalidFileError('This file is not a QAI backup.');
   }
@@ -300,7 +300,7 @@ export async function listProjects(): Promise<Project[]> {
 export async function getProject(projectId: ID): Promise<Project> {
   return respond(() => find(getDb().projects, projectId, 'Project'));
 }
-export async function createProject(input: Pick<Project, 'name' | 'environments' | 'apps' | 'defaultModel'>): Promise<Project> {
+export async function createProject(input: Pick<Project, 'name' | 'environments' | 'platforms' | 'defaultModel'>): Promise<Project> {
   await delay();
   return structuredClone(
     mutate((db) => {
@@ -311,7 +311,7 @@ export async function createProject(input: Pick<Project, 'name' | 'environments'
         createdAt: new Date().toISOString(),
         defaultModel: input.defaultModel,
         environments: input.environments.map((e) => ({ ...e, name: e.name.trim() })),
-        apps: input.apps.map((a) => ({ ...a, name: a.name.trim() })),
+        platforms: input.platforms.map((a) => ({ ...a, name: a.name.trim() })),
         settings: structuredClone(DEFAULT_PROJECT_SETTINGS),
       };
       db.projects.push(project);
@@ -327,10 +327,10 @@ export async function updateProject(project: Project): Promise<Project> {
       assertNameFree(db, project.name, project.id);
       const next = { ...structuredClone(project), name: project.name.trim() };
       const envIds = new Set(next.environments.map((e) => e.id));
-      const appIds = new Set(next.apps.map((a) => a.id));
-      next.apps = next.apps.map((a) => ({ ...a, urls: Object.fromEntries(Object.entries(a.urls).filter(([envId]) => envIds.has(envId))) }));
-      // Removing an environment or app removes its accounts (2.1 asks for confirmation first). Runs keep their record.
-      const gone = db.accounts.filter((a) => a.projectId === project.id && (!envIds.has(a.environmentId) || !appIds.has(a.appId)));
+      const platformIds = new Set(next.platforms.map((a) => a.id));
+      next.platforms = next.platforms.map((a) => ({ ...a, urls: Object.fromEntries(Object.entries(a.urls).filter(([envId]) => envIds.has(envId))) }));
+      // Removing an environment or platform removes its accounts (2.4 asks for confirmation first). Runs keep their record.
+      const gone = db.accounts.filter((a) => a.projectId === project.id && (!envIds.has(a.environmentId) || !platformIds.has(a.platformId)));
       for (const a of gone) delete db.accountPasswords[a.id];
       db.accounts = db.accounts.filter((a) => !gone.includes(a));
       db.projects = db.projects.map((p) => (p.id === project.id ? next : p));
@@ -402,7 +402,7 @@ export type ExistingProjectChoice = 'replace' | 'copy';
  */
 export async function importProject(file: File, onExisting?: ExistingProjectChoice): Promise<Project> {
   await delay();
-  const parsed = await readJson(file);
+  const parsed = upgradeLegacyFields(await readJson(file));
   if (!isRecord(parsed) || parsed.format !== PROJECT_FORMAT || !isRecord(parsed.project) || typeof parsed.project.id !== 'string') {
     throw new InvalidFileError('This file is not a QAI project export.');
   }
@@ -497,6 +497,15 @@ async function readJson(file: File): Promise<unknown> {
     throw new InvalidFileError('This file could not be read.');
   }
 }
+/**
+ * Files saved before D73 call platforms "apps" (`Project.apps`, `Account.appId`, `EnvironmentSnapshot.apps[].appId`).
+ * Renames those keys so older project exports and backups still open.
+ */
+function upgradeLegacyFields(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(upgradeLegacyFields);
+  if (!isRecord(v)) return v;
+  return Object.fromEntries(Object.entries(v).map(([k, val]) => [k === 'apps' ? 'platforms' : k === 'appId' ? 'platformId' : k, upgradeLegacyFields(val)]));
+}
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
@@ -511,7 +520,7 @@ export async function listAccounts(projectId: ID): Promise<Account[]> {
 export type AccountInput = Omit<Account, 'id' | 'hasPassword'> & { id?: ID };
 /**
  * Adds (no id) or updates an account. `password` is write-only; empty keeps the saved one.
- * BR-ENV-03: role + app + environment must be unique (DuplicateAccountError). Shape to confirm.
+ * BR-ENV-03: role + platform + environment must be unique (DuplicateAccountError). Shape to confirm.
  */
 export async function saveAccount(input: AccountInput, password?: string): Promise<Account> {
   await delay();
@@ -544,7 +553,7 @@ export async function revealAccountPassword(accountId: ID): Promise<string> {
 }
 export class DuplicateAccountError extends Error {
   constructor() {
-    super('An account for this role, app and environment already exists.');
+    super('An account for this role, platform and environment already exists.');
     this.name = 'DuplicateAccountError';
   }
 }
@@ -1129,13 +1138,13 @@ export async function buildBugReport(resultId: ID, opts: { visualStepIndex?: num
     const run = find(db.runs, result.runId, 'Run');
     const test = db.tests.find((t) => t.id === result.testId);
     const project = db.projects.find((p) => p.id === run.projectId);
-    const app = appForStartPage(test?.startPage, project?.apps ?? []);
+    const platform = platformForStartPage(test?.startPage, project?.platforms ?? []);
     const step = opts.visualStepIndex !== undefined ? result.steps.find((s) => s.index === opts.visualStepIndex) : undefined;
     const previous = step?.visual?.previousScreenshotId ? db.results.find((r) => r.steps.some((s) => s.screenshotId === step.visual!.previousScreenshotId)) : undefined;
     return buildBugReportFor({
       result,
       test: test ? { testId: test.testId, title: test.title, ...(test.expectedResult ? { expectedResult: test.expectedResult } : {}) } : result.testSnapshot,
-      ...(app ? { appName: app.name } : {}),
+      ...(platform ? { platformName: platform.name } : {}),
       run,
       ...(opts.visualStepIndex !== undefined
         ? { visualStep: { index: opts.visualStepIndex, ...(previous ? { previousRunNumber: db.runs.find((x) => x.id === previous.runId)?.number } : {}) } }

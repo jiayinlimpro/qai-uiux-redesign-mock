@@ -17,12 +17,12 @@ const form = (over: Partial<NewProjectForm> = {}): NewProjectForm => ({
     { id: 'e1', name: 'Dev' },
     { id: 'e2', name: 'UAT' },
   ],
-  apps: [],
+  platforms: [],
   ...over,
 });
 
 describe('validateNewProject (1.3)', () => {
-  it('accepts a named project with unique environments and no apps', () => {
+  it('accepts a named project with unique environments and no platforms', () => {
     expect(hasErrors(validateNewProject(form()))).toBe(false);
   });
   it('requires a name', () => {
@@ -38,9 +38,9 @@ describe('validateNewProject (1.3)', () => {
   it('requires environment names', () => {
     expect(validateNewProject(form({ environments: [{ id: 'e1', name: '' }] })).environmentNames.e1).toBeDefined();
   });
-  it('ignores empty app rows but requires a name when an app has a URL', () => {
-    expect(hasErrors(validateNewProject(form({ apps: [{ id: 'a1', name: '', urls: { e1: '' } }] })))).toBe(false);
-    expect(validateNewProject(form({ apps: [{ id: 'a1', name: '', urls: { e1: 'https://x' } }] })).appNames.a1).toBeDefined();
+  it('ignores empty platform rows but requires a name when a platform has a URL', () => {
+    expect(hasErrors(validateNewProject(form({ platforms: [{ id: 'a1', name: '', urls: { e1: '' } }] })))).toBe(false);
+    expect(validateNewProject(form({ platforms: [{ id: 'a1', name: '', urls: { e1: 'https://x' } }] })).platformNames.a1).toBeDefined();
   });
 });
 

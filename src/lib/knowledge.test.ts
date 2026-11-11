@@ -1,7 +1,7 @@
 import {
   aiStepsWarning,
   checkDocumentFile,
-  appAccountCount,
+  platformAccountCount,
   checkExtensionFolder,
   duplicateAccount,
   environmentUsage,
@@ -11,7 +11,7 @@ import {
   skipReason,
   summarizeSkillFolder,
 } from './knowledge';
-import { toProjectApps, validateAppsEnvironments } from './projectRules';
+import { toProjectPlatforms, validatePlatformsEnvironments } from './projectRules';
 
 describe('scopeLabel (Applies to)', () => {
   const suites = [{ id: 's9', name: '09 Contact Us' }];
@@ -92,30 +92,30 @@ describe('browser extension folder (2.2)', () => {
   });
 });
 
-describe('BR-ENV-03 account uniqueness (role + app + environment)', () => {
-  const accounts = [{ id: 'a1', role: 'Admin', appId: 'app', environmentId: 'uat' }];
+describe('BR-ENV-03 account uniqueness (role + platform + environment)', () => {
+  const accounts = [{ id: 'a1', role: 'Admin', platformId: 'platform', environmentId: 'uat' }];
   it('finds a clash, ignoring case of the role and the account being edited', () => {
-    expect(duplicateAccount(accounts, { role: ' admin ', appId: 'app', environmentId: 'uat' })?.id).toBe('a1');
-    expect(duplicateAccount(accounts, { id: 'a1', role: 'Admin', appId: 'app', environmentId: 'uat' })).toBeUndefined();
-    expect(duplicateAccount(accounts, { role: 'Admin', appId: 'app', environmentId: 'prod' })).toBeUndefined();
+    expect(duplicateAccount(accounts, { role: ' admin ', platformId: 'platform', environmentId: 'uat' })?.id).toBe('a1');
+    expect(duplicateAccount(accounts, { id: 'a1', role: 'Admin', platformId: 'platform', environmentId: 'uat' })).toBeUndefined();
+    expect(duplicateAccount(accounts, { role: 'Admin', platformId: 'platform', environmentId: 'prod' })).toBeUndefined();
   });
 });
 
-describe('removing environments and apps (2.1)', () => {
-  it('counts what depends on an environment or app', () => {
-    const accounts = [{ environmentId: 'uat', appId: 'admin' }, { environmentId: 'uat', appId: 'web' }];
+describe('removing environments and platforms (2.4)', () => {
+  it('counts what depends on an environment or platform', () => {
+    const accounts = [{ environmentId: 'uat', platformId: 'admin' }, { environmentId: 'uat', platformId: 'web' }];
     const runs = [{ environmentId: 'uat' }, { environmentId: 'prod' }];
     expect(environmentUsage('uat', accounts, runs)).toEqual({ accounts: 2, runs: 1 });
     expect(environmentUsage('dev', accounts, runs)).toEqual({ accounts: 0, runs: 0 });
-    expect(appAccountCount('admin', accounts)).toBe(1);
+    expect(platformAccountCount('admin', accounts)).toBe(1);
   });
 });
 
-describe('apps × environments grid', () => {
+describe('platforms × environments grid', () => {
   it('validates like New project and stores empty URLs as null', () => {
     const envs = [{ id: 'e1', name: 'UAT' }];
-    expect(validateAppsEnvironments(envs, [{ id: 'a', name: '', urls: { e1: 'https://x' } }]).appNames.a).toBeDefined();
-    expect(toProjectApps(envs, [{ id: 'a', name: ' Web ', urls: { e1: ' ' } }, { id: 'b', name: '', urls: {} }])).toEqual([{ id: 'a', name: 'Web', urls: { e1: null } }]);
+    expect(validatePlatformsEnvironments(envs, [{ id: 'a', name: '', urls: { e1: 'https://x' } }]).platformNames.a).toBeDefined();
+    expect(toProjectPlatforms(envs, [{ id: 'a', name: ' Web ', urls: { e1: ' ' } }, { id: 'b', name: '', urls: {} }])).toEqual([{ id: 'a', name: 'Web', urls: { e1: null } }]);
   });
 });
 

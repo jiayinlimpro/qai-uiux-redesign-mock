@@ -1,5 +1,5 @@
 /**
- * Every route path in the app (docs/03-navigation.md), in one place (D26).
+ * Every route path in QAI (docs/03-navigation.md), in one place (D26).
  * - `paths`: patterns for the router.
  * - `to`: builders for links. Always build links with `to.*`, never write a path as a string.
  * The router serves these after `#` (hash addresses); switching to normal addresses only changes router.tsx.
@@ -13,6 +13,7 @@ export const paths = {
   globalSettings: '/settings', // 2.3
   overview: '/p/:projectId', // 1.4
   projectSettings: '/p/:projectId/settings', // 2.2
+  environments: '/p/:projectId/environments', // 2.4 (D72)
   knowledge: '/p/:projectId/knowledge', // 2.1
   suites: '/p/:projectId/suites', // 3.1
   suiteTest: '/p/:projectId/suites/:testId', // 3.1 with a test selected (?tab=)
@@ -42,6 +43,7 @@ export const to = {
   globalSettings: () => paths.globalSettings,
   overview: (projectId: ID) => p(projectId),
   projectSettings: (projectId: ID) => `${p(projectId)}/settings`,
+  environments: (projectId: ID) => `${p(projectId)}/environments`,
   knowledge: (projectId: ID) => `${p(projectId)}/knowledge`,
   suites: (projectId: ID) => `${p(projectId)}/suites`,
   suiteTest: (projectId: ID, testId: ID, tab?: TestTab) => `${p(projectId)}/suites/${seg(testId)}${query({ tab })}`,
