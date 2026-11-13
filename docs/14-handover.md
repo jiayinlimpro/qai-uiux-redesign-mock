@@ -48,7 +48,7 @@ Read with: `07-data-model.md` (types and data layer), `05-business-rules.md` (ru
 5. **Delete `src/data/mock/`** once nothing imports it. `api*.test.ts` and `seed.test.ts` test the mock; keep the
    `api.slice*.test.ts` files as a behaviour spec and point them at a test backend, or rewrite them against it.
    `src/lib/*.test.ts` stay as they are.
-6. **Electron**: the UI has no Node APIs and no server (downloads use `src/app/download.ts`, copying uses
+6. **Electron**: build the app icon (.ico / .icns / .png) from `public/qai-mark.svg` (D76); add a menu-bar entry View › Toggle sidebar (Ctrl+B / ⌘B, D74); the screens already handle the shortcut. The UI has no Node APIs and no server (downloads use `src/app/download.ts`, copying uses
    `src/app/clipboard.ts`); keep it that way, or route file access through the data layer.
 
 ## 3. Data layer functions

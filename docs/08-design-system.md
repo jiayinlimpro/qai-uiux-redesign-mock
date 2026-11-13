@@ -12,7 +12,7 @@ The visual design phase has not happened yet. Use these interim tokens so the pr
 | `--text` | #1F2328 | Body text |
 | `--text-muted` | #5B6370 | Secondary text (passes 4.5:1 on white) |
 | `--accent` | #1F5FBF | Primary buttons, links, active nav, focus ring |
-| `--accent-contrast` | #FFFFFF | Text and icons on accent (primary buttons, brand mark) |
+| `--accent-contrast` | #FFFFFF | Text and icons on accent (primary buttons) |
 | `--accent-soft` | #E8F0FB / text #1A4C99 | Selected rows, active nav background, info chips |
 | `--passed` | fill #E6F2E9 · border #B9DCC2 · text #1F5E2E · dot #2B8A4B | Passed |
 | `--failed` | fill #FBEAE3 · border #F0C3B2 · text #8E3414 · dot #C2410C | Failed |
@@ -20,11 +20,14 @@ The visual design phase has not happened yet. Use these interim tokens so the pr
 | `--notrun` | hollow ring #8A919C | Not run |
 | `--backdrop` | rgba(31,35,40,0.45) | Behind dialogs |
 - Font: Inter (fallback system-ui), base 14 px; headings 18–22 px semibold; labels 12 px semibold muted; display 48 px and display-sub 32 px (medium) for the AI explore new-chat greeting only (D70).
-- Spacing scale 4/8/12/16/20/24/32; radius 8 (controls), 10 (cards), 999 (chips, round toggle).
+- Spacing scale 4/8/12/16/20/24/32; radius 8 (controls), 10 (cards), 999 (chips, pills).
 - Status never by colour alone: dot/icon + accessible label; failed/passed differ in lightness too.
 
+## Brand
+- **QAI mark** (D76): a play triangle of three rounded gradient bars that weave over each other (orange over purple, green over orange, purple over green). Vector file `public/qai-mark.svg` (also the window / tab icon); React component `QaiMark` (`src/components/QaiMark.tsx`), 28 px next to the "QAI" word in the masthead. Its colours are part of the mark only, never UI tokens. Do not redraw, recolour or put it on a tile.
+
 ## Components (build in `src/components/ui` + `src/components`)
-Button (primary / secondary / ghost / danger, icon-only with aria-label) · Chip (neutral/passed/failed/cc/info) · StatusDot · StatusIcon · Tabs · Table · Dialog / Sheet · Select · Checkbox · Toggle · Textarea · Toast (with Undo) · Tooltip · EmptyState · Banner (info/warning) · SplitPane (draggable, keyboard) · Sidebar (collapsible, remembered) · TopBar (breadcrumb + AI explore) · Breadcrumb · SummaryFilterButtons · FilterBar · BulkBar · ResultRow · TestRow · StepList (3-level) · NarrationPanel · ScreenshotPlaceholder (prototype: grey box with caption).
+Button (primary / secondary / ghost / danger, icon-only with aria-label) · Chip (neutral/passed/failed/cc/info) · StatusDot · StatusIcon · Tabs · Table · Dialog / Sheet · Select · Checkbox · Toggle · Textarea · Toast (with Undo) · Tooltip · EmptyState · Banner (info/warning) · SplitPane (draggable, keyboard) · Sidebar (collapsible, remembered) · Masthead (menu button + brand, then breadcrumb + AI explore) · Breadcrumb · SummaryFilterButtons · FilterBar · BulkBar · ResultRow · TestRow · StepList (3-level) · NarrationPanel · ScreenshotPlaceholder (prototype: grey box with caption).
 
 ## Layout
-Desktop app: design for 1280–1920 px. Sidebar 220 px (collapsed 64). Top bar 56 px. Content padding 20–24 px. Dialogs 720–820 px wide.
+Desktop app: design for 1280–1920 px. Sidebar 220 px (collapsed: 64 px icon rail); nav rows 40 px, icons on one column centred 32 px from the edge in both states (D74). Masthead 56 px, static, in the sidebar's colour; the line under it starts at the sidebar's edge. Content padding 20–24 px. Dialogs 720–820 px wide.

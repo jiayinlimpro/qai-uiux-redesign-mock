@@ -3,43 +3,52 @@
 ## Two shells
 ### A. Outside a project (Welcome, Projects, Global settings)
 - **Welcome** has no shell (centered card).
-- **Projects** has a slim app sidebar: QAI brand (top), "Projects" (active), Global settings pinned **bottom-left**. It has **no collapse toggle** (collapse is only in the project shell).
+- **Projects** has the same masthead as the project shell (menu button + QAI brand, no breadcrumb, no actions) and a slim app sidebar under it: "Projects" (active), Global settings pinned **bottom-left**. It collapses to the same 64 px icon rail as the project sidebar and shares its remembered state (D74).
 - **Global settings** page: header with "← Back" (returns to Projects) and title.
 
 ### B. Inside a project (every project screen except AI explore)
 ```
-┌──────────────┬───────────────────────────────────────────────┐
-│ [Q] QAI      ◂ (round toggle on the sidebar's right edge)      │
-│┌────────────┐│ qcfixer.com / Suites                [✦ AI explore] │ ← top bar
-││‹ All projects│                                                │
-││ qcfixer.com ││                 screen content                  │
-│└────────────┘│                                                │
-│ Overview     │                                                │
-│ Suites       │                                                │
-│ Runs         │                                                │
-│ Environments │                                                │
-│ Knowledge    │                                                │
-│ Project settings                                              │
-│ ──────────── │                                                │
-│ Global settings                                               │
-└──────────────┴───────────────────────────────────────────────┘
+EXPANDED
+┌─────────────────────┬──────────────────────────────────────────────────────┐
+│ ≡   [▷] QAI         │ All projects / qcfixer.com / Suites    [✦ AI explore] │ ← masthead
+│                     ├──────────────────────────────────────────────────────┤
+│ ⌂   Overview        │                                                      │
+│ ☰   Suites          │                    screen content                    │
+│ ▷   Runs            │                                                      │
+│ ▤   Environments    │                                                      │
+│ ▢   Knowledge       │                                                      │
+│ ⚌   Project settings│                                                      │
+│ ─────────────────── │                                                      │
+│ ⚙   Global settings │                                                      │
+└─────────────────────┴──────────────────────────────────────────────────────┘
+COLLAPSED
+┌─────┬────────────────────────────────────────────────────────────────────────┐
+│ ≡     [▷] QAI         All projects / qcfixer.com / Suites    [✦ AI explore] │
+│     └────────────────────────────────────────────────────────────────────────┤
+│ ⌂   │                                                                        │
+│ ☰   │                           screen content                               │
+│ …   │                                                                        │
 ```
-**Sidebar (full height)**
-- Top: QAI brand mark + "QAI". **The brand is a link to All projects** (tooltip "All projects") in both states.
-- Project card (expanded only): "‹ All projects" link, project name. Nothing else.
-- Nav items with icon + label: Overview, Suites, Runs, **Environments**, Knowledge, Project settings (Environments above Knowledge, D72). Active item highlighted.
+**Masthead (D74; the YouTube / Outlook desktop pattern)**
+- **Static**: the masthead has the sidebar's background and nothing in it moves or changes when the sidebar collapses or expands (as on YouTube): **menu button** "≡" (centred on the sidebar's icon column), QAI brand mark + "QAI", then the breadcrumb, which starts where expanded content starts, and AI explore on the right. No divider lines inside the masthead.
+- **Only the line under the masthead moves**: it starts at the sidebar's edge and meets the sidebar's right border in one corner. So "≡" never has a line under it (it reads as the top of the sidebar); the brand has no line under it when expanded (top of the sidebar) and a line under it when collapsed (top of the page), without moving.
+- **The brand is a link to All projects** (tooltip "All projects").
+
+**Sidebar (under the masthead)**
+- Nav items with icon + label: Overview, Suites, Runs, **Environments**, Knowledge, Project settings (Environments above Knowledge, D72). Active item highlighted. No project card (D75: the breadcrumb names the project and leads to All projects).
 - Bottom (separated): Global settings. (Theme is NOT here; it is in Global settings.)
-- **Collapse/expand**: a small round icon button straddling the sidebar's right edge, vertically aligned with the top bar. Chevron points left (collapse) / right (expand). `aria-label` changes accordingly.
-- Collapsed: 64 px icon rail, tooltips on hover/focus, project card hidden, brand mark only (still links to All projects). **No separate back button when collapsed.**
+- **Geometry (D74)**: every row is 40 px high in both states and every icon sits on one column centred 32 px from the window edge, the same column as "≡". Expanding or collapsing never moves an icon or a row; only the labels appear or disappear.
+- **Collapse/expand** (D74): the masthead's menu button. Tooltip names the shortcut ("Collapse sidebar (Ctrl+B)"; ⌘B on Mac). **Ctrl+B / ⌘B** toggles the sidebar (ignored while typing in a field or while a dialog is open). `aria-label` "Collapse sidebar" / "Expand sidebar", `aria-expanded`.
+- Collapsed = **64 px icon rail**: icons only; each label stays the link's accessible name and shows as a tooltip on hover and keyboard focus. **No separate back button when collapsed.**
 - Collapsed state is remembered across screens and app restarts (localStorage).
 
-**Top bar (above content only)**
-- Left: breadcrumb `project name / section / item` (e.g. `qcfixer.com / Runs / Run #12`). Each crumb except the last is a link.
-  **The breadcrumb shows pages, not selections inside a page** (D31). Pages such as `Run #12`, `Edit test`, `New test` are items (`qcfixer.com / Suites / New test`). Selecting a test in Suites or a result in Run results does **not** change the breadcrumb; the detail header shows the selection. Dialogs (New project, Import) do not change it either.
+**Top bar (the masthead after the brand)**
+- Left: breadcrumb `All projects / project name / section / item` (e.g. `All projects / qcfixer.com / Runs / Run #12`), one line (D75). Each crumb except the last is a link: **All projects** → Projects, the project name → Overview.
+  **The breadcrumb shows pages, not selections inside a page** (D31). Pages such as `Run #12`, `Edit test`, `New test` are items (`All projects / qcfixer.com / Suites / New test`). Selecting a test in Suites or a result in Run results does **not** change the breadcrumb; the detail header shows the selection. Dialogs (New project, Import) do not change it either.
 - Right: **AI explore** primary button (sparkle icon). Nothing else (no project switcher, no settings, no theme).
 
 ### C. AI explore workspace (focused)
-Replaces the whole window: header `← Back to project · AI explore · <project name>`; left = chat list of this project and, under the chat history, always visible, **Ready for Suites (n)** (opens 3.5, a large centre modal); right = chat. No project sidebar. The chat list collapses to a 64 px rail with the same round edge toggle as the project sidebar, remembered separately (D71).
+Replaces the whole window: header `≡ · ← Back to project · AI explore · <project name>`, the same static masthead as the project shell (D74), in the chat list's colour: "≡", **Back to project** and the title never move; only the line under it follows the chat list's edge. Left = chat list of this project and, under the chat history, always visible, **Ready for Suites (n)** (opens 3.5, a large centre modal); right = chat. No project sidebar. "≡" (and Ctrl+B / ⌘B) collapses the chat list to a 64 px icon rail (New chat, Ready for Suites with its count; tooltips), remembered separately (D71, D74). Rows keep the 40 px height and icon column of the project sidebar.
 **Back to project** returns to the project screen AI explore was opened from (still true after switching chats); if AI explore was opened directly (no previous screen), it goes to the project's Overview.
 
 ### Not found and error screens

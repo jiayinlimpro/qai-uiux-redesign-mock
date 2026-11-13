@@ -22,7 +22,7 @@ Source of truth for the QAI redesign prototype. Written for three readers:
 | 12 | `12-decision-log.md` | Decisions, reasons, rejected alternatives |
 | 13 | `13-legacy-mapping.md` | Every old QAI feature → where it lives now |
 | 14 | `14-handover.md` | For engineering: real vs mocked, replacing the data layer, api status, limits, dev switches |
-| 15 | `15-decisions-since-plan.md` | Decisions D24–D73 that changed or added scope since the original plan |
+| 15 | `15-decisions-since-plan.md` | Decisions D24–D76 that changed or added scope since the original plan |
 | — | `reference/prototype-screens/` | Screenshots of the built prototype, every screen and dialog (default state) |
 | — | `reference/legacy-user-manual-v2.0.pdf` | Old app manual (context only) |
 | — | `fixtures/qcfixer-tests-seed.csv` | Real test set (83 tests) to seed sample data |

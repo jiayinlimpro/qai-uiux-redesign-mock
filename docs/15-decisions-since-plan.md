@@ -1,6 +1,6 @@
 # 15 · Decisions since the plan that change or add scope
 
-Decisions D24–D73 (`12-decision-log.md`) compared with the original spec. One line each: what changed and where.
+Decisions D24–D76 (`12-decision-log.md`) compared with the original spec. One line each: what changed and where.
 **Changed** = the spec said something else. **Added** = the spec was silent or vague and the prototype now does it.
 Decisions that only clarify wording or implementation, without changing scope, are listed at the end.
 
@@ -53,6 +53,9 @@ Decisions that only clarify wording or implementation, without changing scope, a
 | D71 | Added | AI explore chat list collapses to a 64 px rail like the project sidebar, remembered separately | 3.4 |
 | D72 | Changed | Knowledge split: new Environments module (platforms × environments, accounts) above Knowledge (documents, skills) | 2.1, 2.4 (new), 03 · BR-ENV-* |
 | D73 | Changed | Glossary term App renamed Platform in UI, docs and code; older project files upgraded on import | 02 glossary, 07 · 1.2, 1.3, 1.4, 2.4, 6.4 |
+| D74 | Changed | Sidebar collapse: static masthead ("≡", brand, breadcrumb never move; only the line under it follows the sidebar edge); collapsed = 64 px icon rail; 40 px rows and one icon column in both states; Projects shell collapsible too; Ctrl+B / ⌘B | 03 · all shells, 3.4 |
+| D75 | Changed | Project card removed from the sidebar; breadcrumb starts at All projects (`All projects / project / section / item`) | 03 · all project screens |
+| D76 | Changed | QAI mark: supplied play-triangle logo as a vector (masthead, window / tab icon), replaces the "Q" tile | 03 · 08 · all shells |
 
 **Clarifications without a scope change**: D26 (hash addresses, all routes in `routes.ts`), D31 (the breadcrumb shows
 pages, not selections), D69 (the banned legacy "Upload" means test-file upload; Knowledge keeps "Upload").

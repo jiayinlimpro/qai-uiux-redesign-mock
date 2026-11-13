@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Inbox, Plus } from 'lucide-react';
+import { Inbox, Plus } from 'lucide-react';
 import { listChats, listTrayCases } from '@/data/api';
 import type { ID } from '@/data/types';
 import { Chip } from '@/components/ui/chip';
 import { Tooltip } from '@/components/ui/tooltip';
-import { useSidebarCollapsed } from '@/app/hooks/useSidebarCollapsed';
+import { useExploreLayout } from '@/app/shell/exploreLayout';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { useAsync } from '@/app/hooks/useAsync';
 import { useProject } from '@/app/projectContext';
@@ -37,7 +37,7 @@ export function AiExploreScreen() {
   );
   const [trayOpen, setTrayOpen] = useState(false);
   // The chat list collapses like the project sidebar; its own remembered state (D71).
-  const [collapsed, toggleCollapsed] = useSidebarCollapsed('qai.exploreSidebarCollapsed');
+  const { collapsed } = useExploreLayout(); // the menu button is in the workspace header (D74)
   const trayCount = data.status === 'ready' ? data.data.trayCount : null;
 
   // While any chat of this project is running, keep the list (Running badges, tray count) up to date.
@@ -54,11 +54,12 @@ export function AiExploreScreen() {
     <div className="flex h-full min-h-0">
       <aside
         aria-label="Chats"
-        className={cn('relative flex shrink-0 flex-col gap-3 bg-bg py-3 transition-[width] duration-150', collapsed ? 'w-sidebar-collapsed items-center px-2' : 'w-72 px-3')}
+        className={cn('relative flex shrink-0 flex-col gap-3 bg-bg px-3 py-3 transition-[width] duration-150', collapsed ? 'w-sidebar-collapsed' : 'w-72')}
       >
-        {/* Old QAI chat layout (D70) with the system's collapse pattern (D71): same round edge toggle and 64 px rail as the project sidebar. */}
+        {/* Old QAI chat layout (D70) with the system's collapse pattern (D71, D74): 40 px rows whose icons keep their spot;
+            collapsed = icon rail with tooltips; menu button + Ctrl+B in the header. */}
         {collapsed ? (
-          <Tooltip label="New chat" describe={false}>
+          <Tooltip label="New chat" describe={false} className="w-10">
             <Link
               to={to.explore(project.id)}
               state={state}
@@ -66,9 +67,7 @@ export function AiExploreScreen() {
               aria-current={!chatId ? 'page' : undefined}
               className={cn('flex h-10 w-10 items-center justify-center rounded-pill hover:bg-accent-soft', !chatId && 'bg-accent-soft')}
             >
-              <span className="flex h-6 w-6 items-center justify-center rounded-pill bg-text text-surface">
-                <Plus aria-hidden="true" className="h-4 w-4" />
-              </span>
+              <PlusMark />
             </Link>
           </Tooltip>
         ) : (
@@ -76,11 +75,9 @@ export function AiExploreScreen() {
             to={to.explore(project.id)}
             state={state}
             aria-current={!chatId ? 'page' : undefined}
-            className={cn('flex items-center gap-3 rounded-pill px-3 py-2.5 font-semibold hover:bg-accent-soft', !chatId ? 'bg-accent-soft text-accent-soft-text' : 'bg-surface')}
+            className={cn('flex h-10 items-center gap-3 rounded-pill pl-2 pr-3 font-semibold hover:bg-accent-soft', !chatId ? 'bg-accent-soft text-accent-soft-text' : 'bg-surface')}
           >
-            <span className="flex h-6 w-6 items-center justify-center rounded-pill bg-text text-surface">
-              <Plus aria-hidden="true" className="h-4 w-4" />
-            </span>
+            <PlusMark />
             New chat
           </Link>
         )}
@@ -119,15 +116,15 @@ export function AiExploreScreen() {
           </>
         )}
         {collapsed ? (
-          <Tooltip label={`Ready for Suites (${trayCount ?? '…'})`} describe={false}>
+          <Tooltip label={`Ready for Suites (${trayCount ?? '…'})`} describe={false} className="w-10">
             <button
               type="button"
               aria-label={`Ready for Suites, ${trayCount ?? 0} cases`}
               onClick={() => setTrayOpen(true)}
               className="relative flex h-10 w-10 items-center justify-center rounded-control border border-border bg-surface hover:bg-bg"
             >
-              <Inbox aria-hidden="true" className="h-4 w-4" />
-              <span aria-hidden="true" className="absolute -right-1.5 -top-1.5 min-w-5 rounded-pill bg-accent px-1 text-center text-label text-accent-contrast">
+              <Inbox aria-hidden="true" className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              <span aria-hidden="true" className="absolute -right-2 -top-2 min-w-5 rounded-pill bg-accent px-1 text-center text-label text-accent-contrast">
                 {trayCount ?? '…'}
               </span>
             </button>
@@ -136,10 +133,10 @@ export function AiExploreScreen() {
           <button
             type="button"
             onClick={() => setTrayOpen(true)}
-            className="flex items-center justify-between gap-2 rounded-control border border-border bg-surface px-3 py-2 text-left font-semibold hover:bg-bg"
+            className="flex h-10 items-center justify-between gap-2 rounded-control border border-border bg-surface pl-[10px] pr-3 text-left font-semibold hover:bg-bg"
           >
-            <span className="flex items-center gap-2">
-              <Inbox aria-hidden="true" className="h-4 w-4" />
+            <span className="flex items-center gap-3">
+              <Inbox aria-hidden="true" className="h-[18px] w-[18px]" strokeWidth={1.75} />
               Ready for Suites
             </span>
             <span aria-label={`${trayCount ?? 0} cases`} className="rounded-pill bg-accent-soft px-2 text-accent-soft-text">
@@ -147,15 +144,6 @@ export function AiExploreScreen() {
             </span>
           </button>
         )}
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          aria-label={collapsed ? 'Expand chat list' : 'Collapse chat list'}
-          aria-expanded={!collapsed}
-          className="absolute -right-3.5 top-5 z-20 flex h-7 w-7 items-center justify-center rounded-pill border border-border bg-surface text-text-muted hover:text-text"
-        >
-          {collapsed ? <ChevronRight aria-hidden="true" className="h-4 w-4" /> : <ChevronLeft aria-hidden="true" className="h-4 w-4" />}
-        </button>
       </aside>
 
       <section aria-label="Chat" className="flex min-h-0 min-w-0 flex-1 flex-col bg-surface">
@@ -174,5 +162,14 @@ export function AiExploreScreen() {
         />
       )}
     </div>
+  );
+}
+
+/** Round plus of New chat; centred on the chat list's icon column in both states (D74). */
+function PlusMark() {
+  return (
+    <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-pill bg-text text-surface">
+      <Plus className="h-4 w-4" />
+    </span>
   );
 }

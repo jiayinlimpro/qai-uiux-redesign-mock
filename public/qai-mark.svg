@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <!-- The QAI mark (D76). Same drawing as src/components/QaiMark.tsx. -->
+  <defs>
+    <linearGradient id="side" gradientUnits="userSpaceOnUse" x1="16.75" y1="12.25" x2="16.75" y2="67.75">
+      <stop offset="0" stop-color="#FDA421"/>
+      <stop offset="0.15" stop-color="#FD8141"/>
+      <stop offset="0.3" stop-color="#FB6942"/>
+      <stop offset="0.45" stop-color="#FB4F45"/>
+      <stop offset="0.6" stop-color="#FB3C46"/>
+      <stop offset="1" stop-color="#F8304A"/>
+    </linearGradient>
+    <linearGradient id="top" gradientUnits="userSpaceOnUse" x1="16.75" y1="14.75" x2="63.25" y2="40.45">
+      <stop offset="0" stop-color="#CC0050"/>
+      <stop offset="0.35" stop-color="#C3005B"/>
+      <stop offset="0.5" stop-color="#BA0F81"/>
+      <stop offset="0.65" stop-color="#A22DA4"/>
+      <stop offset="0.8" stop-color="#9048C1"/>
+      <stop offset="1" stop-color="#7C64EA"/>
+    </linearGradient>
+    <linearGradient id="bottom" gradientUnits="userSpaceOnUse" x1="16.75" y1="67.75" x2="56.48" y2="36.71">
+      <stop offset="0" stop-color="#00C9A0"/>
+      <stop offset="0.15" stop-color="#00B29A"/>
+      <stop offset="0.3" stop-color="#009693"/>
+      <stop offset="0.45" stop-color="#007592"/>
+      <stop offset="0.6" stop-color="#005889"/>
+      <stop offset="0.75" stop-color="#044084"/>
+      <stop offset="1" stop-color="#08367F"/>
+    </linearGradient>
+    <clipPath id="over"><rect x="30" y="0" width="50" height="80"/></clipPath>
+  </defs>
+  <g fill="none" stroke-linecap="round" stroke-width="20">
+    <line x1="16.75" y1="14.75" x2="63.25" y2="40.45" stroke="url(#top)"/>
+    <line x1="16.75" y1="12.25" x2="16.75" y2="67.75" stroke="url(#side)"/>
+    <line x1="16.75" y1="67.75" x2="56.48" y2="36.71" stroke="url(#bottom)"/>
+    <line x1="16.75" y1="14.75" x2="63.25" y2="40.45" stroke="url(#top)" clip-path="url(#over)"/>
+  </g>
+</svg>

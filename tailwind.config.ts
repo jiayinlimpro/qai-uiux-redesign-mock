@@ -46,6 +46,7 @@ export default {
       },
       fontSize: {
         label: ['12px', { lineHeight: '16px', fontWeight: '600' }],
+        // labels under icons in the collapsed (mini) sidebar, as in YouTube's mini guide (D74)
         base: ['14px', { lineHeight: '20px' }],
         h3: ['18px', { lineHeight: '26px', fontWeight: '600' }],
         h2: ['20px', { lineHeight: '28px', fontWeight: '600' }],
@@ -61,12 +62,12 @@ export default {
       },
       spacing: {
         sidebar: '220px',
-        'sidebar-collapsed': '64px',
+        'sidebar-collapsed': '64px', // mini sidebar: icon + small label (D74)
         topbar: '56px',
       },
       width: {
         sidebar: '220px',
-        'sidebar-collapsed': '64px',
+        'sidebar-collapsed': '64px', // mini sidebar: icon + small label (D74)
       },
       height: {
         topbar: '56px',
