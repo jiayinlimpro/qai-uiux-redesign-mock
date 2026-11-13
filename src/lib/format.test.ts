@@ -1,4 +1,4 @@
-import { formatDate, formatDuration, formatStarted, plural } from './format';
+import { formatDate, formatDuration, formatPassRate, formatStarted, plural } from './format';
 
 describe('format', () => {
   it('formats dates the same everywhere', () => {
@@ -22,5 +22,13 @@ describe('run formats', () => {
     expect(formatStarted(new Date(2026, 10, 9, 16, 40).toISOString(), now)).toBe('Yesterday 16:40');
     expect(formatStarted(new Date(2026, 9, 16, 9, 0).toISOString(), now)).toBe('16 Oct');
     expect(formatStarted(new Date(2025, 9, 16, 9, 0).toISOString(), now)).toBe('16 Oct 2025');
+  });
+});
+
+describe('formatPassRate (BR-STATUS-02)', () => {
+  it('two decimals; a dash when nothing is rated', () => {
+    expect(formatPassRate(71 / 79)).toBe('89.87%');
+    expect(formatPassRate(1)).toBe('100.00%');
+    expect(formatPassRate(null)).toBe('–');
   });
 });

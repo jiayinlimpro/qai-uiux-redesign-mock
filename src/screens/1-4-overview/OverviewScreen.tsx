@@ -8,6 +8,7 @@ import { ErrorState, LoadingState } from '@/components/StateViews';
 import { RunDialog } from '@/components/RunDialog';
 import { RunStateChip } from '@/components/RunStateChip';
 import { StatusCountChips } from '@/components/StatusCountChips';
+import { PassRateDonut, SuiteStatusBars } from '@/components/StatusCharts';
 import { useConfirm } from '@/components/useConfirm';
 import { errorText } from '@/components/StatusLine';
 import { useAsync } from '@/app/hooks/useAsync';
@@ -15,13 +16,13 @@ import { useProject } from '@/app/projectContext';
 import { to } from '@/app/routes';
 import { formatCost, formatStarted, plural } from '@/lib/format';
 import { scopeWithCount } from '@/lib/runPlan';
-import { lastCompletedRun, needsAttention, notInASuiteCount, pauseReasonText, recentRuns, resumeBannerText, runToResume, suiteRows } from '@/lib/overviewRules';
+import { lastCompletedRun, needsAttention, notInASuiteCount, pauseReasonText, recentRuns, resumeBannerText, runToResume, suiteRows, totalCounts } from '@/lib/overviewRules';
 
 const linkClass = 'text-accent underline underline-offset-2';
 
 /**
  * 1.4 Project overview (screens/02-project.md): what needs attention. Every count is computed from library tests and
- * results (rule 5, BR-EXPLORE-07). No graphs or trends (parked).
+ * results (rule 5, BR-EXPLORE-07). Two charts of the latest status (D77); trends stay parked.
  */
 export function OverviewScreen() {
   const project = useProject();
@@ -166,6 +167,16 @@ export function OverviewScreen() {
         </Card>
       </div>
 
+      {/* D77: the latest status of each library test, the same counts as the Suites table below. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <ChartCard id="overview-pass-rate" title="Pass rate">
+          <PassRateDonut counts={totalCounts(rows)} />
+        </ChartCard>
+        <ChartCard id="overview-by-suite" title="Status by suite">
+          <SuiteStatusBars rows={rows} />
+        </ChartCard>
+      </div>
+
       <section aria-labelledby="overview-suites">
         <div className="mb-2 flex items-center justify-between">
           <h2 id="overview-suites" className="text-h3">
@@ -252,7 +263,7 @@ export function OverviewScreen() {
           </Table>
         )}
       </section>
-      <p className="text-label font-normal text-text-muted">Detailed metrics and trends are not part of this version.</p>
+      <p className="text-label font-normal text-text-muted">Trends across runs are not part of this version.</p>
 
       {running && <RunDialog testIds={running} onClose={() => setRunning(null)} />}
       {confirmDialog}
@@ -265,6 +276,20 @@ function Card({ label, title, children }: { label: string; title: string; childr
     <section className="flex flex-col gap-1 rounded-card border border-border bg-surface p-4">
       <h2 className="text-label text-text-muted">{label}</h2>
       <p className="text-h3">{title}</p>
+      {children}
+    </section>
+  );
+}
+
+function ChartCard({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+  return (
+    <section aria-labelledby={id} className="flex flex-col gap-3 rounded-card border border-border bg-surface p-4">
+      <div>
+        <h2 id={id} className="text-h3">
+          {title}
+        </h2>
+        <p className="text-text-muted">Latest result of each test</p>
+      </div>
       {children}
     </section>
   );

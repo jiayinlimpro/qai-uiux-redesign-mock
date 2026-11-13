@@ -1,5 +1,5 @@
 import { createSeed } from '@/data/mock/seed';
-import { lastCompletedRun, needsAttention, notInASuiteCount, recentRuns, resumeBannerText, runToResume, suiteRows } from './overviewRules';
+import { barScale, CHART_STATUSES, lastCompletedRun, needsAttention, notInASuiteCount, passRateDonut, recentRuns, resumeBannerText, runToResume, suiteRows, totalCounts } from './overviewRules';
 import { isLibraryTest } from './exploreRules';
 
 const db = createSeed();
@@ -52,5 +52,35 @@ describe('Overview (screens/02-project.md 1.4), computed from library tests', ()
 
   it('recent runs: newest first', () => {
     expect(recentRuns(runs).map((r) => r.number)).toEqual([14, 13, 12]);
+  });
+
+  it('charts (D77): totals are the Suites table counts; donut ring = 3 statuses, figure = BR-STATUS-02 pass rate', () => {
+    const rows = suiteRows(db.suites.filter((s) => s.projectId === P), library, latest, runs);
+    const total = totalCounts(rows);
+    expect(total.passed + total.failed + total.couldnt_complete + total.not_run).toBe(library.length);
+    const d = passRateDonut(total);
+    expect(d.drawn).toBe(total.passed + total.failed + total.couldnt_complete);
+    expect(d.notRun).toBe(total.not_run);
+    expect(d.rate).toBeCloseTo(total.passed / (total.passed + total.failed));
+    expect(d.segments.map((s) => s.status)).toEqual(['couldnt_complete', 'failed', 'passed'].filter((k) => total[k as keyof typeof total] > 0));
+    expect(d.segments[0]!.from).toBe(0);
+    expect(d.segments.at(-1)!.to).toBeCloseTo(1);
+    expect(CHART_STATUSES).not.toContain('not_run');
+    expect(barScale(rows)).toBe(Math.max(...rows.map((r) => r.counts.passed + r.counts.failed + r.counts.couldnt_complete)));
+  });
+
+  it("donut: couldn't complete and not run never lower the pass rate; empty statuses get no arc; nothing rated → null", () => {
+    const d = passRateDonut({ passed: 3, failed: 1, couldnt_complete: 4, not_run: 9 });
+    expect(d.rate).toBe(0.75);
+    expect(d.segments).toEqual([
+      { status: 'couldnt_complete', count: 4, from: 0, to: 0.5 },
+      { status: 'failed', count: 1, from: 0.5, to: 0.625 },
+      { status: 'passed', count: 3, from: 0.625, to: 1 },
+    ]);
+    expect(passRateDonut({ passed: 2, failed: 0, couldnt_complete: 0, not_run: 1 }).segments).toHaveLength(1);
+    const none = passRateDonut({ passed: 0, failed: 0, couldnt_complete: 2, not_run: 5 });
+    expect(none.rate).toBeNull();
+    expect(none.drawn).toBe(2);
+    expect(barScale([{ counts: { passed: 0, failed: 0, couldnt_complete: 0, not_run: 4 } }])).toBe(1);
   });
 });

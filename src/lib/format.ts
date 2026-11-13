@@ -23,6 +23,11 @@ export function formatDuration(ms: number): string {
 }
 
 /** Money (USD) for results and runs: "$0.07", "$3.47" (BR-RUN-05). */
+/** BR-STATUS-02: a pass rate (0–1) as "83.49%"; "–" when there is nothing to rate. */
+export function formatPassRate(rate: number | null): string {
+  return rate === null ? '–' : `${(rate * 100).toFixed(2)}%`;
+}
+
 export function formatCost(usd: number): string {
   return `$${usd.toFixed(2)}`;
 }

@@ -31,6 +31,12 @@
   --cc-dot: #b07a0a;
 
   --notrun: #8a919c;
+
+  /* Status colours for chart marks (D77): the dots' green and orange, a lighter yellow so Failed and Couldn't complete
+     stay apart side by side (checked for colour-blind separation; charts always carry text labels too). */
+  --chart-passed: #2b8a4b;
+  --chart-failed: #c2410c;
+  --chart-cc: #ad8a00;
   --backdrop: rgba(31, 35, 40, 0.45); /* behind dialogs */
 }
 

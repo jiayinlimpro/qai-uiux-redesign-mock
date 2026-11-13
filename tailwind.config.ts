@@ -39,6 +39,7 @@ export default {
           dot: 'var(--cc-dot)',
         },
         notrun: 'var(--notrun)',
+        chart: { passed: 'var(--chart-passed)', failed: 'var(--chart-failed)', cc: 'var(--chart-cc)' },
         backdrop: 'var(--backdrop)',
       },
       fontFamily: {
@@ -46,11 +47,12 @@ export default {
       },
       fontSize: {
         label: ['12px', { lineHeight: '16px', fontWeight: '600' }],
-        // labels under icons in the collapsed (mini) sidebar, as in YouTube's mini guide (D74)
         base: ['14px', { lineHeight: '20px' }],
         h3: ['18px', { lineHeight: '26px', fontWeight: '600' }],
         h2: ['20px', { lineHeight: '28px', fontWeight: '600' }],
         h1: ['22px', { lineHeight: '30px', fontWeight: '600' }],
+        // the figure in the middle of the Overview pass-rate donut (D77)
+        figure: ['28px', { lineHeight: '34px', fontWeight: '600' }],
         // AI explore new-chat greeting (screens/05-ai-explore.md, D70)
         display: ['48px', { lineHeight: '56px', fontWeight: '500' }],
         'display-sub': ['32px', { lineHeight: '40px', fontWeight: '500' }],
@@ -62,12 +64,12 @@ export default {
       },
       spacing: {
         sidebar: '220px',
-        'sidebar-collapsed': '64px', // mini sidebar: icon + small label (D74)
+        'sidebar-collapsed': '64px', // collapsed sidebar: icon rail (D74)
         topbar: '56px',
       },
       width: {
         sidebar: '220px',
-        'sidebar-collapsed': '64px', // mini sidebar: icon + small label (D74)
+        'sidebar-collapsed': '64px', // collapsed sidebar: icon rail (D74)
       },
       height: {
         topbar: '56px',

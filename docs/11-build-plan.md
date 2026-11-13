@@ -30,7 +30,7 @@ Projects shell, project shell (sidebar, collapse toggle on edge, top bar breadcr
 
 ## Slice 8 · Overview + AI explore
 **Accept** (D65):
-- Overview: resume banner; cards computed from library tests only.
+- Overview: resume banner; cards computed from library tests only. Pass-rate donut and status-by-suite bars (D77) agree with the Suites table counts; Not run never drawn; legends, hover tooltips and screen-reader text present.
 - Data layer: `TestCase.location` / `aiValidationStatus` / `aiOrigin` replace `Proposal` and `aiExploreFinding`; **`listLibraryTests`** is the one function for library tests and every Suites list, filter, run picker, run scope ("All tests"), count and Overview card uses it; **automated checks prove tray and discarded tests never appear in Suites, runs or counts**.
 - AI explore: chat list with Running badge; **Ready for Suites (n)** always visible under the chat history; chat cases card shows each case's status and where it is (In Ready for Suites · link to the test once moved · Replaced <ID> · Discarded); no approval in the chat.
 - Ready for Suites modal (70–80% of the screen): cases from all chats; status filter (Not checked · Checked · Needs fixing); missing steps flagged (warning icon + text) and not movable; possible duplicates resolved inline (Keep both · Replace existing · Discard) before moving; inline edit of small fields; Open in chat; no nested modals; Esc / outside click asks inline when cases are selected; selections persist after closing; empty state explains how cases arrive.

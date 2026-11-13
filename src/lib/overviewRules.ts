@@ -3,7 +3,7 @@
  * count is computed (CLAUDE.md rule 5).
  */
 import type { ID, Result, Run, Status, Suite, TestCase } from '@/data/types';
-import { countByStatus, countRunStatuses, type StatusCounts } from './status';
+import { countByStatus, countRunStatuses, passRate, type StatusCounts } from './status';
 import { NOT_IN_A_SUITE } from './resultRules';
 
 /** BR-RUN-10: the run the banner offers to resume: the newest Interrupted or Paused run (a stopped run cannot resume, D55). */
@@ -68,3 +68,48 @@ export function suiteRows(suites: Suite[], tests: TestCase[], latest: Record<ID,
 
 /** Recent runs table: the newest runs first. */
 export const recentRuns = (runs: Run[], n = 3) => [...runs].sort((a, b) => b.number - a.number).slice(0, n);
+
+/* Charts (D77): the latest status of each library test, the same counts as the Suites table. Not run is never drawn. */
+
+/** The three statuses the charts draw, in legend order. */
+export type ChartStatus = Exclude<Status, 'not_run'>;
+export const CHART_STATUSES: readonly ChartStatus[] = ['passed', 'failed', 'couldnt_complete'];
+
+export const drawnCount = (c: StatusCounts) => c.passed + c.failed + c.couldnt_complete;
+
+/** Total latest status counts over the Suites table rows (every library test once). */
+export function totalCounts(rows: Pick<SuiteRow, 'counts'>[]): StatusCounts {
+  const out: StatusCounts = { passed: 0, failed: 0, couldnt_complete: 0, not_run: 0 };
+  for (const r of rows) for (const k of Object.keys(out) as Status[]) out[k] += r.counts[k];
+  return out;
+}
+
+export interface DonutSegment {
+  status: ChartStatus;
+  count: number;
+  /** Where the arc starts and ends, as fractions of the ring, clockwise from the top. */
+  from: number;
+  to: number;
+}
+
+/**
+ * Pass-rate donut: the ring shows passed, failed and couldn't complete (clockwise from the top: couldn't complete, failed,
+ * passed; empty statuses left out); the figure in the middle is the pass rate, BR-STATUS-02 (passed / (passed + failed)),
+ * so couldn't complete and not run never lower it. Not run is named under the chart, not drawn (BR-STATUS-01).
+ */
+export function passRateDonut(counts: StatusCounts): { rate: number | null; drawn: number; notRun: number; segments: DonutSegment[] } {
+  const drawn = drawnCount(counts);
+  const segments: DonutSegment[] = [];
+  let at = 0;
+  for (const status of ['couldnt_complete', 'failed', 'passed'] as const) {
+    const count = counts[status];
+    if (!count) continue;
+    const to = at + count / drawn;
+    segments.push({ status, count, from: at, to });
+    at = to;
+  }
+  return { rate: passRate(counts), drawn, notRun: counts.not_run, segments };
+}
+
+/** Status-by-suite bars: one shared scale, the longest bar = the suite with the most tests that have a status. */
+export const barScale = (rows: Pick<SuiteRow, 'counts'>[]) => Math.max(1, ...rows.map((r) => drawnCount(r.counts)));

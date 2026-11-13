@@ -9,7 +9,7 @@ Kept for later, after the core is stable. Do not add UI for these unless marked 
 | Contextual AI entry points | "Explore this suite", "Plan tests from this document", "Draft steps with AI", side panel assistant, Ctrl+K |
 | First-run review mode | Dedicated review beyond the Worth-a-look filter |
 | More filters | Suite, source, overridden, known issue, browser; multi-select |
-| Overview metrics | Pass-rate trend per run, coverage per suite, slowest tests |
+| Overview metrics | Pass-rate trend per run, coverage per suite, slowest tests. (The latest-status pass-rate donut and status-by-suite bars are built, D77.) |
 | Pin a reference (visual) | Optional signed-off screenshot set as a third comparison (display-only card exists) |
 | "Run on one browser only" per test | For data-creating tests (multi-browser side effects). Covered by Browser preference: a test that allows one browser replays only there (D53) |
 | Release tags / run names | Free-text run note, later release comparison |
