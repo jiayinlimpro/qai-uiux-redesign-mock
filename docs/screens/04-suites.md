@@ -5,11 +5,12 @@
 **Layout** Master–detail with draggable split (BR-LIST-05).
 
 ### Left: list
-- Header: "Suites" · New test · Import · (when selection) **Move to suite… · Clone · Run N selected** (primary).
+- Header: "Suites" · New test · **New suite** (Suite dialog, see below) · Import · (when selection) **Move to suite… · Clone · Run N selected** (primary).
 - Search (ID or title) · Latest status filter (All / Passed / Failed / Couldn't complete / Not run) · count text · Clear filters.
-- Tree: suite rows (checkbox selects visible tests, mixed when some are selected; expand/collapse arrow, name, "<n> tests"; **menu: Rename suite (name + ID prefix) · Delete suite**, only when empty, otherwise "Move or delete its tests first.", BR-SUITE); suites start collapsed, the selected test's suite opens; test rows (checkbox, ID, title, **New** badge if applicable, **Likely bug** badge if applicable (BR-EXPLORE-05), **status dot** with text label for screen readers and tooltip).
+- Tree: suite rows (checkbox selects visible tests, mixed when some are selected; expand/collapse arrow, name, "<n> tests"; **menu: Edit suite (Suite dialog) · Delete suite**, only when empty, otherwise "Move or delete its tests first.", BR-SUITE); suites start collapsed, the selected test's suite opens; test rows (checkbox, ID, title, **New** badge if applicable, **Likely bug** badge if applicable (BR-EXPLORE-05), **status dot** with text label for screen readers and tooltip).
 - "Not in a suite" group last (tests moved from Ready for Suites, or imports without category); hidden when empty. The tree shows library tests only (BR-EXPLORE-07): AI cases still in Ready for Suites or discarded never appear.
-- **Move to suite…** (dialog): an existing suite · Not in a suite · **New suite…** (name + ID prefix, prefix suggested from the name). Tests from Not in a suite get the destination prefix (T-01 → CNT-05); other IDs stay (BR-TEST-05).
+- An empty suite shows "0 tests"; opened, it shows "No tests yet. Create a New test, or select tests and use Move to suite…" (New test is a link).
+- **Move to suite…** (dialog): an existing suite · Not in a suite · **New suite…** (the Suite dialog's name + ID prefix fields shown inside the Move dialog, since dialogs never open on top of dialogs; the suite is created on Move). Tests from Not in a suite get the destination prefix (T-01 → CNT-05); other IDs stay (BR-TEST-05).
 - With a filter active, suites with matches auto-expand and show "<n> match".
 Status dot colours: passed green, failed orange-red, couldn't complete amber, not run hollow grey ring.
 
@@ -34,14 +35,20 @@ Status dot colours: passed green, failed orange-red, couldn't complete amber, no
 - **Changing row 1** (BR-DATA-08, D47): when a row-1 value changes, ask "Also update <n> rows that used the old value '<value>'?" (default **Yes**, Enter accepts; "No, keep them"), so rows keep varying only their intended field. Rows that vary more than one field show a gentle note.
 - **Saving** (BR-DATA-07, D44): "Use" saves at once (no new version). Other edits (Add row, Edit row, Delete row 2+, Suggest rows) are a draft with a bar "Save as vN+1 · Cancel"; when fields or row 1 change and the test has a recorded script, the bar shows the reset warning. Row 1 cannot be deleted. Suggested rows are marked "Suggested"; suggesting again replaces them and keeps rows people added.
 
-**States** Empty library: "No tests yet" + Import · New test · Explore with AI. No selection: "Select a test to see its details".
+**States** Empty library: "No tests yet" + Import · New test · New suite · Explore with AI. No selection: "Select a test to see its details".
+
+### Suite dialog (D78)
+One dialog to create or edit a suite, opened from: Suites header **New suite**, the empty library's **New suite**, the Suite field's **New suite…** in New / edit test (3.2), and the suite row menu's **Edit suite**.
+- Title "New suite" / "Edit suite". Fields: **Suite name** · **ID prefix** (suggested from the name until edited). Hint: "Used for test IDs, e.g. CHK-01." / "Existing test IDs stay; new tests use this prefix."
+- Buttons: Cancel · **Create suite** / **Save**. Validation inline (BR-SUITE-01).
+- Create mode creates the suite at once, empty. From the Suites header: toast "Suite <name> created"; filters that would hide it are cleared; the suite opens and scrolls into view. Edit mode: toast "Suite saved as <name>".
 
 ## 3.2 New / edit test
 **Layout** List on the left (compact, current test highlighted) + editor form on the right.
 **Header** Context line: "Editing · <suite> › <ID> · vN → vN+1" ("→ vN+1" only when the change creates a version), "New test · <suite> › <ID>", or, when opened from a result (`?from=<resultId>`), "Opened from Run #12 result · …" with a link to that result. Buttons: Cancel (back to the result, the test, or Suites) · Save as vN+1 ("Save" when the change creates no version; "Create test" for a new test) · **Save and re-run** (primary, only when opened from a result → run dialog prefilled). After saving: the test detail with "Saved as vN" / "Created <ID>".
 **Warning banner** (only when a reset field changed and the test has a recorded script, BR-SCRIPT-02): "You changed the steps. Saving resets the recorded script and visual history; the next run of this test uses AI."
 **Test data note** (D49, before saving): "Test data: adds {x}." / "Test data: removes {email} and its values in <n> rows." Renaming a placeholder is a removal + an addition, so both lines show.
-**Fields** Test ID (BR-TEST-01; for a new test it follows the chosen suite's prefix until edited; an existing T- test follows BR-TEST-05 when its suite changes) · Suite (select, includes "Not in a suite") · Title (empty → the first 40 characters of the first step, shown as a hint) · Preconditions · Steps (one input per step, Add step, reorder, delete; hint "Use {field} to insert values from Test data") · Expected result · More options (collapsed, D51): **Description** · **Start page** (empty → the platform's URL for the run's environment) · **Browser preference (for replays)** (none ticked → the run dialog's browsers; AI runs always use Chrome) · Text that must appear (expected keywords; `|` = or, `&` = and, case-sensitive) · Linked knowledge. Every field that affects a run is visible and editable.
+**Fields** Test ID (BR-TEST-01; for a new test it follows the chosen suite's prefix until edited; an existing T- test follows BR-TEST-05 when its suite changes) · Suite (select, includes "Not in a suite" and **New suite…**, which opens the Suite dialog over the editor; on Create suite the new suite is selected and the Test ID follows its prefix, the rest of the form is kept; Cancel changes nothing) · Title (empty → the first 40 characters of the first step, shown as a hint) · Preconditions · Steps (one input per step, Add step, reorder, delete; hint "Use {field} to insert values from Test data") · Expected result · More options (collapsed, D51): **Description** · **Start page** (empty → the platform's URL for the run's environment) · **Browser preference (for replays)** (none ticked → the run dialog's browsers; AI runs always use Chrome) · Text that must appear (expected keywords; `|` = or, `&` = and, case-sensitive) · Linked knowledge. Every field that affects a run is visible and editable.
 **Test data** Saving keeps the Test data fields in sync with the steps' {placeholders} (BR-DATA-09, D49).
 **Validation** Steps required; ID unique.
 **Leaving** with unsaved changes asks "Discard your changes?" (Keep editing / Discard changes) (D51).

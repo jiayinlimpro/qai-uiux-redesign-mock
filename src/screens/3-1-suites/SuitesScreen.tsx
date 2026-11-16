@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { cloneTests, deleteTests, listKnowledge, listLatestResults, listRuns, listSuites, listLibraryTests } from '@/data/api';
 import type { ID } from '@/data/types';
-import { buttonClasses } from '@/components/ui/button';
+import { Button, buttonClasses } from '@/components/ui/button';
 import { SplitPane } from '@/components/ui/split-pane';
 import { Toast, type ToastMessage } from '@/components/ui/toast';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { RunDialog } from '@/components/RunDialog';
+import { SuiteDialog } from '@/components/SuiteDialog';
 import { errorText } from '@/components/StatusLine';
 import { useAsync } from '@/app/hooks/useAsync';
 import { useProject } from '@/app/projectContext';
@@ -41,6 +42,7 @@ export function SuitesScreen() {
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [moving, setMoving] = useState<ID[] | null>(null);
   const [running, setRunning] = useState<ID[] | null>(null);
+  const [creatingSuite, setCreatingSuite] = useState(false);
 
   const showToast = useCallback((t: Omit<ToastMessage, 'id'>) => setToast({ ...t, id: Date.now() }), []);
   const closeToast = useCallback(() => setToast(null), []);
@@ -117,12 +119,24 @@ export function SuitesScreen() {
             <Link to={to.newTest(project.id)} className={buttonClasses()}>
               New test
             </Link>
+            <Button onClick={() => setCreatingSuite(true)}>New suite</Button>
             <Link to={to.explore(project.id)} className={buttonClasses({ variant: 'primary' })}>
               Explore with AI
             </Link>
           </div>
         </div>
         <Outlet />
+        {creatingSuite && (
+          <SuiteDialog
+            suites={ctx.suites}
+            onClose={() => setCreatingSuite(false)}
+            onSaved={(saved) => {
+              setCreatingSuite(false);
+              data.retry();
+              showToast({ text: `Suite ${saved.name} created` });
+            }}
+          />
+        )}
       </div>
     );
   }

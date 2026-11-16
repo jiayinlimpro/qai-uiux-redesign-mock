@@ -9,7 +9,7 @@ import { useProject } from '@/app/projectContext';
 import { plural } from '@/lib/format';
 import { validateSuite } from '@/lib/suiteRules';
 import { useSuites } from './suitesContext';
-import { SuiteFields } from './SuiteDialogs';
+import { SuiteFields } from '@/components/SuiteDialog';
 
 const NONE = '__none__';
 const NEW = '__new__';

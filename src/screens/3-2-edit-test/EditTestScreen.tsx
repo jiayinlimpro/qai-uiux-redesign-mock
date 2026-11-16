@@ -8,6 +8,7 @@ import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { SplitPane } from '@/components/ui/split-pane';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { RunDialog } from '@/components/RunDialog';
+import { SuiteDialog } from '@/components/SuiteDialog';
 import { errorText } from '@/components/StatusLine';
 import { useConfirm } from '@/components/useConfirm';
 import { useAsync } from '@/app/hooks/useAsync';
@@ -42,10 +43,13 @@ export function EditTestScreen({ mode }: { mode: 'new' | 'edit' }) {
     }
     return { suites, tests, knowledge, from };
   }, [project.id, mode, fromResultId]);
+  // Suites created here with Suite › New suite… (D78). Kept locally: reloading would replace the form with "Loading".
+  const [addedSuites, setAddedSuites] = useState<Suite[]>([]);
 
   if (data.status === 'loading') return <LoadingState label="Loading the test…" />;
   if (data.status === 'error') return <ErrorState title="Couldn't load the test" message={data.error.message} onRetry={data.retry} />;
   const test = mode === 'edit' ? data.data.tests.find((t) => t.id === testId) : undefined;
+  const suites = [...data.data.suites, ...addedSuites.filter((a) => !data.data.suites.some((s) => s.id === a.id))];
   if (mode === 'edit' && !test) {
     return (
       <ErrorState title="Test not found" message="It may have been deleted.">
@@ -57,10 +61,10 @@ export function EditTestScreen({ mode }: { mode: 'new' | 'edit' }) {
     <SplitPane
       label="Resize test list"
       defaultLeft={340}
-      left={<EditorTestList suites={data.data.suites} tests={data.data.tests} currentId={test?.id} />}
+      left={<EditorTestList suites={suites} tests={data.data.tests} currentId={test?.id} />}
       right={
         <div className="relative h-full overflow-auto">
-          <EditorForm key={test?.id ?? 'new'} test={test} data={data.data} />
+          <EditorForm key={test?.id ?? 'new'} test={test} data={{ ...data.data, suites }} onSuiteCreated={(suite) => setAddedSuites((prev) => [...prev, suite])} />
         </div>
       }
     />
@@ -82,8 +86,9 @@ interface FormState {
 }
 
 const NONE = '__none__';
+const NEW = '__new__';
 
-function EditorForm({ test, data }: { test?: TestCase; data: Data }) {
+function EditorForm({ test, data, onSuiteCreated }: { test?: TestCase; data: Data; onSuiteCreated: (suite: Suite) => void }) {
   const project = useProject();
   const navigate = useNavigate();
   const [confirm, confirmDialog] = useConfirm();
@@ -112,6 +117,7 @@ function EditorForm({ test, data }: { test?: TestCase; data: Data }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rerun, setRerun] = useState<TestCase | null>(null);
+  const [creatingSuite, setCreatingSuite] = useState(false);
   const leaving = useRef(false);
   const set = (patch: Partial<FormState>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -158,11 +164,16 @@ function EditorForm({ test, data }: { test?: TestCase; data: Data }) {
   const backTo = fromRun ? to.run(project.id, fromRun.run.id, fromRun.result.id) : test ? to.suiteTest(project.id, test.id) : to.suites(project.id);
 
   /** Suite change: a new test's untouched ID follows the suite prefix; an existing T- test follows BR-TEST-05. */
-  function changeSuite(value: string) {
+  function changeSuite(value: string, created?: Suite) {
+    if (value === NEW) {
+      setCreatingSuite(true); // D78: the Suite dialog; the dropdown keeps its value until a suite is created
+      return;
+    }
     const suiteId = value === NONE ? null : value;
+    const target = created ?? suiteOf(suiteId);
     const taken = others.map((t) => t.testId);
-    if (!test && !idTouched) set({ suiteId, testId: nextTestId(prefixOf(suiteOf(suiteId)), taken) });
-    else if (test && !idTouched && suiteId !== test.suiteId) set({ suiteId, testId: suiteId === test.suiteId ? test.testId : idAfterMove(test, suiteOf(suiteId), taken) });
+    if (!test && !idTouched) set({ suiteId, testId: nextTestId(prefixOf(target), taken) });
+    else if (test && !idTouched && suiteId !== test.suiteId) set({ suiteId, testId: idAfterMove(test, target, taken) });
     else set({ suiteId });
   }
 
@@ -203,6 +214,7 @@ function EditorForm({ test, data }: { test?: TestCase; data: Data }) {
   }
 
   return (
+    <>
     <form
       noValidate
       className="p-6"
@@ -298,6 +310,7 @@ function EditorForm({ test, data }: { test?: TestCase; data: Data }) {
                     </option>
                   ))}
                 <option value={NONE}>Not in a suite</option>
+                <option value={NEW}>New suite…</option>
               </Select>
             )}
           </Field>
@@ -373,6 +386,19 @@ function EditorForm({ test, data }: { test?: TestCase; data: Data }) {
       {/* Save and re-run: the run dialog with this test (5.1). Closing without starting goes to the test. */}
       {rerun && <RunDialog testIds={[rerun.id]} presetModel={fromRun?.run.model} presetEnvironmentId={fromRun?.run.environmentId} onClose={() => navigate(to.suiteTest(project.id, rerun.id), { state: { flash: `Saved as v${rerun.version}` } })} />}
     </form>
+    {/* Outside the test form: the dialog has its own form, and its submit must not save the test. */}
+    {creatingSuite && (
+      <SuiteDialog
+        suites={data.suites}
+        onClose={() => setCreatingSuite(false)}
+        onSaved={(suite) => {
+          setCreatingSuite(false);
+          onSuiteCreated(suite);
+          changeSuite(suite.id, suite);
+        }}
+      />
+    )}
+    </>
   );
 }
 

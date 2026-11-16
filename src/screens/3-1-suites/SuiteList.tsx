@@ -15,7 +15,8 @@ import { statusLabels } from '@/lib/labels';
 import { buildSuiteTree, hasActiveFilters, type SuiteGroup, type TestFilters } from '@/lib/suiteRules';
 import { cn } from '@/lib/utils';
 import { useSuites } from './suitesContext';
-import { SuiteDialog, useDeleteSuite } from './SuiteDialogs';
+import { SuiteDialog } from '@/components/SuiteDialog';
+import { useDeleteSuite } from './SuiteDialogs';
 
 const statusOptions: { value: Status | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -37,7 +38,8 @@ export function SuiteList() {
   // Overview › "Organise in Suites" opens Suites with Not in a suite expanded (03 § Key cross-links).
   const expandRequest = (useLocation().state as { expand?: string } | null)?.expand;
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(expandRequest === 'not-in-a-suite' ? ['none'] : []));
-  const [renaming, setRenaming] = useState<Suite | null>(null);
+  /** The Suite dialog (D78): { suite } = Edit suite, {} = New suite. */
+  const [suiteDialog, setSuiteDialog] = useState<{ suite?: Suite } | null>(null);
   const [deleteSuite, deleteDialog] = useDeleteSuite();
 
   const tree = useMemo(() => buildSuiteTree(s.suites, s.tests, s.statusOf, filters), [s.suites, s.tests, s.statusOf, filters]);
@@ -82,6 +84,9 @@ export function SuiteList() {
               <Link to={to.newTest(project.id)} className={buttonClasses({ size: 'sm' })}>
                 New test
               </Link>
+              <Button size="sm" onClick={() => setSuiteDialog({})}>
+                New suite
+              </Button>
               <Link to={to.importTests(project.id)} className={buttonClasses({ size: 'sm' })}>
                 Import
               </Link>
@@ -151,13 +156,33 @@ export function SuiteList() {
               tab={tab}
               statusOf={s.statusOf}
               hasResult={(id) => Boolean(s.latest[id])}
-              onRename={g.suite ? () => setRenaming(g.suite) : undefined}
+              onEdit={g.suite ? () => setSuiteDialog({ suite: g.suite! }) : undefined}
               onDelete={g.suite ? () => void deleteSuite(g.suite!, g.total) : undefined}
             />
           ))}
         </ul>
       </div>
-      {renaming && <SuiteDialog suite={renaming} onClose={() => setRenaming(null)} />}
+      {suiteDialog && (
+        <SuiteDialog
+          suite={suiteDialog.suite}
+          suites={s.suites}
+          onClose={() => setSuiteDialog(null)}
+          onSaved={(saved) => {
+            const created = !suiteDialog.suite;
+            setSuiteDialog(null);
+            s.reload();
+            if (!created) {
+              s.showToast({ text: `Suite saved as ${saved.name}` });
+              return;
+            }
+            // D78: a new suite is empty, so clear filters that would hide it, open it and scroll to it.
+            if (filtering) setFilters({ search: '', status: 'all' });
+            setExpanded((prev) => new Set([...prev, saved.id]));
+            setTimeout(() => document.querySelector(`[data-suite-row="${saved.id}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 400);
+            s.showToast({ text: `Suite ${saved.name} created` });
+          }}
+        />
+      )}
       {deleteDialog}
     </div>
   );
@@ -175,11 +200,11 @@ interface SuiteRowProps {
   tab?: TestTab;
   statusOf: (id: ID) => Status;
   hasResult: (id: ID) => boolean;
-  onRename?: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
 }
 
-function SuiteRow({ group, open, filtering, onToggle, selection, onSelect, selectedId, highlight, tab, statusOf, hasResult, onRename, onDelete }: SuiteRowProps) {
+function SuiteRow({ group, open, filtering, onToggle, selection, onSelect, selectedId, highlight, tab, statusOf, hasResult, onEdit, onDelete }: SuiteRowProps) {
   const project = useProject();
   const visibleIds = group.tests.map((t) => t.id);
   const picked = visibleIds.filter((id) => selection.has(id)).length;
@@ -190,7 +215,7 @@ function SuiteRow({ group, open, filtering, onToggle, selection, onSelect, selec
   const listId = `suite-list-${group.suite?.id ?? 'none'}`;
 
   return (
-    <li>
+    <li data-suite-row={group.suite?.id ?? 'none'}>
       <div className="group flex items-center gap-2 rounded-control px-2 py-1.5 hover:bg-bg">
         <input
           ref={box}
@@ -206,13 +231,13 @@ function SuiteRow({ group, open, filtering, onToggle, selection, onSelect, selec
           <span className="truncate font-semibold">{group.name}</span>
         </button>
         <span className="shrink-0 text-label font-normal text-text-muted">{filtering ? `${group.tests.length} match` : group.suite ? plural(group.total, 'test') : `${plural(group.total, 'test')}`}</span>
-        {onRename && onDelete && (
+        {onEdit && onDelete && (
           <Menu
             variant="ghost"
             label="⋯"
             accessibleLabel={`More actions for suite ${group.name}`}
             items={[
-              { label: 'Rename suite', onSelect: onRename },
+              { label: 'Edit suite', onSelect: onEdit },
               { label: 'Delete suite', onSelect: onDelete, danger: true },
             ]}
           />
@@ -233,7 +258,15 @@ function SuiteRow({ group, open, filtering, onToggle, selection, onSelect, selec
               href={to.suiteTest(project.id, t.id, tab)}
             />
           ))}
-          {group.tests.length === 0 && <li className="px-2 py-1 text-label font-normal text-text-muted">No tests in this suite yet.</li>}
+          {group.tests.length === 0 && (
+            <li className="px-2 py-1 text-label font-normal text-text-muted">
+              No tests yet. Create a{' '}
+              <Link to={to.newTest(project.id)} className="text-accent underline underline-offset-2">
+                New test
+              </Link>
+              , or select tests and use Move to suite…
+            </li>
+          )}
         </ul>
       )}
     </li>

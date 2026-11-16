@@ -74,7 +74,7 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 - **BR-VISUAL-06** Pin a reference: [PARKED, low priority].
 
 ## Suites (BR-SUITE)
-- **BR-SUITE-01** A suite has a name (unique in the project, case-insensitive) and an ID prefix (1–6 capital letters or digits starting with a letter, unique, not "T", which is for Not in a suite). Created from "Move to suite… › New suite…" or by Import; renamed (name + prefix) from the suite row menu. Changing the prefix keeps existing test IDs; new tests use the new prefix. (D43)
+- **BR-SUITE-01** A suite has a name (unique in the project, case-insensitive) and an ID prefix (1–6 capital letters or digits starting with a letter, unique, not "T", which is for Not in a suite). Created with the Suite dialog (Suites header New suite, empty library, New / edit test › Suite › New suite…), from "Move to suite… › New suite…" or by Import; a suite may be empty. Edited (name + prefix) with the Suite dialog from the suite row menu (Edit suite). (D78) Changing the prefix keeps existing test IDs; new tests use the new prefix. (D43)
 - **BR-SUITE-02** Only an empty suite can be deleted; otherwise: "Move or delete its tests first." (D43)
 
 ## Clone (BR-CLONE)

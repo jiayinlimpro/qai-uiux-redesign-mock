@@ -1,6 +1,6 @@
 # 15 · Decisions since the plan that change or add scope
 
-Decisions D24–D77 (`12-decision-log.md`) compared with the original spec. One line each: what changed and where.
+Decisions D24–D78 (`12-decision-log.md`) compared with the original spec. One line each: what changed and where.
 **Changed** = the spec said something else. **Added** = the spec was silent or vague and the prototype now does it.
 Decisions that only clarify wording or implementation, without changing scope, are listed at the end.
 
@@ -57,6 +57,7 @@ Decisions that only clarify wording or implementation, without changing scope, a
 | D75 | Changed | Project card removed from the sidebar; breadcrumb starts at All projects (`All projects / project / section / item`) | 03 · all project screens |
 | D76 | Changed | QAI mark: supplied play-triangle logo as a vector (masthead, window / tab icon), replaces the "Q" tile | 03 · 08 · all shells |
 | D77 | Changed | Overview: pass-rate donut and status-by-suite stacked bars (latest status of each library test); trends still parked | 1.4 · 08 · 09 |
+| D78 | Added | New suite from the Suites header, the empty library and the test editor; one Suite dialog for create and edit (Rename suite becomes Edit suite); empty suites shown with a hint | BR-SUITE-01 · 3.1, 3.2 |
 
 **Clarifications without a scope change**: D26 (hash addresses, all routes in `routes.ts`), D31 (the breadcrumb shows
 pages, not selections), D69 (the banned legacy "Upload" means test-file upload; Knowledge keeps "Upload").
