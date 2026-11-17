@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Result, ResultStep } from '@/data/types';
 import {
+  allBrowserSteps,
   applyOverride,
+  browserEvidence,
+  browserNotRunNote,
+  latestByBrowser,
+  leadBrowser,
   latestOverride,
   platformForStartPage,
   browserMarks,
@@ -124,6 +129,12 @@ describe('result detail', () => {
     expect(rollUpBrowsers([{ status: 'passed' }, { status: 'passed' }])).toBe('passed');
     expect(rollUpBrowsers([{ status: 'passed' }, { status: 'not_run' }])).toBe('not_run');
     expect(browserMarks([{ browser: 'chrome', status: 'passed' }])).toEqual([]);
+    // D85: marks only when the browsers disagree; the row's status icon covers the rest.
+    expect(browserMarks([{ browser: 'chrome', status: 'passed' }, { browser: 'firefox', status: 'passed' }, { browser: 'webkit', status: 'passed' }])).toEqual([]);
+    expect(browserMarks([{ browser: 'chrome', status: 'failed' }, { browser: 'firefox', status: 'not_run' }])).toEqual([
+      { label: 'Chrome', status: 'failed' },
+      { label: 'Firefox', status: 'not_run' },
+    ]);
     expect(browserMarks([{ browser: 'chrome', status: 'passed' }, { browser: 'webkit', status: 'failed' }])).toEqual([
       { label: 'Chrome', status: 'passed' },
       { label: 'Safari', status: 'failed' },
@@ -239,5 +250,84 @@ describe('bug report (BR-ACTION-03)', () => {
     expect(r.expected).toBe('The page looks as it did in Run #9.');
     expect(r.actual).toBe('3 areas changed at step 2 (Step 2 text).');
     expect(r.screenshots).toEqual([{ stepIndex: 2, screenshotId: 's2' }]);
+  });
+});
+
+describe('evidence per browser (D86)', () => {
+  // NAV-07 in #7: passed in Chrome and Firefox, failed in Safari; the result-level evidence is Safari's.
+  const safariSteps = [step(1, 'passed', { screenshotId: 'w1' }), step(2, 'failed', { screenshotId: 'w2', visual: { previousScreenshotId: 'pw2', changedAreas: 2 } })];
+  const passSteps = (b: string) => [step(1, 'passed', { screenshotId: `${b}1` }), step(2, 'passed', { screenshotId: `${b}2`, visual: { previousScreenshotId: `p${b}2`, changedAreas: 1 } })];
+  const failure = { stepIndex: 2, expected: 'A services menu opens', found: 'No menu in Safari' };
+  const multi = result({
+    mode: 'script',
+    reason: 'product_bug',
+    aiVerdict: { status: 'failed', reason: 'product_bug', confidence: 'high' },
+    perBrowser: [
+      { browser: 'chrome', status: 'passed', steps: passSteps('c'), durationMs: 1000 },
+      { browser: 'firefox', status: 'passed', steps: passSteps('f'), durationMs: 900 },
+      { browser: 'webkit', status: 'failed', steps: safariSteps, failure, reason: 'product_bug', durationMs: 1050 },
+    ],
+    failure,
+    steps: safariSteps,
+    flags: { visualChanges: 4 },
+  });
+
+  it('the lead browser is the first with the rolled-up status', () => {
+    expect(leadBrowser(multi.perBrowser)).toBe('webkit');
+    expect(leadBrowser([{ browser: 'chrome', status: 'failed' }, { browser: 'firefox', status: 'not_run' }])).toBe('chrome');
+    expect(leadBrowser([{ browser: 'chrome', status: 'passed' }, { browser: 'firefox', status: 'passed' }])).toBe('chrome');
+  });
+
+  it("each browser's own evidence; the lead by default", () => {
+    expect(browserEvidence(multi)).toMatchObject({ browser: 'webkit', status: 'failed', lead: true, failure, reason: 'product_bug' });
+    const ff = browserEvidence(multi, 'firefox');
+    expect(ff).toMatchObject({ browser: 'firefox', status: 'passed', lead: false, durationMs: 900 });
+    expect(ff.failure).toBeUndefined();
+    expect(ff.steps!.map((x) => x.screenshotId)).toEqual(['f1', 'f2']);
+    // A single-browser result: the result-level evidence.
+    expect(browserEvidence(result())).toMatchObject({ browser: 'chrome', status: 'failed', lead: true, failure: result().failure });
+    // A browser that did not run has no evidence.
+    const notRun = result({ perBrowser: [{ browser: 'chrome', status: 'failed' }, { browser: 'firefox', status: 'not_run' }] });
+    expect(browserEvidence(notRun, 'firefox')).toMatchObject({ status: 'not_run', lead: false, steps: null });
+    expect(allBrowserSteps(multi).map((x) => x.screenshotId)).toEqual(['w1', 'w2', 'c1', 'c2', 'f1', 'f2', 'w1', 'w2']);
+  });
+
+  it('why a browser was not run (BR-RUN-03)', () => {
+    const ai = result({ mode: 'ai', perBrowser: [{ browser: 'chrome', status: 'failed' }, { browser: 'firefox', status: 'not_run' }] });
+    expect(browserNotRunNote(ai, 'firefox')).toBe('Not run in Firefox: the AI run in Chrome failed, so there was no script to replay.');
+    const cc = result({ mode: 'ai', perBrowser: [{ browser: 'chrome', status: 'couldnt_complete' }, { browser: 'webkit', status: 'not_run' }] });
+    expect(browserNotRunNote(cc, 'webkit')).toBe("Not run in Safari (WebKit): the AI run in Chrome couldn't complete, so there was no script to replay.");
+    expect(browserNotRunNote(result({ mode: 'script', perBrowser: [{ browser: 'chrome', status: 'passed' }, { browser: 'firefox', status: 'not_run' }] }), 'firefox')).toBe('Not run in Firefox.');
+  });
+
+  it("each browser's most recent result, only when the test ran in more than one browser (Suites › By browser)", () => {
+    const r13 = result({ id: 'r13', perBrowser: [{ browser: 'chrome', status: 'passed' }] });
+    const r7 = result({ id: 'r7', perBrowser: multi.perBrowser });
+    const r1 = result({ id: 'r1', perBrowser: [{ browser: 'chrome', status: 'failed' }] });
+    expect(latestByBrowser([r13, r7, r1]).map((x) => [x.browser, x.status, x.result.id])).toEqual([
+      ['chrome', 'passed', 'r13'],
+      ['firefox', 'passed', 'r7'],
+      ['webkit', 'failed', 'r7'],
+    ]);
+    expect(latestByBrowser([r13, r1])).toEqual([]);
+  });
+
+  it("Looks fine on one browser's step; flags count every browser", () => {
+    const next = setVisualDismissed(multi, 2, { by: 'QA', at: 'now' }, 'firefox');
+    expect(next.perBrowser[1]!.steps![1]!.visual!.dismissed).toEqual({ by: 'QA', at: 'now' });
+    expect(next.steps[1]!.visual!.dismissed).toBeUndefined();
+    expect(next.flags.visualChanges).toBe(3); // Safari 2 + Chrome 1; Firefox dismissed
+    const lead = setVisualDismissed(multi, 2, { by: 'QA', at: 'now' });
+    expect(lead.steps[1]!.visual!.dismissed).toBeDefined();
+    expect(lead.perBrowser[2]!.steps![1]!.visual!.dismissed).toBeDefined();
+    expect(lead.flags.visualChanges).toBe(2);
+  });
+
+  it("the bug report describes the chosen browser's evidence", () => {
+    const run = { number: 7, environment: { name: 'Prod', platforms: [] }, viewport: { width: 1920, height: 1080 }, startedAt: '2026-10-06T09:00:00.000Z' };
+    const r = buildBugReportFor({ result: multi, test: { testId: 'NAV-07', title: 'Our Services mega menu' }, run });
+    expect(r.environment).toBe('Prod · Safari (WebKit) 1920×1080 · Run #7, 6 Oct 2026');
+    expect(r.actual).toBe('No menu in Safari');
+    expect(r.screenshots.map((x) => x.screenshotId)).toEqual(['w1', 'w2']);
   });
 });

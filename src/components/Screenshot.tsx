@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils';
 /**
  * ScreenshotPlaceholder (08): the prototype has no real screenshots, so a grey box with a caption stands in.
  * A thumbnail with `onOpen` is a real button (click → viewer, 07-results 6.1).
+ * Sizes: `thumb` 80 px wide · `preview` up to 240 px (an expanded step; the same element as its thumb, so switching
+ * between the two grows or shrinks it, D84) · `panel` full width. Thumb and preview are 16:9 like every run (D27).
  */
 export function ScreenshotPlaceholder({
   caption,
@@ -14,7 +16,7 @@ export function ScreenshotPlaceholder({
   className,
 }: {
   caption: string;
-  size?: 'thumb' | 'panel';
+  size?: 'thumb' | 'preview' | 'panel';
   onOpen?: () => void;
   /** Accessible name of the open button, e.g. "Open screenshot of step 2". */
   openLabel?: string;
@@ -23,7 +25,9 @@ export function ScreenshotPlaceholder({
 }) {
   const box = cn(
     'relative flex items-center justify-center overflow-hidden rounded-control border border-dashed border-border bg-bg text-center text-label font-normal text-text-muted',
-    size === 'thumb' ? 'h-12 w-20 shrink-0' : 'aspect-video w-full',
+    size === 'panel' ? 'aspect-video w-full' : 'aspect-video shrink-0 transition-[width] duration-200 ease-out',
+    size === 'thumb' && 'w-20',
+    size === 'preview' && 'w-[min(15rem,40%)]',
     className,
   );
   const body = (

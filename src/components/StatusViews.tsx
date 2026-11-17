@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Ban, Bot, Bug, CircleHelp, CloudOff, Database, FileCode, FileQuestion, Globe, ServerCrash, Sparkles, Table2, type LucideIcon } from 'lucide-react';
 import type { Browser, CcReason, FailReason, Mode, Status } from '@/data/types';
 import { Chip, type ChipTone } from '@/components/ui/chip';
@@ -53,6 +54,27 @@ const modeIcons: Record<Mode, LucideIcon> = { ai: Sparkles, script: FileCode, da
 
 export function ModeChip({ mode }: { mode: Mode }) {
   return <Chip icon={modeIcons[mode]}>{modeLabels[mode]}</Chip>;
+}
+
+/**
+ * Browser marks (D85, D86): one status icon and browser name per browser, e.g. "✓ Chrome ✓ Firefox ✕ Safari".
+ * The status is also text for screen readers, so it never depends on colour or shape alone.
+ */
+export function BrowserMarks({ marks, className }: { marks: { key: string; status: Status; label: ReactNode }[]; className?: string }) {
+  return (
+    <span className={cn('inline-flex flex-wrap items-center gap-x-2.5 gap-y-0.5', className)}>
+      {marks.map((m) => {
+        const { Icon, className: tone } = statusIcons[m.status];
+        return (
+          <span key={m.key} className="inline-flex items-center gap-1">
+            <Icon aria-hidden="true" className={cn('size-3.5 shrink-0', tone)} />
+            {m.label}
+            <span className="sr-only"> {statusLabels[m.status]}</span>
+          </span>
+        );
+      })}
+    </span>
+  );
 }
 
 /** Browser chip; with several browsers it also shows that browser's status icon. */

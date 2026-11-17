@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FolderPlus, Library, Plus, Sparkles, Upload } from 'lucide-react';
+import { FolderPlus, Library, Plus, Upload } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { cloneTests, deleteTests, listKnowledge, listLatestResults, listRuns, listSuites, listLibraryTests } from '@/data/api';
 import type { ID } from '@/data/types';
 import { Button, buttonClasses } from '@/components/ui/button';
+import { AiExploreIcon } from '@/components/AiExploreIcon';
 import { SplitPane } from '@/components/ui/split-pane';
 import { Toast, type ToastMessage } from '@/components/ui/toast';
 import { ErrorState, LoadingState } from '@/components/StateViews';
@@ -129,7 +130,7 @@ export function SuitesScreen() {
               New suite
             </Button>
             <Link to={to.explore(project.id)} className={buttonClasses({ variant: 'primary' })}>
-              <Sparkles aria-hidden="true" />
+              <AiExploreIcon aria-hidden="true" />
               Explore with AI
             </Link>
           </div>

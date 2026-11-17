@@ -33,6 +33,8 @@ export const modeLabels: Record<Mode, string> = { ai: 'AI', script: 'Script', da
 
 /** BR-STATUS-03: WebKit is labelled "Safari (WebKit)". */
 export const browserLabels: Record<Browser, string> = { chrome: 'Chrome', firefox: 'Firefox', webkit: 'Safari (WebKit)' };
+/** Short names for compact browser marks (rows, history); the full name stays in chips and headings. */
+export const browserShortLabels: Record<Browser, string> = { chrome: 'Chrome', firefox: 'Firefox', webkit: 'Safari' };
 
 export const scriptLabels: Record<TestCase['script']['state'], string> = {
   recorded: 'Script: recorded',

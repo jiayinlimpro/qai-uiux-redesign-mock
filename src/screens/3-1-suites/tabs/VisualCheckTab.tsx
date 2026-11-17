@@ -2,17 +2,20 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Columns2, Plus, X } from 'lucide-react';
 import { getTestHistory } from '@/data/api';
-import type { TestCase } from '@/data/types';
+import type { Browser, TestCase } from '@/data/types';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { Dialog } from '@/components/ui/dialog';
 import { Checkbox, Field, Input, Select } from '@/components/ui/field';
+import { SegmentedControl } from '@/components/ui/segmented';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { StatusLine, errorText, type SaveStatus } from '@/components/StatusLine';
 import { useAsync } from '@/app/hooks/useAsync';
 import { useProject } from '@/app/projectContext';
 import { to } from '@/app/routes';
 import { plural } from '@/lib/format';
+import { browserLabels } from '@/lib/labels';
+import { browserEvidence } from '@/lib/resultRules';
 import { latestComparison } from '@/lib/suiteRules';
 import { VisualCompare } from '@/components/VisualCompare';
 import { useSuites } from '../suitesContext';
@@ -21,6 +24,7 @@ import type { SaveTest } from '../TestDetail';
 /**
  * Visual check tab (screens/04-suites.md, BR-VISUAL-*): project on/off · Exclude this test · latest comparison
  * (Step · No change / n areas changed / No previous run · Compare) · Ignore areas · Pin a reference (Later, display only).
+ * D86: when the latest replay ran in several browsers, a Browser switcher picks whose comparison is shown (BR-VISUAL-02).
  * Visual settings never create a new version.
  */
 export function VisualCheckTab({ test, save }: { test: TestCase; save: SaveTest }) {
@@ -33,10 +37,14 @@ export function VisualCheckTab({ test, save }: { test: TestCase; save: SaveTest 
   const [compare, setCompare] = useState<{ stepIndex: number; draw?: { areaId: string; label: string } } | null>(null);
   const on = project.settings.visualComparison;
 
+  const [chosen, setChosen] = useState<Browser | undefined>();
   const comparison = history.status === 'ready' ? latestComparison(history.data, s.runs) : null;
-  const stepNames = comparison ? comparison.result.steps.map((st) => st.text) : test.steps;
+  const multi = (comparison?.result.perBrowser.length ?? 0) > 1;
+  const evidence = comparison ? browserEvidence(comparison.result, comparison.result.perBrowser.find((b) => b.browser === chosen)?.browser) : null;
+  const compared = evidence?.steps ?? [];
+  const stepNames = comparison ? compared.map((st) => st.text) : test.steps;
   /** A step can be drawn on when the latest comparison has its screenshot. */
-  const drawable = (stepIndex: number) => Boolean(comparison?.result.steps.find((st) => st.index === stepIndex)?.screenshotId);
+  const drawable = (stepIndex: number) => Boolean(compared.find((st) => st.index === stepIndex)?.screenshotId);
 
   async function apply(change: (t: TestCase) => TestCase, text: string) {
     try {
@@ -85,7 +93,19 @@ export function VisualCheckTab({ test, save }: { test: TestCase; save: SaveTest 
             <h3 className="p-4 font-semibold">
               Latest comparison · Run #{comparison.run.number}
               {comparison.previousRun ? ` vs Run #${comparison.previousRun.number}` : ''} · {comparison.run.environment.name}
+              {multi && evidence ? ` · ${browserLabels[evidence.browser]}` : ''}
             </h3>
+            {multi && evidence && (
+              <div className="flex flex-wrap items-center gap-2.5 px-4 pb-3">
+                <span className="text-label text-text-muted">Browser</span>
+                <SegmentedControl
+                  label="Browser"
+                  value={evidence.browser}
+                  onChange={setChosen}
+                  options={comparison.result.perBrowser.map((b) => ({ value: b.browser, label: browserLabels[b.browser] }))}
+                />
+              </div>
+            )}
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="border-y border-border text-label text-text-muted">
@@ -101,7 +121,7 @@ export function VisualCheckTab({ test, save }: { test: TestCase; save: SaveTest 
                 </tr>
               </thead>
               <tbody>
-                {comparison.result.steps.map((st) => {
+                {compared.map((st) => {
                   const v = st.visual;
                   return (
                     <tr key={st.index} className="border-b border-border last:border-b-0">
@@ -123,7 +143,7 @@ export function VisualCheckTab({ test, save }: { test: TestCase; save: SaveTest 
                             Compare<span className="sr-only"> step {st.index}</span>
                           </Button>
                         ) : (
-                          <Link to={to.run(project.id, comparison.run.id, comparison.result.id)} className="text-accent underline underline-offset-2">
+                          <Link to={to.run(project.id, comparison.run.id, comparison.result.id, multi ? evidence?.browser : undefined)} className="text-accent underline underline-offset-2">
                             Open result<span className="sr-only"> of step {st.index}</span>
                           </Link>
                         )}
@@ -207,6 +227,7 @@ export function VisualCheckTab({ test, save }: { test: TestCase; save: SaveTest 
           test={test}
           displayId={test.testId}
           stepIndex={compare.stepIndex}
+          {...(evidence ? { browser: evidence.browser } : {})}
           {...(compare.draw ? { draw: compare.draw } : {})}
           onClose={() => setCompare(null)}
           onResultChange={() => s.reload()}

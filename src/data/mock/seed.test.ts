@@ -1,4 +1,5 @@
 import { modeFor } from '@/lib/runRules';
+import { rollUpBrowsers } from '@/lib/resultRules';
 import { showsNeedsFixingBadge } from '@/lib/exploreRules';
 import { countRunStatuses, latestStatus, passRate, sumCost } from '@/lib/status';
 import seedCsv from '../../../docs/fixtures/qcfixer-tests-seed.csv?raw';
@@ -105,6 +106,58 @@ describe('sample data matches docs/07', () => {
     expect(cnt03.testData?.rows.map((r) => r.variedField ?? 'recorded')).toEqual(['recorded', 'email', 'email', 'name', 'topic']);
     // BR-TEST-03: every field is a {placeholder} in the steps
     for (const f of cnt03.testData!.fields) expect(cnt03.steps.join(' ')).toContain(`{${f.name}}`);
+  });
+
+  it('BR-STATUS-03: every result status is the roll-up of its browsers', () => {
+    for (const r of db.results) expect(rollUpBrowsers(r.perBrowser), `${displayId(r.testId)} in #${runNumberOf(r)}`).toBe(r.status);
+  });
+
+  it('D85: multi-browser examples — #7 NAV-07 fails in Safari only; #10 AI failures leave Firefox not run (BR-RUN-03)', () => {
+    expect(run(7).browsers).toEqual(['chrome', 'firefox', 'webkit']);
+    const nav07 = resultFor(7, 'NAV-07');
+    expect(nav07.mode).toBe('script');
+    const statusOnly = (r: Result) => r.perBrowser.map(({ browser, status }) => ({ browser, status }));
+    expect(statusOnly(nav07)).toEqual([
+      { browser: 'chrome', status: 'passed' },
+      { browser: 'firefox', status: 'passed' },
+      { browser: 'webkit', status: 'failed' },
+    ]);
+    expect(nav07.status).toBe('failed');
+    expect(countRunStatuses(run(7).testIds, resultsOf(7))).toEqual({ passed: 14, failed: 1, couldnt_complete: 0, not_run: 0 });
+
+    expect(run(10).browsers).toEqual(['chrome', 'firefox']);
+    const prt01 = resultFor(10, 'PRT-01');
+    expect(prt01.mode).toBe('ai');
+    expect(statusOnly(prt01)).toEqual([
+      { browser: 'chrome', status: 'failed' },
+      { browser: 'firefox', status: 'not_run' },
+    ]);
+    // Tests with a script replay in both browsers.
+    const replays = resultsOf(10).filter((r) => r.mode === 'script');
+    expect(replays.length).toBeGreaterThan(0);
+    for (const r of replays) expect(r.perBrowser.map((b) => b.status)).toEqual(['passed', 'passed']);
+  });
+
+  it('D86: each browser that ran keeps its own evidence; the result-level evidence is the lead browser’s', () => {
+    const nav07 = resultFor(7, 'NAV-07');
+    const [chrome, firefox, safari] = nav07.perBrowser;
+    // Safari decided the status, so the result-level steps and failure are Safari's.
+    expect(safari!.steps).toEqual(nav07.steps);
+    expect(safari!.failure).toEqual(nav07.failure);
+    expect(nav07.steps.every((s) => !s.screenshotId || s.screenshotId.endsWith('-webkit'))).toBe(true);
+    // Chrome and Firefox passed every step, with their own screenshots.
+    for (const b of [chrome!, firefox!]) {
+      expect(b.steps!.every((s) => s.status === 'passed')).toBe(true);
+      expect(b.failure).toBeUndefined();
+    }
+    expect(firefox!.steps![0]!.screenshotId).toBe('shot-7-nav-07-1-firefox');
+    expect(chrome!.steps![0]!.screenshotId).toBe('shot-7-nav-07-1');
+    // #10: Firefox was not run after the AI run in Chrome failed, so it has no evidence.
+    const prt01 = resultFor(10, 'PRT-01');
+    expect(prt01.perBrowser[1]!.steps).toBeUndefined();
+    expect(prt01.perBrowser[0]!.steps).toEqual(prt01.steps);
+    // Single-browser results store nothing per browser.
+    for (const r of db.results.filter((x) => x.perBrowser.length === 1)) expect(r.perBrowser[0]!.steps).toBeUndefined();
   });
 
   it('NAV-01: 3 changed areas at step 2 in #12, compared with the previous UAT replay (#9)', () => {

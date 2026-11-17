@@ -200,12 +200,13 @@ export function placeholdersIn(steps: string[]): string[] {
  * replay of the same environment it was compared with (null → "No previous run to compare").
  * `history` is newest first.
  */
-export function latestComparison<R extends Pick<Result, 'runId' | 'mode' | 'steps'>, Rn extends { id: ID; environmentId: ID }>(
+export function latestComparison<R extends Pick<Result, 'runId' | 'mode' | 'steps'> & { perBrowser?: { steps?: Result['steps'] }[] }, Rn extends { id: ID; environmentId: ID }>(
   history: R[],
   runs: Rn[],
 ): { result: R; run: Rn; previousRun: Rn | null } | null {
   const runOf = (r: R) => runs.find((x) => x.id === r.runId);
-  const i = history.findIndex((r) => r.mode === 'script' && r.steps.some((s) => s.visual));
+  // Any browser's steps may carry the comparison (D86: each browser is compared with its own previous replay).
+  const i = history.findIndex((r) => r.mode === 'script' && [r.steps, ...(r.perBrowser ?? []).map((b) => b.steps ?? [])].some((st) => st.some((s) => s.visual)));
   if (i < 0) return null;
   const result = history[i]!;
   const run = runOf(result);

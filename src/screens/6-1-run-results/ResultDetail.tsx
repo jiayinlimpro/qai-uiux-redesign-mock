@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Bug, Code, Ellipsis, Folder, ListChecks, Pencil, RotateCcw, ShieldCheck } from 'lucide-react';
-import type { KnowledgeItem, ResultStep, Run, TestCase } from '@/data/types';
+import type { Browser, KnowledgeItem, ResultStep, Run, TestCase } from '@/data/types';
 import { Button, buttonClasses } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { TabPanel, Tabs } from '@/components/ui/tabs';
@@ -27,8 +27,10 @@ export function ResultDetail({
   projectId,
   knowledge,
   runs,
-  showTechnical,
-  setShowTechnical,
+  browser,
+  onBrowserChange,
+  showRawActions,
+  setShowRawActions,
   onRerun,
   onCopyBugReport,
   onOverride,
@@ -42,8 +44,11 @@ export function ResultDetail({
   projectId: string;
   knowledge: KnowledgeItem[];
   runs: Run[];
-  showTechnical: boolean;
-  setShowTechnical: (on: boolean) => void;
+  /** The selected browser of a multi-browser result (D86). */
+  browser?: Browser;
+  onBrowserChange: (browser: Browser) => void;
+  showRawActions: boolean;
+  setShowRawActions: (on: boolean) => void;
   onRerun: () => void;
   onCopyBugReport: () => void;
   onOverride: () => void;
@@ -196,8 +201,10 @@ export function ResultDetail({
               <StepsEvidence
                 result={r}
                 test={test}
-                showTechnical={showTechnical}
-                setShowTechnical={setShowTechnical}
+                {...(browser ? { browser } : {})}
+                onBrowserChange={onBrowserChange}
+                showRawActions={showRawActions}
+                setShowRawActions={setShowRawActions}
                 onOpenScreenshot={onOpenScreenshot}
                 onOpenVisual={onOpenVisual}
                 onCopyBugReport={bugReport ? onCopyBugReport : undefined}

@@ -29,9 +29,10 @@ import type {
 import { contentToSteps, idPrefixOf, parseBrowserList, readTemplateCsv } from '@/lib/importRules';
 import { knowledgeForRun, modeFor, snapshotEnvironment } from '@/lib/runRules';
 import { sumCost } from '@/lib/status';
+import { leadBrowser } from '@/lib/resultRules';
 import { actionsFor, aiThoughtFor, deriveSteps, intentSteps, logsFor, startUrl, urlsFor, usageFor } from './evidence';
 
-export const SEED_VERSION = 14;
+export const SEED_VERSION = 16; // 15: multi-browser examples in #7 and #10 (D85); 16: evidence per browser (D86)
 
 /**
  * Mock engine pace for seeded demo runs: timer ticks per work tick (normal runs: 1). Run #14 has 14 work ticks left
@@ -66,8 +67,9 @@ const PLATFORM = { customer: 'platform-customer', admin: 'platform-admin' } as c
 const testKey = (displayId: string): ID => `t-${displayId.toLowerCase()}`;
 const runKey = (n: number): ID => `run-${n}`;
 const resultKey = (runNumber: number, displayId: string): ID => `res-${runNumber}-${displayId.toLowerCase()}`;
-const shotKey = (runNumber: number, displayId: string, step: number): ID =>
-  `shot-${runNumber}-${displayId.toLowerCase()}-${step}`;
+// Chrome screenshots keep the short key; other browsers' screenshots are their own (D86).
+const shotKey = (runNumber: number, displayId: string, step: number, browser: Browser = 'chrome'): ID =>
+  `shot-${runNumber}-${displayId.toLowerCase()}-${step}${browser === 'chrome' ? '' : `-${browser}`}`;
 const addMs = (iso: string, ms: number): string => new Date(Date.parse(iso) + ms).toISOString();
 
 const PROJECT_CREATED = '2026-09-01T09:00:00.000Z';
@@ -233,6 +235,11 @@ interface Outcome {
   reason?: FailReason | CcReason;
   /** 1-based step where it failed / stopped; default last step. */
   atStep?: number;
+  /**
+   * Browsers whose status differs from `status` (multi-browser runs). `status` stays the rolled-up result
+   * (BR-STATUS-03), and the steps and failure are the failing browser's.
+   */
+  perBrowser?: Partial<Record<Browser, Exclude<Status, 'not_run'>>>;
   expected?: string;
   found?: string;
   /** One-line AI reasoning on the failing step. */
@@ -267,12 +274,12 @@ interface RunSpec {
 const runs: Run[] = [];
 const results: Result[] = [];
 
-function buildSteps(runNumber: number, t: TestCase, mode: Mode, o: Outcome, durationMs: number, environmentId: ID): ResultStep[] {
+function buildSteps(runNumber: number, t: TestCase, mode: Mode, o: Outcome, durationMs: number, environmentId: ID, browser: Browser = 'chrome'): ResultStep[] {
   const texts = intentSteps(t).steps;
   const stopAt = o.status === 'passed' ? texts.length + 1 : Math.min(o.atStep ?? texts.length, texts.length);
   const executed = Math.min(stopAt, texts.length);
   const each = Math.round(durationMs / Math.max(executed, 1));
-  const previous = mode === 'script' ? replayHistory.get(replayKey(t.id, environmentId, 'chrome')) : undefined;
+  const previous = mode === 'script' ? replayHistory.get(replayKey(t.id, environmentId, browser)) : undefined;
   const platformUrl = snapshotEnvironment(projects[0]!, environmentId).platforms.find((a) => a.platformId === PLATFORM.customer)?.url ?? null;
   const urls = urlsFor(texts, startUrl(t, platformUrl));
   return texts.map((text, i) => {
@@ -285,7 +292,7 @@ function buildSteps(runNumber: number, t: TestCase, mode: Mode, o: Outcome, dura
       status,
       durationMs: ran ? each : 0,
       actions: ran ? (o.actions?.[index] ?? actionsFor(text, urls[i]!)) : [],
-      ...(ran ? { screenshotId: shotKey(runNumber, t.testId, index), url: urls[i]! } : {}),
+      ...(ran ? { screenshotId: shotKey(runNumber, t.testId, index, browser), url: urls[i]! } : {}),
     };
     if (index === stopAt && o.expected && o.found) step.check = { expected: o.expected, found: o.found, ok: false };
     if (index === stopAt && o.note) step.aiReasoning = o.note;
@@ -293,7 +300,7 @@ function buildSteps(runNumber: number, t: TestCase, mode: Mode, o: Outcome, dura
     // BR-VISUAL-01/02: script replays compare each step with the previous replay (same test, environment, browser).
     if (ran && previous !== undefined && !t.visual.excluded) {
       step.visual = {
-        previousScreenshotId: shotKey(previous, t.testId, index),
+        previousScreenshotId: shotKey(previous, t.testId, index, browser),
         changedAreas: o.visualChanges?.[index] ?? 0,
         ...(o.visualRegions?.[index] ? { changedRegions: o.visualRegions[index] } : {}),
       };
@@ -318,8 +325,26 @@ function simulateRun(spec: RunSpec): void {
     const aiVerdict = o.aiVerdict ?? { status: o.status, reason: o.reason, confidence: o.confidence ?? 'high' };
     // Steps show what the AI saw; an override (BR-STATUS-05) changes the result status, not the evidence.
     const seen: Outcome = o.override && aiVerdict.status !== 'not_run' ? { ...o, status: aiVerdict.status } : o;
-    const steps = buildSteps(spec.number, t, mode, seen, durationMs, spec.environmentId);
-    const visualChanges = steps.reduce((sum, s) => sum + (s.visual?.changedAreas ?? 0), 0);
+    // BR-RUN-03: AI runs use Chrome; other browsers replay only if the AI run passed. `o.perBrowser` sets mixed outcomes.
+    const statuses: { browser: Browser; status: Status }[] = browsers.map((browser) => ({
+      browser,
+      status: o.perBrowser?.[browser] ?? (mode === 'script' || browser === 'chrome' || o.status === 'passed' ? o.status : 'not_run'),
+    }));
+    // The result-level evidence is the lead browser's: the one the status comes from (D86).
+    const lead = leadBrowser(statuses) ?? 'chrome';
+    const steps = buildSteps(spec.number, t, mode, seen, durationMs, spec.environmentId, lead);
+    const failStep = seen.status === 'passed' ? undefined : Math.min(seen.atStep ?? steps.length, steps.length);
+    const failure = failStep && o.expected && o.found ? { stepIndex: failStep, expected: o.expected, found: o.found } : undefined;
+    // D86: on a multi-browser result every browser that ran keeps its own steps; non-Chrome browsers replay the script.
+    const perBrowser: Result['perBrowser'] = statuses.map(({ browser, status }) => {
+      if (browsers.length < 2 || status === 'not_run') return { browser, status };
+      if (browser === lead) return { browser, status, steps, durationMs, ...(failure ? { failure } : {}), ...(seen.status !== 'passed' && o.reason ? { reason: o.reason } : {}) };
+      const own: Outcome = status === 'passed' ? PASSED : { ...seen, status: status as Outcome['status'] };
+      const ms = Math.round(durationMs * (browser === 'firefox' ? 0.9 : browser === 'webkit' ? 1.05 : 1));
+      const ownSteps = buildSteps(spec.number, t, browser === 'chrome' ? mode : 'script', own, ms, spec.environmentId, browser);
+      return { browser, status, steps: ownSteps, durationMs: ms, ...(status !== 'passed' && failure ? { failure } : {}), ...(status !== 'passed' && o.reason ? { reason: o.reason } : {}) };
+    });
+    const visualChanges = [steps, ...perBrowser.filter((b) => b.browser !== lead && b.steps).map((b) => b.steps!)].flat().reduce((sum, s) => sum + (s.visual?.changedAreas ?? 0), 0);
     // BR-WORTH [PROPOSAL]: Needs confirmation or a low-confidence verdict.
     const worthALook =
       o.worthALook ??
@@ -328,7 +353,6 @@ function simulateRun(spec: RunSpec): void {
         : aiVerdict.confidence === 'low'
           ? 'Low confidence verdict'
           : undefined);
-    const failStep = seen.status === 'passed' ? undefined : Math.min(seen.atStep ?? steps.length, steps.length);
     const cost = o.cost ?? (mode === 'script' ? SCRIPT_REPLAY_COST : aiCostFor(n));
     const startedAt = addMs(spec.startedAt, offsetMs);
     offsetMs += durationMs;
@@ -343,12 +367,8 @@ function simulateRun(spec: RunSpec): void {
       status: o.status,
       reason: o.reason,
       aiVerdict,
-      // BR-RUN-03: AI runs use Chrome; other browsers replay only if the AI run passed.
-      perBrowser: browsers.map((browser) => ({
-        browser,
-        status: mode === 'script' || browser === 'chrome' || o.status === 'passed' ? o.status : 'not_run',
-      })),
-      ...(failStep && o.expected && o.found ? { failure: { stepIndex: failStep, expected: o.expected, found: o.found } } : {}),
+      perBrowser,
+      ...(failure ? { failure } : {}),
       steps,
       cost,
       durationMs,
@@ -449,9 +469,18 @@ simulateRun({
 });
 
 // #7: Navigation on Prod in three browsers (script replays; no Prod visual history yet).
+// NAV-07 fails in Safari only: the services menu opens on hover in Chrome and Firefox (BR-STATUS-03 roll-up: Failed).
+// The failed replay costs more because the failure is classified by AI.
 simulateRun({
   number: 7, startedAt: '2026-10-06T09:00:00.000Z', environmentId: ENV.prod, scopeLabel: '01 Navigation',
   testIds: idsOfSuites('NAV'), browsers: ['chrome', 'firefox', 'webkit'],
+  outcomes: {
+    'NAV-07': {
+      status: 'failed', reason: 'product_bug', perBrowser: { chrome: 'passed', firefox: 'passed' }, cost: 0.16,
+      expected: 'A services menu opens with its groups and links',
+      found: 'In Safari (WebKit) no services menu opened on hover or click; the header stayed unchanged',
+    },
+  },
 });
 
 // #8: CNT-04 re-run. AI said Needs confirmation; the tester overrode it to Passed. No script (AI verdict not passed).
@@ -480,10 +509,11 @@ editTest('CNT-04', '2026-10-20T11:00:00.000Z', (t) => {
 
 // #9: Navigation on UAT, first UAT replays (become the visual "previous run" for #12).
 simulateRun({ number: 9, startedAt: '2026-10-22T09:00:00.000Z', environmentId: ENV.uat, scopeLabel: '01 Navigation', testIds: idsOfSuites('NAV') });
-// #10: re-check of the content suites after a site update: same problems remain.
+// #10: re-check of the content suites after a site update, in Chrome and Firefox: same problems remain.
+// The failing tests run as AI runs (their last AI run failed), so Firefox is Not run for them (BR-RUN-03).
 simulateRun({
   number: 10, startedAt: '2026-10-24T09:00:00.000Z', environmentId: ENV.uat, scopeLabel: '3 suites',
-  testIds: idsOfSuites('CONS', 'PRT', 'NWS'),
+  testIds: idsOfSuites('CONS', 'PRT', 'NWS'), browsers: ['chrome', 'firefox'],
   outcomes: { 'CONS-02': OUT['CONS-02'], 'NWS-02': OUT['NWS-02'], 'PRT-01': OUT['PRT-01'], 'PRT-02': OUT['PRT-02'], 'PRT-03': OUT['PRT-03'] },
 });
 

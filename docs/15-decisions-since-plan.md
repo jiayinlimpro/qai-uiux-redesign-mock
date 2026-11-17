@@ -1,6 +1,6 @@
 # 15 · Decisions since the plan that change or add scope
 
-Decisions D24–D81 (`12-decision-log.md`) compared with the original spec. One line each: what changed and where.
+Decisions D24–D86 (`12-decision-log.md`) compared with the original spec. One line each: what changed and where.
 **Changed** = the spec said something else. **Added** = the spec was silent or vague and the prototype now does it.
 Decisions that only clarify wording or implementation, without changing scope, are listed at the end.
 
@@ -62,4 +62,4 @@ Decisions that only clarify wording or implementation, without changing scope, a
 | D80 | Changed | Component language (icons in buttons and chips, filter toolbar, summary tiles, floating bulk bar) and six placement changes (Copy bug report in the failure card, primary last, Suites header and status filter, suite pass/fail bars, row quick Re-run, one floating bulk bar) | 08 · 6.1 · 3.1 · 3.2 |
 
 **Clarifications without a scope change**: D26 (hash addresses, all routes in `routes.ts`), D31 (the breadcrumb shows
-pages, not selections), D69 (the banned legacy "Upload" means test-file upload; Knowledge keeps "Upload"), D81 (accessibility pass: one h1 per page, app-wide reduced motion, filter pill focus ring; refreshed reference screenshots).
+pages, not selections), D69 (the banned legacy "Upload" means test-file upload; Knowledge keeps "Upload"), D81 (accessibility pass: one h1 per page, app-wide reduced motion, filter pill focus ring; refreshed reference screenshots), D82 (AI explore has its own icon: a compass with the AI sparkle; Sparkles stays for AI in general), D83 ("Show technical details" renamed "Show raw actions and locators"; its box is "As recorded"), D84 (one screenshot per step: the thumbnail grows into a preview when the step expands), D85 (multi-browser examples in Runs #7 and #10; browser marks only when browsers disagree, never cut off; browsers in the run header), D86 (evidence per browser: Browser switcher in Run results; By browser line, browser marks and switcher in Suites; the test status stays its latest result).

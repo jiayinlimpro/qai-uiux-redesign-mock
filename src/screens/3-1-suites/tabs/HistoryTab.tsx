@@ -3,12 +3,12 @@ import { getTestHistory } from '@/data/api';
 import type { TestCase } from '@/data/types';
 import { Chip } from '@/components/ui/chip';
 import { ErrorState, LoadingState } from '@/components/StateViews';
-import { ReasonChip, StatusChip } from '@/components/StatusViews';
+import { BrowserMarks, ReasonChip, StatusChip } from '@/components/StatusViews';
 import { useAsync } from '@/app/hooks/useAsync';
 import { useProject } from '@/app/projectContext';
 import { to } from '@/app/routes';
 import { formatDate } from '@/lib/format';
-import { browserLabels, modeLabels } from '@/lib/labels';
+import { browserShortLabels, modeLabels } from '@/lib/labels';
 import { useSuites } from '../suitesContext';
 
 /**
@@ -57,7 +57,9 @@ export function HistoryTab({ test }: { test: TestCase }) {
                   {r.testVersion < test.version && <Chip className="ml-1">old version</Chip>}
                 </td>
                 <td className="px-4 py-2">{modeLabels[r.mode]}</td>
-                <td className="px-4 py-2">{r.perBrowser.map((b) => browserLabels[b.browser]).join(', ')}</td>
+                <td className="px-4 py-2">
+                  <BrowserMarks marks={r.perBrowser.map((b) => ({ key: b.browser, status: b.status, label: browserShortLabels[b.browser] }))} />
+                </td>
                 <td className="px-4 py-2">
                   <div className="flex flex-wrap gap-1">
                     <StatusChip status={r.status} />

@@ -1,7 +1,7 @@
 import { Bug, Check, ChevronLeft, ChevronRight, EyeOff } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { dismissVisualFlag, getTest, getTestHistory, listRuns, saveTest } from '@/data/api';
-import type { ID, Result, Run, TestCase } from '@/data/types';
+import type { Browser, ID, Result, Run, TestCase } from '@/data/types';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { Dialog } from '@/components/ui/dialog';
@@ -12,7 +12,7 @@ import { BugReportDialog } from '@/components/BugReportDialog';
 import { useAsync } from '@/app/hooks/useAsync';
 import { browserLabels } from '@/lib/labels';
 import { formatDate, plural } from '@/lib/format';
-import { clampRect, rectFromCorners, type Rect } from '@/lib/resultRules';
+import { allBrowserSteps, browserEvidence, clampRect, rectFromCorners, type Rect } from '@/lib/resultRules';
 
 const DEFAULT_RECT: Rect = { x: 0.35, y: 0.35, width: 0.3, height: 0.2 };
 /** D64: outline the regions the engine returned; without them, the prototype's placeholder positions. */
@@ -32,11 +32,14 @@ export function VisualCompare({
   displayId,
   stepIndex,
   draw,
+  browser: chosen,
   onClose,
   onResultChange,
   onTestChange,
 }: {
   result: Result;
+  /** Whose screenshots (D86); default: the lead browser. */
+  browser?: Browser;
   run: Run;
   /** null when the test was deleted: ignore areas can't be added. */
   test: TestCase | null;
@@ -47,7 +50,8 @@ export function VisualCompare({
   onResultChange?: (r: Result) => void;
   onTestChange?: (t: TestCase) => void;
 }) {
-  const ran = result.steps.filter((s) => s.screenshotId);
+  const stepsOf = (r: Result) => browserEvidence(r, chosen).steps ?? r.steps;
+  const ran = stepsOf(result).filter((s) => s.screenshotId);
   const [index, setIndex] = useState(stepIndex);
   const [current, setCurrent] = useState(result);
   const [currentTest, setCurrentTest] = useState(test);
@@ -60,21 +64,22 @@ export function VisualCompare({
   const previous = useAsync(async () => {
     const [history, runs] = await Promise.all([getTestHistory(result.testId), listRuns(run.projectId)]);
     return (screenshotId: ID | undefined) => {
-      const r = screenshotId ? history.find((h) => h.steps.some((s) => s.screenshotId === screenshotId)) : undefined;
+      const r = screenshotId ? history.find((h) => allBrowserSteps(h).some((s) => s.screenshotId === screenshotId)) : undefined;
       return r ? runs.find((x) => x.id === r.runId) : undefined;
     };
   }, [result.testId, run.projectId]);
 
-  const step = current.steps.find((s) => s.index === index) ?? current.steps[0]!;
+  const step = stepsOf(current).find((s) => s.index === index) ?? stepsOf(current)[0]!;
   const v = step.visual;
   const prevRun = v?.previousScreenshotId && previous.status === 'ready' ? previous.data(v.previousScreenshotId) : undefined;
   const pos = ran.findIndex((s) => s.index === index);
-  const browser = browserLabels[current.perBrowser[0]?.browser ?? 'chrome'];
+  const which = browserEvidence(current, chosen).browser;
+  const browser = browserLabels[which];
   const ignored = (currentTest?.visual.ignoreAreas ?? []).filter((a) => a.stepIndex === index && a.rect && a.id !== drawing?.areaId);
 
   async function setLooksFine(dismissed: boolean) {
     try {
-      const next = await dismissVisualFlag(current.id, index, dismissed);
+      const next = await dismissVisualFlag(current.id, index, dismissed, which);
       setCurrent(next);
       onResultChange?.(next);
       setStatus({ tone: 'ok', text: dismissed ? 'Marked as looks fine. The flag no longer counts.' : 'The flag is back.' });
@@ -236,7 +241,7 @@ export function VisualCompare({
         </div>
         <StatusLine status={status} />
       </Dialog>
-      {bugReport && <BugReportDialog items={[{ resultId: current.id, label: displayId, visualStepIndex: index }]} onClose={() => setBugReport(false)} />}
+      {bugReport && <BugReportDialog items={[{ resultId: current.id, label: displayId, visualStepIndex: index, browser: which }]} onClose={() => setBugReport(false)} />}
     </>
   );
 }

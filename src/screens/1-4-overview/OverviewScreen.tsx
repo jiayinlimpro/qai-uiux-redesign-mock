@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CirclePause, CircleStop, Folder, History, Monitor, Play, Plus, Rocket, Server, Sparkles, TriangleAlert, Upload, type LucideIcon } from 'lucide-react';
+import { ArrowRight, CirclePause, CircleStop, Folder, History, Monitor, Play, Plus, Rocket, Server, TriangleAlert, Upload, type LucideIcon } from 'lucide-react';
 import { listLatestResults, listLibraryTests, listResults, listRuns, listSuites, stopRun } from '@/data/api';
 import type { ID } from '@/data/types';
 import { Button, buttonClasses } from '@/components/ui/button';
+import { AiExploreIcon } from '@/components/AiExploreIcon';
 import { Table, Td, Th, Tr } from '@/components/ui/table';
 import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
 import { RunDialog } from '@/components/RunDialog';
@@ -71,7 +72,7 @@ export function OverviewScreen() {
                   Set up environments
                 </Link>
                 <Link to={to.explore(project.id)} state={exploreState} className={buttonClasses({ variant: 'primary' })}>
-                  <Sparkles aria-hidden="true" />
+                  <AiExploreIcon aria-hidden="true" />
                   Explore with AI
                 </Link>
               </>
@@ -166,7 +167,7 @@ export function OverviewScreen() {
 
       <div className="grid gap-4 md:grid-cols-3">
         {looseCount > 0 && (
-          <Card icon={Sparkles} label="New from AI explore" title={`${plural(looseCount, 'test')} not in a suite`}>
+          <Card icon={AiExploreIcon} label="New from AI explore" title={`${plural(looseCount, 'test')} not in a suite`}>
             <Link to={to.suites(project.id)} state={{ expand: 'not-in-a-suite' }} className={goClass}>
               Organise in Suites
               <ArrowRight aria-hidden="true" />

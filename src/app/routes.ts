@@ -4,7 +4,7 @@
  * - `to`: builders for links. Always build links with `to.*`, never write a path as a string.
  * The router serves these after `#` (hash addresses); switching to normal addresses only changes router.tsx.
  */
-import type { ID } from '@/data/types';
+import type { Browser, ID } from '@/data/types';
 
 export const paths = {
   welcome: '/welcome', // 1.1
@@ -56,5 +56,6 @@ export const to = {
   exploreChat: (projectId: ID, chatId: ID, messageIndex?: number) =>
     `${p(projectId)}/explore/${seg(chatId)}${query({ message: messageIndex })}`,
   runs: (projectId: ID) => `${p(projectId)}/runs`,
-  run: (projectId: ID, runId: ID, resultId?: ID) => `${p(projectId)}/runs/${seg(runId)}${query({ result: resultId })}`,
+  /** `browser`: open a multi-browser result with that browser's evidence selected (D86). */
+  run: (projectId: ID, runId: ID, resultId?: ID, browser?: Browser) => `${p(projectId)}/runs/${seg(runId)}${query({ result: resultId, browser })}`,
 };

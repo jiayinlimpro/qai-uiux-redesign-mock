@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Bug, Check, ListFilter, RotateCcw, Sparkles, Tag, X } from 'lucide-react';
+import { Bug, ListFilter, RotateCcw, Sparkles, Tag, X } from 'lucide-react';
 import type { Mode } from '@/data/types';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
+import { BrowserMarks } from '@/components/StatusViews';
 import { FilterSelect, SearchInput } from '@/components/ui/field';
 import { Menu } from '@/components/ui/menu';
 import { SegmentedControl } from '@/components/ui/segmented';
@@ -201,26 +202,14 @@ function ResultRowItem({ row, checked, onToggle, selected, href, onRerun }: { ro
             </Chip>
           )}
         </span>
-        <span className="mt-0.5 block truncate text-label font-normal text-text-muted">
-          <span className="sr-only">{statusLabels[row.status]} · </span>
-          {rowDetails(row)}
-          {marks.length > 0 && (
-            <span className="ml-1">
-              {marks.map((m) => (
-                <span key={m.label} className="ml-1 inline-flex items-center">
-                  {m.label}
-                  {m.status === 'passed' ? (
-                    <Check aria-hidden="true" className="h-3 w-3 text-passed-dot" />
-                  ) : m.status === 'failed' ? (
-                    <X aria-hidden="true" className="h-3 w-3 text-failed-dot" />
-                  ) : (
-                    <span aria-hidden="true">–</span>
-                  )}
-                  <span className="sr-only"> {statusLabels[m.status]}</span>
-                </span>
-              ))}
-            </span>
-          )}
+        {/* D85: browser marks (only when browsers disagree) are never cut off: they follow the details when both fit,
+            else they move to their own line, and the details shorten only when they alone are too long. */}
+        <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 text-label font-normal text-text-muted">
+          <span className="min-w-0 max-w-full truncate">
+            <span className="sr-only">{statusLabels[row.status]} · </span>
+            {rowDetails(row)}
+          </span>
+          {marks.length > 0 && <BrowserMarks className="shrink-0" marks={marks.map((m) => ({ key: m.label, status: m.status, label: m.label }))} />}
         </span>
       </Link>
       <span className="flex shrink-0 items-center gap-2">

@@ -48,7 +48,12 @@ Read with: `07-data-model.md` (types and data layer), `05-business-rules.md` (ru
 5. **Delete `src/data/mock/`** once nothing imports it. `api*.test.ts` and `seed.test.ts` test the mock; keep the
    `api.slice*.test.ts` files as a behaviour spec and point them at a test backend, or rewrite them against it.
    `src/lib/*.test.ts` stay as they are.
-6. **Electron**: build the app icon (.ico / .icns / .png) from `public/qai-mark.svg` (D76); add a menu-bar entry View › Toggle sidebar (Ctrl+B / ⌘B, D74); the screens already handle the shortcut. The UI has no Node APIs and no server (downloads use `src/app/download.ts`, copying uses
+6. **Screenshots** (D84): a step shows one screenshot at two sizes, an 80 px thumbnail and a preview up to 240 px wide
+   when the step is expanded; the full image appears only in the screenshot viewer. Have the engine save a small preview
+   (about 480 px wide, WebP) next to each full screenshot and use it for both small sizes, so a step list never decodes
+   full-size images; load images lazily (`loading="lazy"`, `decoding="async"`). Screenshots are run evidence on disk,
+   not part of the app bundle. Swap `ScreenshotPlaceholder` for an image with the same sizes (16:9, D27).
+7. **Electron**: build the app icon (.ico / .icns / .png) from `public/qai-mark.svg` (D76); add a menu-bar entry View › Toggle sidebar (Ctrl+B / ⌘B, D74); the screens already handle the shortcut. The UI has no Node APIs and no server (downloads use `src/app/download.ts`, copying uses
    `src/app/clipboard.ts`); keep it that way, or route file access through the data layer.
 
 ## 3. Data layer functions
@@ -146,6 +151,7 @@ return value were decided by the prototype and need the backend's agreement.
 | 21 | Encrypt exported project files? | No (plain file, warning) | D37 · 2.2 Export |
 | 22 | How to read Excel imports | CSV only; Excel simulated | BR-IMPORT-01, D48 · 3.3 |
 | 23 | Can the engine return changed screenshot regions? | Optional `changedRegions` | BR-VISUAL-02/03, D64 · 6.2 |
+| 24 | Per-browser evidence in multi-browser runs? | Optional `perBrowser[].steps` etc.; lead browser at result level | BR-STATUS-03 · 6.1 Browser switcher, 3.1 By browser |
 
 ## 5. Known limitations of the prototype
 

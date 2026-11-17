@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Images } from 'lucide-react';
 import { buildBugReport, type BugReport } from '@/data/api';
-import type { ID } from '@/data/types';
+import type { Browser, ID } from '@/data/types';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input, Textarea } from '@/components/ui/field';
@@ -20,6 +20,8 @@ export interface BugReportItem {
   label: string;
   /** 6.2 Mark as bug: a report of the visual change at this step. */
   visualStepIndex?: number;
+  /** Whose evidence (D86); default: the lead browser. */
+  browser?: Browser;
 }
 
 /** Steps edited as one numbered line per step; numbers are added back when copying. */
@@ -44,7 +46,10 @@ function placeholderSvg(caption: string): Blob {
  * one report per result: each can be copied on its own, or all together.
  */
 export function BugReportDialog({ items, onClose }: { items: BugReportItem[]; onClose: () => void }) {
-  const loaded = useAsync(() => Promise.all(items.map((i) => buildBugReport(i.resultId, i.visualStepIndex !== undefined ? { visualStepIndex: i.visualStepIndex } : {}))), [items.map((i) => `${i.resultId}:${i.visualStepIndex ?? ''}`).join(',')]);
+  const loaded = useAsync(
+    () => Promise.all(items.map((i) => buildBugReport(i.resultId, { ...(i.visualStepIndex !== undefined ? { visualStepIndex: i.visualStepIndex } : {}), ...(i.browser ? { browser: i.browser } : {}) }))),
+    [items.map((i) => `${i.resultId}:${i.visualStepIndex ?? ''}:${i.browser ?? ''}`).join(',')],
+  );
   const [reports, setReports] = useState<(BugReport & { stepsText: string })[] | null>(null);
   const [status, setStatus] = useState<SaveStatus>(null);
 

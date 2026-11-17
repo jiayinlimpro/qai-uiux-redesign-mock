@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CalendarDays, CircleStop, Coins, Layers, Server, type LucideIcon } from 'lucide-react';
+import { CalendarDays, CircleStop, Coins, Globe, Layers, Server, type LucideIcon } from 'lucide-react';
 import { listKnowledge, listResults, listRuns, listSuites, listLibraryTests } from '@/data/api';
-import type { ID, ResultStep, Run } from '@/data/types';
+import type { Browser, ID, ResultStep, Run } from '@/data/types';
 import { SplitPane } from '@/components/ui/split-pane';
 import { Toast, type ToastMessage } from '@/components/ui/toast';
 import { ErrorState, LoadingState } from '@/components/StateViews';
@@ -16,14 +16,14 @@ import { useProject } from '@/app/projectContext';
 import { useGlobalSettings } from '@/app/settings';
 import { to } from '@/app/routes';
 import { formatCost, formatStarted, plural } from '@/lib/format';
-import { statusLabels } from '@/lib/labels';
-import { buildResultRows, hasBugReport, NO_RESULT_FILTERS, shownRows, withStatus, type ResultFilterState, type ResultRow } from '@/lib/resultRules';
+import { browserLabels, statusLabels } from '@/lib/labels';
+import { browserEvidence, buildResultRows, hasBugReport, NO_RESULT_FILTERS, shownRows, withStatus, type ResultFilterState, type ResultRow } from '@/lib/resultRules';
 import { countByStatus } from '@/lib/status';
 import { ResultsList } from './ResultsList';
 import { ResultDetail } from './ResultDetail';
 import { KnownIssueDialog, OverrideDialog, ScreenshotViewer } from './ResultDialogs';
 
-const TECHNICAL_KEY = 'qai.results.showTechnical';
+const RAW_ACTIONS_KEY = 'qai.results.showRawActions';
 function readFlag(key: string): boolean {
   try {
     return globalThis.localStorage?.getItem(key) === 'true';
@@ -37,8 +37,8 @@ type Dialogs =
   | { kind: 'bugReport'; items: BugReportItem[] }
   | { kind: 'knownIssue'; rows: ResultRow[] }
   | { kind: 'override'; row: ResultRow }
-  | { kind: 'visual'; row: ResultRow; stepIndex: number }
-  | { kind: 'screenshot'; row: ResultRow; step: ResultStep }
+  | { kind: 'visual'; row: ResultRow; stepIndex: number; browser?: Browser }
+  | { kind: 'screenshot'; row: ResultRow; step: ResultStep; browser?: Browser }
   | null;
 
 /**
@@ -48,7 +48,7 @@ type Dialogs =
 export function RunResultsScreen({ run }: { run: Run }) {
   const project = useProject();
   const { settings } = useGlobalSettings();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const data = useAsync(
     async () => {
       const [results, tests, suites, knowledge, runs, models] = await Promise.all([
@@ -66,16 +66,16 @@ export function RunResultsScreen({ run }: { run: Run }) {
   );
   const [filters, setFilters] = useState<ResultFilterState>(NO_RESULT_FILTERS);
   const [selection, setSelection] = useState<Set<string>>(new Set());
-  const [showTechnical, setShowTechnicalState] = useState(() => readFlag(TECHNICAL_KEY));
+  const [showRawActions, setShowRawActionsState] = useState(() => readFlag(RAW_ACTIONS_KEY));
   const [dialog, setDialog] = useState<Dialogs>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const showToast = useCallback((text: string) => setToast({ id: Date.now(), text }), []);
   const closeToast = useCallback(() => setToast(null), []);
 
-  const setShowTechnical = (on: boolean) => {
-    setShowTechnicalState(on);
+  const setShowRawActions = (on: boolean) => {
+    setShowRawActionsState(on);
     try {
-      globalThis.localStorage?.setItem(TECHNICAL_KEY, String(on)); // "Show technical details" is remembered
+      globalThis.localStorage?.setItem(RAW_ACTIONS_KEY, String(on)); // "Show raw actions and locators" is remembered
     } catch {
       // storage unavailable: the choice lasts for this screen only
     }
@@ -92,6 +92,21 @@ export function RunResultsScreen({ run }: { run: Run }) {
   const requested = params.get('result');
   const selectedKey = requested ?? shown[0]?.key ?? null;
   const selected = selectedKey ? rows.find((r) => r.key === selectedKey) : undefined;
+  // D86: the selected browser of a multi-browser result; an unknown one falls back to the lead browser.
+  const requestedBrowser = params.get('browser');
+  const browser = selected?.result && selected.result.perBrowser.length > 1 ? browserEvidence(selected.result, selected.result.perBrowser.find((b) => b.browser === requestedBrowser)?.browser).browser : undefined;
+  const setBrowser = (b: Browser) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('browser', b);
+        if (selected) next.set('result', selected.key);
+        return next;
+      },
+      { replace: true },
+    );
+  // Copy bug report from the detail describes the selected browser when it did not pass, else the lead browser.
+  const reportBrowser = selected?.result && browser && browserEvidence(selected.result, browser).status !== 'passed' ? browser : undefined;
   const testOf = (row: ResultRow) => d.tests.find((t) => t.id === row.testId) ?? null;
 
   const rerun = (picked: ResultRow[], model?: string) => {
@@ -100,11 +115,11 @@ export function RunResultsScreen({ run }: { run: Run }) {
     if (ids.length < picked.length) showToast(`${plural(picked.length - ids.length, 'deleted test')} left out.`);
     setDialog({ kind: 'rerun', testIds: ids, ...(model ? { model } : {}) });
   };
-  const bugReports = (picked: ResultRow[]) => {
+  const bugReports = (picked: ResultRow[], reportFor?: Browser) => {
     const withReport = picked.filter((r) => r.result && hasBugReport(r.result));
     if (withReport.length === 0) return showToast('None of the selected results failed, so there is no bug report.');
     if (withReport.length < picked.length) showToast(`${plural(picked.length - withReport.length, 'result')} without a failure left out.`);
-    setDialog({ kind: 'bugReport', items: withReport.map((r) => ({ resultId: r.result!.id, label: r.displayId })) });
+    setDialog({ kind: 'bugReport', items: withReport.map((r) => ({ resultId: r.result!.id, label: r.displayId, ...(reportFor ? { browser: reportFor } : {}) })) });
   };
 
   return (
@@ -117,6 +132,8 @@ export function RunResultsScreen({ run }: { run: Run }) {
           <ul aria-label="Run details" className="flex flex-wrap gap-x-5 gap-y-1 text-text-muted">
             <Meta icon={Layers}>{run.scopeLabel}</Meta>
             <Meta icon={Server}>{run.environment.name}</Meta>
+            {/* D85: the run's browsers; result rows mark browsers only where they disagree. */}
+            <Meta icon={Globe}>{run.browsers.map((b) => browserLabels[b]).join(' · ')}</Meta>
             <Meta icon={CalendarDays}>{formatStarted(run.startedAt)}</Meta>
             <Meta icon={Coins}>
               <span className="tabular-nums">{formatCost(run.cost)}</span>
@@ -169,14 +186,16 @@ export function RunResultsScreen({ run }: { run: Run }) {
                   projectId={project.id}
                   knowledge={d.knowledge}
                   runs={d.runs}
-                  showTechnical={showTechnical}
-                  setShowTechnical={setShowTechnical}
+                  showRawActions={showRawActions}
+                  setShowRawActions={setShowRawActions}
                   onRerun={() => rerun([selected])}
-                  onCopyBugReport={() => bugReports([selected])}
+                  {...(browser ? { browser } : {})}
+                  onBrowserChange={setBrowser}
+                  onCopyBugReport={() => bugReports([selected], reportBrowser)}
                   onOverride={() => setDialog({ kind: 'override', row: selected })}
                   onKnownIssue={() => setDialog({ kind: 'knownIssue', rows: [selected] })}
-                  onOpenVisual={(stepIndex) => setDialog({ kind: 'visual', row: selected, stepIndex })}
-                  onOpenScreenshot={(step) => setDialog({ kind: 'screenshot', row: selected, step })}
+                  onOpenVisual={(stepIndex) => setDialog({ kind: 'visual', row: selected, stepIndex, ...(browser ? { browser } : {}) })}
+                  onOpenScreenshot={(step) => setDialog({ kind: 'screenshot', row: selected, step, ...(browser ? { browser } : {}) })}
                 />
               ) : (
                 <div className="flex h-full items-center justify-center p-8 text-text-muted">
@@ -221,13 +240,14 @@ export function RunResultsScreen({ run }: { run: Run }) {
           test={testOf(dialog.row)}
           displayId={dialog.row.displayId}
           stepIndex={dialog.stepIndex}
+          {...(dialog.browser ? { browser: dialog.browser } : {})}
           onClose={() => setDialog(null)}
           onResultChange={() => data.retry()}
           onTestChange={() => data.retry()}
         />
       )}
       {dialog?.kind === 'screenshot' && dialog.row.result && (
-        <ScreenshotViewer step={dialog.step} label={dialog.row.displayId} run={run} result={dialog.row.result} onClose={() => setDialog(null)} />
+        <ScreenshotViewer step={dialog.step} label={dialog.row.displayId} run={run} result={dialog.row.result} {...(dialog.browser ? { browser: dialog.browser } : {})} onClose={() => setDialog(null)} />
       )}
       <Toast toast={toast} onClose={closeToast} />
     </div>

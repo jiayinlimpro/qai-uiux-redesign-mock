@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowUp, BookOpen, Compass, FileCheck2, FileText, Inbox, ListChecks, LoaderCircle, Paperclip, Sparkles, X } from 'lucide-react';
+import { ArrowUp, BookOpen, Compass, FileCheck2, FileText, Inbox, ListChecks, LoaderCircle, Paperclip, X } from 'lucide-react';
 import { createChat, getChat, getTest, listKnowledge, sendChatMessage } from '@/data/api';
 import type { ChatMessage, ID, KnowledgeItem, TestCase } from '@/data/types';
 import { Button } from '@/components/ui/button';
+import { AiExploreIcon } from '@/components/AiExploreIcon';
 import { Chip } from '@/components/ui/chip';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { errorText } from '@/components/StatusLine';
@@ -261,11 +262,11 @@ function Message({
 
 const MESSAGE_ID = 'ai-explore-message';
 
-/** The AI's mark in the conversation: a soft violet tile with the AI explore sparkle (decorative; replies are labelled "AI"). */
+/** The AI's mark in the conversation: a soft violet tile with the AI explore icon (decorative; replies are labelled "AI"). */
 function AiAvatar() {
   return (
     <span aria-hidden="true" className="inline-flex size-8 shrink-0 items-center justify-center rounded-control bg-accent-soft text-accent-soft-text">
-      <Sparkles className="size-4" />
+      <AiExploreIcon className="size-4" />
     </span>
   );
 }

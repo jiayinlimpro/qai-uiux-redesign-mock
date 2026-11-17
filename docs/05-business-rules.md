@@ -6,7 +6,7 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 ## Status (BR-STATUS)
 - **BR-STATUS-01** Statuses: `passed`, `failed` (the platform did not meet the expected result), `couldnt_complete` (no verdict: system, AI or environment problem), `not_run` (deselected, stopped, interrupted, or never executed). A test that has never run shows **Not run**, never a blank status.
 - **BR-STATUS-02** Pass rate = passed / (passed + failed). `couldnt_complete` and `not_run` are excluded and shown separately.
-- **BR-STATUS-03** Multi-browser roll-up for one result: failed if any browser failed; else couldnt_complete if any couldn't complete; else passed if all passed; else not_run. Show a per-browser breakdown. Label WebKit as "Safari (WebKit)".
+- **BR-STATUS-03** Multi-browser roll-up for one result: failed if any browser failed; else couldnt_complete if any couldn't complete; else passed if all passed; else not_run. Show a per-browser breakdown (result detail: one chip per browser with its status; results list: marks only when the browsers disagree, D85). Each browser that ran keeps its own evidence; the result-level evidence is the **lead browser's**, the first browser (in run order) with the rolled-up status (D86). A test's status (Suites, counts) stays its **latest result**; Suites shows each browser's most recent result beside it ("By browser", D86). Label WebKit as "Safari (WebKit)".
 - **BR-STATUS-04** Data rows roll-up: passed only if every row met its expectation; show "k/n rows".
 - **BR-STATUS-05** An override replaces the status used in all counts; the AI verdict is kept and shown. Every override is kept as history; the newest applies (D62).
 - **BR-STATUS-06** Known issue: status unchanged; result labelled "Known issue".

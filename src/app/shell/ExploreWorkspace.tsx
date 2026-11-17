@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { getProject } from '@/data/api';
 import { buttonClasses } from '@/components/ui/button';
+import { AiExploreIcon } from '@/components/AiExploreIcon';
 import { LoadingState } from '@/components/StateViews';
 import { useAsync } from '@/app/hooks/useAsync';
 import { ProjectContext } from '@/app/projectContext';
@@ -39,7 +40,10 @@ export function ExploreWorkspace() {
           </Link>
         }
       >
-        <p className="shrink-0 text-h3">AI explore</p>
+        <p className="flex shrink-0 items-center gap-2 text-h3">
+          <AiExploreIcon aria-hidden="true" className="size-5 text-accent" />
+          AI explore
+        </p>
         <p className="truncate text-text-muted">{project.status === 'ready' ? project.data.name : 'Loading…'}</p>
       </Masthead>
       <main id="main" tabIndex={-1} className="relative min-h-0 flex-1 overflow-auto bg-bg focus:outline-none">

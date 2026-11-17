@@ -75,7 +75,11 @@ export interface Result { id: ID; runId: ID; testId: ID; testVersion: number; mo
   status: Status;                       // effective status (after the latest override)
   reason?: FailReason | CcReason;
   aiVerdict: { status: Status; reason?: FailReason | CcReason; confidence: 'high'|'medium'|'low' };
-  perBrowser: { browser: Browser; status: Status }[];
+  perBrowser: { browser: Browser; status: Status;
+    // D86: on a multi-browser result, each browser that ran keeps its own evidence (written when the result is created).
+    // The result-level steps / failure / reason are the lead browser's: the one the status comes from (BR-STATUS-03).
+    reason?: FailReason|CcReason; failure?: { stepIndex: number; expected: string; found: string };
+    steps?: ResultStep[]; durationMs?: number }[];
   dataRows?: { rowId: ID; status: Status }[];
   failure?: { stepIndex: number; expected: string; found: string };
   steps: ResultStep[]; cost: number; durationMs: number;
@@ -90,7 +94,7 @@ export interface Result { id: ID; runId: ID; testId: ID; testVersion: number; mo
 export interface ResultStep { index: number; text: string; status: Status; durationMs: number; screenshotId?: ID;
   actions: { text: string; raw: string; locator?: string }[]; check?: { expected: string; found: string; ok: boolean };
   aiReasoning?: string;                 // one line, always shown
-  aiThought?: string;                   // full AI thought, shown with "Show technical details" (D58)
+  aiThought?: string;                   // full AI thought, shown with "Show raw actions and locators" (D58, D83)
   url?: string;                         // page URL at the end of the step (D58)
   visual?: { previousScreenshotId?: ID; changedAreas: number;
     changedRegions?: { x: number; y: number; w: number; h: number }[];   // where they changed (share of the screenshot, 0–1); absent → placeholder outlines (D64)

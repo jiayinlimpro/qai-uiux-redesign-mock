@@ -3,7 +3,7 @@
  * override, visual flags, bug report. Pure functions; the rule ID is in each comment.
  */
 import type { Platform, Browser, CcReason, FailReason, ID, Mode, Result, ResultStep, Run, Status, Suite, TestCase, TestData } from '@/data/types';
-import { browserLabels, modeLabels, reasonLabels } from './labels';
+import { browserLabels, browserShortLabels, modeLabels, reasonLabels } from './labels';
 import { compareTestIds } from './suiteRules';
 import { formatDate } from './format';
 
@@ -163,10 +163,13 @@ export function rollUpBrowsers(perBrowser: { status: Status }[]): Status {
   return 'not_run';
 }
 
-/** Short browser names for row marks ("Chrome ✓ Safari ✕"): only for multi-browser results. */
+/**
+ * Short browser names for row marks ("Chrome ✓ Safari ✕"), BR-STATUS-03: only when the browsers disagree (D85).
+ * When every browser has the same status, the row's status icon already says it.
+ */
 export function browserMarks(perBrowser: { browser: Browser; status: Status }[]): { label: string; status: Status }[] {
-  if (perBrowser.length < 2) return [];
-  return perBrowser.map((b) => ({ label: b.browser === 'webkit' ? 'Safari' : browserLabels[b.browser], status: b.status }));
+  if (perBrowser.length < 2 || perBrowser.every((b) => b.status === perBrowser[0]!.status)) return [];
+  return perBrowser.map((b) => ({ label: browserShortLabels[b.browser], status: b.status }));
 }
 
 // BR-STATUS-04 / BR-DATA-04: Row · varied field/value · Expected · Result. Rows removed from the test since keep their result.
@@ -220,6 +223,71 @@ export function applyOverride(result: Result, input: { status: 'passed' | 'faile
   };
 }
 
+// ---------- evidence per browser (D86, BR-STATUS-03, BR-RUN-03) ----------
+const BROWSER_ORDER: Browser[] = ['chrome', 'firefox', 'webkit'];
+
+/** The browser the result's status comes from: the first, in run order, with the rolled-up status (BR-STATUS-03). */
+export function leadBrowser(perBrowser: { browser: Browser; status: Status }[]): Browser | undefined {
+  const status = rollUpBrowsers(perBrowser);
+  return (perBrowser.find((b) => b.status === status) ?? perBrowser[0])?.browser;
+}
+
+export interface BrowserEvidence {
+  browser: Browser;
+  status: Status;
+  /** True for the lead browser: its evidence is the result-level evidence (and the AI verdict describes it). */
+  lead: boolean;
+  reason?: Reason;
+  failure?: Result['failure'];
+  /** null: nothing stored for this browser (Not run, or Not recorded when it ran). */
+  steps: ResultStep[] | null;
+  durationMs?: number;
+}
+
+/**
+ * D86: one browser's evidence (default: the lead browser). A multi-browser result stores each browser's own steps,
+ * failure and reason; the result-level evidence is the lead browser's, so a single-browser result needs nothing more.
+ */
+export function browserEvidence(result: Pick<Result, 'perBrowser' | 'steps' | 'failure' | 'reason' | 'durationMs'>, browser?: Browser): BrowserEvidence {
+  const lead = leadBrowser(result.perBrowser);
+  const entry = result.perBrowser.find((b) => b.browser === (browser ?? lead)) ?? result.perBrowser[0];
+  const which = entry?.browser ?? browser ?? lead ?? 'chrome';
+  const isLead = which === lead || result.perBrowser.length < 2;
+  if (entry?.steps) {
+    return { browser: which, status: entry.status, lead: isLead, steps: entry.steps, ...(entry.reason ? { reason: entry.reason } : {}), ...(entry.failure ? { failure: entry.failure } : {}), ...(entry.durationMs !== undefined ? { durationMs: entry.durationMs } : {}) };
+  }
+  if (isLead) {
+    return { browser: which, status: entry?.status ?? 'not_run', lead: true, steps: result.steps, ...(result.reason ? { reason: result.reason } : {}), ...(result.failure ? { failure: result.failure } : {}), durationMs: result.durationMs };
+  }
+  return { browser: which, status: entry?.status ?? 'not_run', lead: false, steps: null };
+}
+
+/** Every step of a result in every browser (finding which result a screenshot belongs to). */
+export function allBrowserSteps(result: Pick<Result, 'perBrowser' | 'steps'>): ResultStep[] {
+  return [...result.steps, ...result.perBrowser.flatMap((b) => b.steps ?? [])];
+}
+
+/** Why a browser has no evidence (D86). BR-RUN-03: other browsers replay the script only after the AI run in Chrome passed. */
+export function browserNotRunNote(result: Pick<Result, 'mode' | 'perBrowser'>, browser: Browser): string {
+  const name = browserLabels[browser];
+  const chrome = result.perBrowser.find((b) => b.browser === 'chrome');
+  if (result.mode === 'ai' && browser !== 'chrome' && chrome && chrome.status !== 'passed' && chrome.status !== 'not_run') {
+    return `Not run in ${name}: the AI run in Chrome ${chrome.status === 'failed' ? 'failed' : "couldn't complete"}, so there was no script to replay.`;
+  }
+  return `Not run in ${name}.`;
+}
+
+/**
+ * D86 (Suites › "By browser"): each browser's most recent result of a test, from its history (newest first), in browser
+ * order. Empty unless the test has results in more than one browser. The test's status stays its latest result.
+ */
+export function latestByBrowser<R extends Pick<Result, 'perBrowser'>>(history: R[]): { browser: Browser; status: Status; result: R }[] {
+  const seen = new Map<Browser, { browser: Browser; status: Status; result: R }>();
+  for (const r of history) for (const b of r.perBrowser) if (!seen.has(b.browser)) seen.set(b.browser, { browser: b.browser, status: b.status, result: r });
+  if (seen.size < 2) return [];
+  return BROWSER_ORDER.filter((b) => seen.has(b)).map((b) => seen.get(b)!);
+}
+
 // ---------- visual flags (BR-VISUAL-03, D59) ----------
 /** Changed areas still flagged: steps with a comparison, changes, and no "Looks fine". */
 export function visualFlagCount(steps: Pick<ResultStep, 'visual'>[]): number {
@@ -231,16 +299,25 @@ export function comparedSteps<S extends Pick<ResultStep, 'index' | 'visual'>>(st
   return steps.filter((s) => s.visual?.previousScreenshotId);
 }
 
-/** "Looks fine" (dismiss) or Undo: the decision is stored with who and when (CLAUDE.md rule 10). */
-export function setVisualDismissed(result: Result, stepIndex: number, dismissed: { by: string; at: string } | null): Result {
-  const steps = result.steps.map((s) => {
-    if (s.index !== stepIndex || !s.visual) return s;
-    const { dismissed: _d, ...visual } = s.visual;
-    return { ...s, visual: dismissed ? { ...visual, dismissed } : visual };
-  });
-  const count = visualFlagCount(steps);
+/**
+ * "Looks fine" (dismiss) or Undo: the decision is stored with who and when (CLAUDE.md rule 10). `browser` (D86): the
+ * browser whose step it is (default: the lead browser); its stored steps change, and the result-level steps when it leads.
+ */
+export function setVisualDismissed(result: Result, stepIndex: number, dismissed: { by: string; at: string } | null, browser?: Browser): Result {
+  const mark = (steps: ResultStep[]) =>
+    steps.map((s) => {
+      if (s.index !== stepIndex || !s.visual) return s;
+      const { dismissed: _d, ...visual } = s.visual;
+      return { ...s, visual: dismissed ? { ...visual, dismissed } : visual };
+    });
+  const lead = leadBrowser(result.perBrowser);
+  const which = browser ?? lead;
+  const steps = !browser || which === lead || result.perBrowser.length < 2 ? mark(result.steps) : result.steps;
+  const perBrowser = result.perBrowser.map((b) => (b.browser === which && b.steps ? { ...b, steps: mark(b.steps) } : b));
+  // Flags count every browser's open changes (each browser that ran once; the lead's are the result-level steps).
+  const count = visualFlagCount(steps) + perBrowser.filter((b) => b.browser !== lead && b.steps).reduce((n, b) => n + visualFlagCount(b.steps!), 0);
   const { visualChanges: _v, ...flags } = result.flags;
-  return { ...result, steps, flags: count > 0 ? { ...flags, visualChanges: count } : flags };
+  return { ...result, steps, perBrowser, flags: count > 0 ? { ...flags, visualChanges: count } : flags };
 }
 
 // ---------- ignore areas (BR-VISUAL-04, D45) ----------
@@ -304,12 +381,16 @@ export function buildBugReportFor(opts: {
   platformName?: string;
   run: Pick<Run, 'number' | 'environment' | 'viewport' | 'startedAt'>;
   visualStep?: { index: number; previousRunNumber?: number };
+  /** D86: whose evidence the report describes (default: the lead browser, the one the status comes from). */
+  browser?: Browser;
 }): BugReport {
-  const { result, test, run } = opts;
+  const { test, run } = opts;
+  const ev = browserEvidence(opts.result, opts.browser);
+  const result = { ...opts.result, steps: ev.steps ?? opts.result.steps, failure: ev.failure, reason: ev.reason };
   const failing = opts.visualStep?.index ?? result.failure?.stepIndex ?? [...result.steps].reverse().find((s) => s.status !== 'not_run')?.index ?? result.steps.length;
   const upTo = result.steps.filter((s) => s.index <= failing);
   const step = result.steps.find((s) => s.index === failing);
-  const browser = result.perBrowser.find((b) => b.status === result.status)?.browser ?? result.perBrowser[0]?.browser ?? 'chrome';
+  const browser = ev.browser;
   const environment = [run.environment.name, opts.platformName, `${browserLabels[browser]} ${run.viewport.width}×${run.viewport.height}`, `Run #${run.number}, ${formatDate(run.startedAt)}`]
     .filter(Boolean)
     .join(' · ');

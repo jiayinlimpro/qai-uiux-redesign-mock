@@ -1,24 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowRight, Copy, Ellipsis, Eye, FileCode, FileText, Folder, History, PenLine, Pencil, Play, Sparkles, Table2, Tag, type LucideIcon } from 'lucide-react';
+import { ArrowRight, Copy, Ellipsis, Eye, FileCode, FileText, Folder, History, PenLine, Pencil, Play, Table2, Tag, type LucideIcon } from 'lucide-react';
 import { deleteTests, getTest, getTestHistory, restoreTests, saveTest } from '@/data/api';
 import type { TestCase } from '@/data/types';
 import { Button, buttonClasses } from '@/components/ui/button';
+import { AiExploreIcon } from '@/components/AiExploreIcon';
 import { Chip } from '@/components/ui/chip';
 import { Menu } from '@/components/ui/menu';
 import { TabPanel, Tabs } from '@/components/ui/tabs';
 import { ErrorState } from '@/components/StateViews';
-import { ReasonChip } from '@/components/StatusViews';
+import { BrowserMarks, ReasonChip } from '@/components/StatusViews';
 import { statusIcons } from '@/components/StatusIcon';
 import { errorText } from '@/components/StatusLine';
 import { useConfirm } from '@/components/useConfirm';
+import { useAsync } from '@/app/hooks/useAsync';
 import { useProject } from '@/app/projectContext';
 import { OverviewLink } from '@/app/WayBackLink';
 import { to, type TestTab } from '@/app/routes';
 import { NEEDS_FIXING_TIP, showsNeedsFixingBadge } from '@/lib/exploreRules';
 import { formatDate, plural } from '@/lib/format';
+import { latestByBrowser } from '@/lib/resultRules';
 import { deleteImpact } from '@/lib/suiteRules';
-import { browserLabels, scriptLabels, sourceLabels, statusLabels } from '@/lib/labels';
+import { browserLabels, browserShortLabels, scriptLabels, sourceLabels, statusLabels } from '@/lib/labels';
 import { cn } from '@/lib/utils';
 import { useSuites } from './suitesContext';
 import { DefinitionTab } from './tabs/DefinitionTab';
@@ -34,7 +37,7 @@ const tabs: { id: TestTab; label: string; icon: LucideIcon }[] = [
   { id: 'history', label: 'History', icon: History },
 ];
 
-const sourceIcons: Record<TestCase['source'], LucideIcon> = { import: FileText, written: PenLine, ai_explore: Sparkles, clone: Copy };
+const sourceIcons: Record<TestCase['source'], LucideIcon> = { import: FileText, written: PenLine, ai_explore: AiExploreIcon, clone: Copy };
 const latestTile: Record<'passed' | 'failed' | 'couldnt_complete' | 'not_run', string> = {
   passed: 'bg-passed-fill text-passed-dot',
   failed: 'bg-failed-fill text-failed-dot',
@@ -62,6 +65,8 @@ export function TestDetail() {
   const test = s.tests.find((t) => t.id === testId);
   const [confirm, confirmDialog] = useConfirm();
   const [knownIssue, setKnownIssue] = useState(false);
+  // D86: each browser's most recent result ("By browser"); the test's status stays its latest result.
+  const history = useAsync(() => getTestHistory(testId), [testId, s.latest[testId]?.id]);
 
   const save: SaveTest = useCallback(
     async (change) => {
@@ -93,6 +98,7 @@ export function TestDetail() {
   const suite = s.suites.find((x) => x.id === test.suiteId);
   const latest = s.latest[test.id];
   const latestRun = latest ? s.runs.find((r) => r.id === latest.runId) : undefined;
+  const byBrowser = history.status === 'ready' ? latestByBrowser(history.data) : [];
   const needsFixing = showsNeedsFixingBadge(test, Boolean(latest));
   const original = test.clonedFromId ? s.tests.find((t) => t.id === test.clonedFromId) : undefined;
 
@@ -225,8 +231,42 @@ export function TestDetail() {
       <LatestCard
         status={latest && latestRun ? latest.status : 'not_run'}
         reason={latest && latestRun ? latest.reason : undefined}
-        details={latest && latestRun ? `Run #${latestRun.number} · ${latestRun.environment.name} · ${latest.perBrowser.map((b) => browserLabels[b.browser]).join(', ')} · ${formatDate(latestRun.startedAt)}` : 'This test hasn’t run yet.'}
+        details={
+          latest && latestRun ? (
+            <>
+              Run #{latestRun.number} · {latestRun.environment.name} ·{' '}
+              {latest.perBrowser.length > 1 ? (
+                <BrowserMarks className="text-text" marks={latest.perBrowser.map((b) => ({ key: b.browser, status: b.status, label: browserShortLabels[b.browser] }))} />
+              ) : (
+                latest.perBrowser.map((b) => browserLabels[b.browser]).join(', ')
+              )}{' '}
+              · {formatDate(latestRun.startedAt)}
+            </>
+          ) : (
+            'This test hasn’t run yet.'
+          )
+        }
         href={latest && latestRun ? to.run(project.id, latestRun.id, latest.id) : undefined}
+        byBrowser={
+          byBrowser.length > 0 ? (
+            <ul aria-label="Most recent result in each browser" className="flex flex-wrap gap-x-4 gap-y-1">
+              {byBrowser.map((b) => {
+                const run = s.runs.find((r) => r.id === b.result.runId);
+                if (!run) return null;
+                const { Icon, className } = statusIcons[b.status];
+                return (
+                  <li key={b.browser}>
+                    <Link to={to.run(project.id, run.id, b.result.id, b.browser)} className="inline-flex items-center gap-1 rounded-control text-accent underline underline-offset-2">
+                      <Icon aria-hidden="true" className={cn('size-3.5 shrink-0', className)} />
+                      <span className="sr-only">{statusLabels[b.status]}: </span>
+                      {browserLabels[b.browser]} · #{run.number} {run.environment.name}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : undefined
+        }
       />
 
       <div>
@@ -259,8 +299,21 @@ export function TestDetail() {
   );
 }
 
-/** Latest result card (D80): status tile · status, reason and run facts · Open result. */
-function LatestCard({ status, reason, details, href }: { status: keyof typeof latestTile; reason?: Parameters<typeof ReasonChip>[0]['reason']; details: string; href?: string }) {
+/** Latest result card (D80): status tile · status, reason and run facts · Open result; By browser (D86). */
+function LatestCard({
+  status,
+  reason,
+  details,
+  href,
+  byBrowser,
+}: {
+  status: keyof typeof latestTile;
+  reason?: Parameters<typeof ReasonChip>[0]['reason'];
+  details: ReactNode;
+  href?: string;
+  /** D86: each browser's most recent result, when the test ran in more than one browser. */
+  byBrowser?: ReactNode;
+}) {
   const Icon = statusIcons[status].Icon;
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-card border border-border bg-surface px-4 py-3">
@@ -272,8 +325,14 @@ function LatestCard({ status, reason, details, href }: { status: keyof typeof la
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className={cn('font-semibold', latestText[status])}>{statusLabels[status]}</span>
           {reason && <ReasonChip reason={reason} />}
-          <span className="text-text-muted">· {details}</span>
+          <span className="inline-flex flex-wrap items-center gap-x-1 text-text-muted">· {details}</span>
         </p>
+        {byBrowser && (
+          <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-border pt-2 text-dense">
+            <span className="text-label text-text-muted">By browser</span>
+            {byBrowser}
+          </div>
+        )}
       </div>
       {href && (
         <Link to={href} className={buttonClasses({ size: 'xs' })}>

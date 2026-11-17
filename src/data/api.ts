@@ -40,7 +40,7 @@ import { snapshotEnvironment } from '@/lib/runRules';
 export { UnsupportedImportFileError } from './mock/importFile';
 import { contentToSteps, normaliseHeader, parseBrowserList, planImport, readTemplateCsv, recognisedColumns, templateCsv, updateFromRow, type ImportPlan, type TemplateRow } from '@/lib/importRules';
 import { defaultTitle } from '@/lib/editorRules';
-import { platformForStartPage, applyOverride, buildBugReportFor, canOverride, matchesResultFilters, NO_RESULT_FILTERS, setVisualDismissed, validateOverride, type BugReport, type ResultFilterState } from '@/lib/resultRules';
+import { platformForStartPage, allBrowserSteps, applyOverride, browserEvidence, buildBugReportFor, canOverride, matchesResultFilters, NO_RESULT_FILTERS, setVisualDismissed, validateOverride, type BugReport, type ResultFilterState } from '@/lib/resultRules';
 import { CURRENT_USER } from './mock/seed';
 import { AI_CASE_FIELDS, isLibraryTest, moveBlockerLabels, moveBlockers, TRAY_INLINE_FIELDS } from '@/lib/exploreRules';
 export type { BugReport };
@@ -1129,9 +1129,10 @@ export async function markKnownIssue(testIds: ID[], input: KnownIssueInput): Pro
 }
 /**
  * BR-ACTION-03: the bug report of a result, as editable fields (the dialog formats them for Copy with formatBugReport).
- * `visualStepIndex`: a report of the visual change at that step (6.2 Mark as bug). Shape to confirm (D60).
+ * `visualStepIndex`: a report of the visual change at that step (6.2 Mark as bug). `browser`: whose evidence (D86; default
+ * the lead browser). Shape to confirm (D60).
  */
-export async function buildBugReport(resultId: ID, opts: { visualStepIndex?: number } = {}): Promise<BugReport> {
+export async function buildBugReport(resultId: ID, opts: { visualStepIndex?: number; browser?: Browser } = {}): Promise<BugReport> {
   return respond(() => {
     const db = getDb();
     const result = find(db.results, resultId, 'Result');
@@ -1139,13 +1140,15 @@ export async function buildBugReport(resultId: ID, opts: { visualStepIndex?: num
     const test = db.tests.find((t) => t.id === result.testId);
     const project = db.projects.find((p) => p.id === run.projectId);
     const platform = platformForStartPage(test?.startPage, project?.platforms ?? []);
-    const step = opts.visualStepIndex !== undefined ? result.steps.find((s) => s.index === opts.visualStepIndex) : undefined;
-    const previous = step?.visual?.previousScreenshotId ? db.results.find((r) => r.steps.some((s) => s.screenshotId === step.visual!.previousScreenshotId)) : undefined;
+    const steps = browserEvidence(result, opts.browser).steps ?? result.steps;
+    const step = opts.visualStepIndex !== undefined ? steps.find((s) => s.index === opts.visualStepIndex) : undefined;
+    const previous = step?.visual?.previousScreenshotId ? db.results.find((r) => allBrowserSteps(r).some((s) => s.screenshotId === step.visual!.previousScreenshotId)) : undefined;
     return buildBugReportFor({
       result,
       test: test ? { testId: test.testId, title: test.title, ...(test.expectedResult ? { expectedResult: test.expectedResult } : {}) } : result.testSnapshot,
       ...(platform ? { platformName: platform.name } : {}),
       run,
+      ...(opts.browser ? { browser: opts.browser } : {}),
       ...(opts.visualStepIndex !== undefined
         ? { visualStep: { index: opts.visualStepIndex, ...(previous ? { previousRunNumber: db.runs.find((x) => x.id === previous.runId)?.number } : {}) } }
         : {}),
@@ -1154,14 +1157,14 @@ export async function buildBugReport(resultId: ID, opts: { visualStepIndex?: num
 }
 /**
  * 6.2 Looks fine (dismissed = true) or its Undo (false). The flag stays on the step with who and when; flag counts
- * leave it out (D59). Shape to confirm.
+ * leave it out (D59). `browser`: whose step (D86; default the lead browser). Shape to confirm.
  */
-export async function dismissVisualFlag(resultId: ID, stepIndex: number, dismissed: boolean): Promise<Result> {
+export async function dismissVisualFlag(resultId: ID, stepIndex: number, dismissed: boolean, browser?: Browser): Promise<Result> {
   await delay();
   return structuredClone(
     mutate((db) => {
       const r = find(db.results, resultId, 'Result');
-      const next = setVisualDismissed(r, stepIndex, dismissed ? { by: CURRENT_USER, at: new Date().toISOString() } : null);
+      const next = setVisualDismissed(r, stepIndex, dismissed ? { by: CURRENT_USER, at: new Date().toISOString() } : null, browser);
       db.results = db.results.map((x) => (x.id === resultId ? next : x));
       return next;
     }),

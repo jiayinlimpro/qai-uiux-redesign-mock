@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react';
 import { Link, Outlet, useLocation, useMatches, useParams } from 'react-router-dom';
-import { BookOpen, House, List, Play, Server, SlidersHorizontal, Sparkles, type LucideIcon } from 'lucide-react';
+import { BookOpen, House, List, Play, Server, SlidersHorizontal, type LucideIcon } from 'lucide-react';
 import { getProject } from '@/data/api';
 import type { Project } from '@/data/types';
 import { buttonClasses } from '@/components/ui/button';
+import { AiExploreIcon } from '@/components/AiExploreIcon';
 import { Breadcrumb, type Crumb } from '@/components/ui/breadcrumb';
 import { LoadingState } from '@/components/StateViews';
 import { useAsync } from '@/app/hooks/useAsync';
@@ -66,7 +67,7 @@ export function ProjectShell() {
       <Masthead collapsed={collapsed} menu={<SidebarToggle collapsed={collapsed} onToggle={toggleCollapsed} />} lead={<BrandLink />}>
         <Breadcrumb items={crumbs} />
         <Link to={to.explore(projectId)} state={{ from: pathname }} className={buttonClasses({ variant: 'primary', className: 'ml-auto shrink-0' })}>
-          <Sparkles aria-hidden="true" className="h-4 w-4" />
+          <AiExploreIcon aria-hidden="true" className="h-4 w-4" />
           AI explore
         </Link>
       </Masthead>
