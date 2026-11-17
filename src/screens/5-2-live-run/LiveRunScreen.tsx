@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { CircleCheck, CircleDashed } from 'lucide-react';
+import { CircleCheck, CircleDashed, CircleStop, Clock, LoaderCircle, Pause, SkipForward } from 'lucide-react';
 import { listResults, listLibraryTests, pauseRun, planRun, skipTest, stopRun } from '@/data/api';
 import type { Run, Status } from '@/data/types';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
+import { statusIcons } from '@/components/StatusIcon';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { statusTone } from '@/components/StatusViews';
 import { errorText } from '@/components/StatusLine';
@@ -68,8 +69,10 @@ export function LiveRunScreen({ run, live }: { run: Run; live: LiveState }) {
           </h1>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => void act(() => pauseRun(run.id))}>Pause</Button>
-          <Button variant="danger" onClick={() => void stop()}>
+          <Button icon={Pause} onClick={() => void act(() => pauseRun(run.id))}>
+            Pause
+          </Button>
+          <Button variant="danger" icon={CircleStop} onClick={() => void stop()}>
             Stop
           </Button>
         </div>
@@ -92,8 +95,18 @@ export function LiveRunScreen({ run, live }: { run: Run; live: LiveState }) {
               const mode = r?.mode ?? plans.get(id)?.mode;
               return (
                 <li key={id} aria-current={state === 'running' ? 'step' : undefined} className={cn('flex items-center gap-2 rounded-control px-2 py-1', state === 'running' && 'bg-accent-soft')}>
-                  {state === 'running' ? <Chip tone="info">Running</Chip> : state === 'queued' ? <Chip>Queued</Chip> : <Chip tone={statusTone[state]}>{statusLabels[state]}</Chip>}
-                  <span className={cn('truncate', state === 'running' && 'font-semibold')}>{t?.testId ?? 'Deleted test'}</span>
+                  {state === 'running' ? (
+                    <Chip tone="info" icon={LoaderCircle} className="[&_svg]:animate-spin motion-reduce:[&_svg]:animate-none">
+                      Running
+                    </Chip>
+                  ) : state === 'queued' ? (
+                    <Chip icon={Clock}>Queued</Chip>
+                  ) : (
+                    <Chip tone={statusTone[state]} icon={statusIcons[state].Icon}>
+                      {statusLabels[state]}
+                    </Chip>
+                  )}
+                  <span className={cn('truncate font-mono text-label', state === 'running' ? 'font-semibold' : 'font-normal')}>{t?.testId ?? 'Deleted test'}</span>
                   {mode && <span className="ml-auto shrink-0 text-label font-normal text-text-muted">{modeLabels[mode]}</span>}
                 </li>
               );
@@ -153,7 +166,7 @@ export function LiveRunScreen({ run, live }: { run: Run; live: LiveState }) {
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
                 <span className="text-label font-normal text-text-muted">{n.aiSteps ? `AI steps used: ${n.aiSteps.used} of ${n.aiSteps.max}` : 'Script replay: no AI steps'}</span>
-                <Button size="sm" onClick={() => void act(() => skipTest(run.id, n.testId))}>
+                <Button size="sm" icon={SkipForward} onClick={() => void act(() => skipTest(run.id, n.testId))}>
                   Skip test
                 </Button>
               </div>

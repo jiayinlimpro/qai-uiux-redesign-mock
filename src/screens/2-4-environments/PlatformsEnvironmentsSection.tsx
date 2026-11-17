@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Server } from 'lucide-react';
 import { getProject, updateProject } from '@/data/api';
 import type { Account, Project, Run } from '@/data/types';
 import { Button } from '@/components/ui/button';
@@ -86,7 +87,7 @@ export function PlatformsEnvironmentsSection({ accounts, runs, onSaved }: { acco
   }
 
   return (
-    <SectionCard id="platforms-environments" title="Platforms and environments" description="Name environments the way your company does. Add, rename or remove columns.">
+    <SectionCard id="platforms-environments" icon={Server} title="Platforms and environments" description="Name environments the way your company does. Add, rename or remove columns.">
       <PlatformsEnvironmentsGrid
         value={draft}
         onChange={(v) => {

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { ArchiveRestore, DatabaseBackup, RotateCcw, TriangleAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { backUpEverything, factoryReset, resetSettings, restoreFromBackup } from '@/data/api';
 import { Button } from '@/components/ui/button';
@@ -84,14 +85,14 @@ export function DataActions() {
         }}
       />
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => void backUp()}>Back up everything</Button>
-        <Button onClick={() => fileInput.current?.click()}>Restore from backup</Button>
+        <Button icon={DatabaseBackup} onClick={() => void backUp()}>Back up everything</Button>
+        <Button icon={ArchiveRestore} onClick={() => fileInput.current?.click()}>Restore from backup</Button>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button variant="danger" onClick={() => setConfirm({ kind: 'reset' })}>
+        <Button icon={RotateCcw} variant="danger" onClick={() => setConfirm({ kind: 'reset' })}>
           Reset settings
         </Button>
-        <Button variant="danger" onClick={() => setConfirm({ kind: 'factory' })}>
+        <Button icon={TriangleAlert} variant="danger" onClick={() => setConfirm({ kind: 'factory' })}>
           Factory reset
         </Button>
       </div>
@@ -120,7 +121,7 @@ export function DataActions() {
           {confirm.kind === 'restore' && <p className="mt-2 text-text-muted">Backup file: {confirm.file.name}</p>}
           <div className="mt-4 rounded-control border border-cc-border bg-cc-fill px-3 py-2 text-cc-text">
             <p>We recommend backing up first.</p>
-            <Button size="sm" className="mt-2" onClick={() => void backUp()}>
+            <Button icon={DatabaseBackup} size="sm" className="mt-2" onClick={() => void backUp()}>
               Back up first
             </Button>
           </div>

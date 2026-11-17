@@ -1,17 +1,19 @@
 import { useRef, useState } from 'react';
 import { Link, Outlet } from 'react-router-dom';
+import { ArrowRight, CircleCheck, Download, Ellipsis, FolderKanban, Plus, Upload } from 'lucide-react';
 import { importProject, InvalidFileError, ProjectExistsError, type ExistingProjectChoice } from '@/data/api';
 import { copyName } from '@/lib/projectRules';
 import { ImportExistingDialog } from './ImportExistingDialog';
 import type { Project } from '@/data/types';
 import { Button, buttonClasses } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
+import { RunStateChip } from '@/components/RunStateChip';
+import { StatusCountsCompact } from '@/components/StatusCountChips';
 import { Menu } from '@/components/ui/menu';
 import { Table, Td, Th, Tr } from '@/components/ui/table';
-import { ErrorState, LoadingState } from '@/components/StateViews';
+import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
 import { useAsync } from '@/app/hooks/useAsync';
 import { to } from '@/app/routes';
-import { runStateLabels } from '@/lib/labels';
 import { ExportProjectDialog } from '@/components/ExportProjectDialog';
 import { loadProjectRows, type ProjectRow } from './loadProjectRows';
 import { DeleteProjectDialog, RenameProjectDialog } from '@/components/ProjectDialogs';
@@ -61,8 +63,11 @@ export function ProjectsScreen() {
 
   const actions = (
     <>
-      <Button onClick={() => fileInput.current?.click()}>Import project</Button>
+      <Button icon={Upload} onClick={() => fileInput.current?.click()}>
+        Import project
+      </Button>
       <Link to={to.newProject()} className={buttonClasses({ variant: 'primary' })}>
+        <Plus aria-hidden="true" />
         New project
       </Link>
     </>
@@ -95,14 +100,12 @@ export function ProjectsScreen() {
         {rows.status === 'loading' && <LoadingState label="Loading projects…" />}
         {rows.status === 'error' && <ErrorState title="Couldn't load projects" message={rows.error.message} onRetry={rows.retry} />}
         {rows.status === 'ready' && rows.data.length === 0 && (
-          <div className="rounded-card border border-border bg-surface px-6 py-12 text-center">
-            <h2 className="text-h2">No projects yet</h2>
-            <p className="mt-1 text-text-muted">Create a project, or import one someone exported for you.</p>
-            <div className="mt-5 flex justify-center gap-2">{actions}</div>
-          </div>
+          <EmptyState icon={FolderKanban} title="No projects yet" actions={actions}>
+            Create a project, or import one someone exported for you.
+          </EmptyState>
         )}
         {rows.status === 'ready' && rows.data.length > 0 && (
-          <Table>
+          <Table dense>
             <thead>
               <tr>
                 <Th>Project</Th>
@@ -182,33 +185,49 @@ function ProjectTableRow({ row, onExport, onRename, onDelete }: { row: ProjectRo
   return (
     <Tr>
       <Td>
-        <Link to={to.overview(project.id)} className="font-semibold text-accent underline underline-offset-2">
-          {project.name}
+        <Link to={to.overview(project.id)} className="group/p inline-flex items-center gap-2.5 font-semibold">
+          {/* A letter tile gives each project a recognisable mark (D80); the name is the link text. */}
+          <span aria-hidden="true" className="inline-flex size-7 shrink-0 items-center justify-center rounded-control bg-accent-soft text-label uppercase text-accent-soft-text">
+            {project.name.trim().charAt(0) || '?'}
+          </span>
+          <span className="text-accent group-hover/p:underline">{project.name}</span>
         </Link>
       </Td>
       <Td>{project.platforms.length > 0 ? project.platforms.map((a) => a.name).join(', ') : <span className="text-text-muted">No platforms yet</span>}</Td>
-      <Td>{suiteCount}</Td>
-      <Td>{lastRun ? `Run #${lastRun.number} · ${runStateLabels[lastRun.state]}` : <span className="text-text-muted">No runs yet</span>}</Td>
+      <Td className="tabular-nums">{suiteCount}</Td>
       <Td>
-        {na.kind === 'no_completed_run' && <span className="text-text-muted">No completed run</span>}
-        {na.kind === 'all_passed' && <Chip tone="passed">All passed</Chip>}
-        {na.kind === 'issues' && (
-          <div className="flex flex-wrap gap-1">
-            {na.failed > 0 && <Chip tone="failed">{na.failed} failed</Chip>}
-            {na.couldntComplete > 0 && <Chip tone="cc">{na.couldntComplete} couldn't complete</Chip>}
-          </div>
+        {lastRun ? (
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <span className="tabular-nums">Run #{lastRun.number}</span>
+            <RunStateChip run={lastRun} />
+          </span>
+        ) : (
+          <span className="text-text-muted">No runs yet</span>
         )}
       </Td>
+      <Td className="whitespace-nowrap">
+        {na.kind === 'no_completed_run' && <span className="text-text-muted">No completed run</span>}
+        {na.kind === 'all_passed' && (
+          <Chip tone="passed" icon={CircleCheck}>
+            All passed
+          </Chip>
+        )}
+        {na.kind === 'issues' && <StatusCountsCompact counts={{ passed: 0, failed: na.failed, couldnt_complete: na.couldntComplete, not_run: 0 }} />}
+      </Td>
       <Td className="whitespace-nowrap text-right">
-        <div className="inline-flex gap-2">
-          <Link to={to.overview(project.id)} className={buttonClasses({ size: 'sm' })}>
-            Open<span className="sr-only"> {project.name}</span>
-          </Link>
-          <Button size="sm" onClick={onExport}>
+        <div className="inline-flex gap-1.5">
+          <Button size="xs" icon={Download} onClick={onExport}>
             Export<span className="sr-only"> {project.name}</span>
           </Button>
+          <Link to={to.overview(project.id)} className={buttonClasses({ size: 'xs' })}>
+            Open<span className="sr-only"> {project.name}</span>
+            <ArrowRight aria-hidden="true" />
+          </Link>
           <Menu
-            label="More"
+            variant="ghost"
+            size="xs"
+            iconOnly
+            label={<Ellipsis aria-hidden="true" />}
             accessibleLabel={`More actions for ${project.name}`}
             items={[
               { label: 'Rename', onSelect: onRename },

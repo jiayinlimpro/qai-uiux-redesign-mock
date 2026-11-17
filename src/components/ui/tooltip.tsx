@@ -35,7 +35,7 @@ export function Tooltip({ label, children, side = 'right', describe = true, clas
         role="tooltip"
         aria-hidden={describe ? undefined : true}
         className={cn(
-          'pointer-events-none absolute z-30 whitespace-nowrap rounded-control bg-text px-2 py-1 text-label text-surface',
+          'pointer-events-none absolute z-30 whitespace-nowrap rounded-control bg-inverse px-2 py-1 text-label text-inverse-text',
           side === 'right' ? 'left-full top-1/2 ml-2 -translate-y-1/2' : 'left-0 top-full mt-1',
           !open && 'hidden',
         )}

@@ -121,10 +121,10 @@ export function AiExploreScreen() {
               type="button"
               aria-label={`Ready for Suites, ${trayCount ?? 0} cases`}
               onClick={() => setTrayOpen(true)}
-              className="relative flex h-10 w-10 items-center justify-center rounded-control border border-border bg-surface hover:bg-bg"
+              className="relative flex h-10 w-10 items-center justify-center rounded-control border border-border bg-surface hover:bg-hover"
             >
               <Inbox aria-hidden="true" className="h-[18px] w-[18px]" strokeWidth={1.75} />
-              <span aria-hidden="true" className="absolute -right-2 -top-2 min-w-5 rounded-pill bg-accent px-1 text-center text-label text-accent-contrast">
+              <span aria-hidden="true" className="absolute -right-2 -top-2 min-w-5 rounded-pill bg-accent-fill px-1 text-center text-label text-accent-contrast">
                 {trayCount ?? '…'}
               </span>
             </button>
@@ -133,7 +133,7 @@ export function AiExploreScreen() {
           <button
             type="button"
             onClick={() => setTrayOpen(true)}
-            className="flex h-10 items-center justify-between gap-2 rounded-control border border-border bg-surface pl-[10px] pr-3 text-left font-semibold hover:bg-bg"
+            className="flex h-10 items-center justify-between gap-2 rounded-control border border-border bg-surface pl-[10px] pr-3 text-left font-semibold hover:bg-hover"
           >
             <span className="flex items-center gap-3">
               <Inbox aria-hidden="true" className="h-[18px] w-[18px]" strokeWidth={1.75} />
@@ -168,7 +168,7 @@ export function AiExploreScreen() {
 /** Round plus of New chat; centred on the chat list's icon column in both states (D74). */
 function PlusMark() {
   return (
-    <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-pill bg-text text-surface">
+    <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-pill bg-inverse text-inverse-text">
       <Plus className="h-4 w-4" />
     </span>
   );

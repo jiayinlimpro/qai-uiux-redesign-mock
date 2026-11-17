@@ -22,7 +22,7 @@ export function SuiteFields({
 }) {
   const [prefixTouched, setPrefixTouched] = useState(value.idPrefix !== '');
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_10rem]">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_13rem]">
       <Field label="Suite name" required error={errors.name}>
         {(p) => (
           <Input

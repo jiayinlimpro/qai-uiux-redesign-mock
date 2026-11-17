@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FolderPlus, Library, Plus, Sparkles, Upload } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { cloneTests, deleteTests, listKnowledge, listLatestResults, listRuns, listSuites, listLibraryTests } from '@/data/api';
 import type { ID } from '@/data/types';
@@ -109,18 +110,26 @@ export function SuitesScreen() {
   if (ctx.tests.length === 0 && ctx.suites.length === 0) {
     return (
       <div className="flex h-full items-start justify-center p-10">
-        <div className="max-w-md rounded-card border border-border bg-surface px-8 py-10 text-center">
+        <div className="flex max-w-md flex-col items-center rounded-card border border-border bg-surface px-8 py-10 text-center">
+          <span className="mb-4 inline-flex size-12 items-center justify-center rounded-card bg-accent-soft text-accent-soft-text">
+            <Library aria-hidden="true" className="size-6" />
+          </span>
           <h1 className="text-h2">No tests yet</h1>
           <p className="mt-1 text-text-muted">Bring in your test cases, write one, or let the AI propose tests by exploring your platform.</p>
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             <Link to={to.importTests(project.id)} className={buttonClasses()}>
+              <Upload aria-hidden="true" />
               Import
             </Link>
             <Link to={to.newTest(project.id)} className={buttonClasses()}>
+              <Plus aria-hidden="true" />
               New test
             </Link>
-            <Button onClick={() => setCreatingSuite(true)}>New suite</Button>
+            <Button icon={FolderPlus} onClick={() => setCreatingSuite(true)}>
+              New suite
+            </Button>
             <Link to={to.explore(project.id)} className={buttonClasses({ variant: 'primary' })}>
+              <Sparkles aria-hidden="true" />
               Explore with AI
             </Link>
           </div>

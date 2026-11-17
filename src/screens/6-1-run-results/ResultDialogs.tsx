@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ShieldCheck, Tag } from 'lucide-react';
 import { markKnownIssue, overrideResult } from '@/data/api';
 import type { ID, Result, ResultStep, Run, TestCase } from '@/data/types';
 import { Button } from '@/components/ui/button';
@@ -42,7 +43,7 @@ export function OverrideDialog({ result, label, onClose, onSaved }: { result: Re
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="primary" disabled={!ready || saving}>
+          <Button icon={ShieldCheck} type="submit" variant="primary" disabled={!ready || saving}>
             Save override
           </Button>
         </>
@@ -86,7 +87,7 @@ export function OverrideDialog({ result, label, onClose, onSaved }: { result: Re
               className={cn('flex flex-wrap items-center justify-center gap-2 rounded-control border border-dashed p-4 text-text-muted', dragging ? 'border-accent bg-accent-soft' : 'border-border')}
             >
               Drop a screenshot, video or file here, or
-              <label className="cursor-pointer rounded-control border border-border bg-surface px-3 py-1 font-semibold text-text hover:bg-bg">
+              <label className="cursor-pointer rounded-control border border-border bg-surface px-3 py-1 font-semibold text-text hover:bg-hover">
                 Choose file
                 <input
                   {...p}
@@ -133,7 +134,7 @@ export function KnownIssueDialog({ testIds, labels, onClose, onDone }: { testIds
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="primary">
+          <Button icon={Tag} type="submit" variant="primary">
             Mark known issue
           </Button>
         </>

@@ -23,9 +23,9 @@ Three areas: Queue (each test: state chip Passed/Failed/Running/Queued + mode) �
 
 ## 5.3 Paused / interrupted run
 Banner variants (amber): "Interrupted at test 34 of 83 — QAI closed while the run was in progress. Progress up to test 34 is saved." → **Resume from test 35** · Stop run. Proposed variants [DEV-CONFIRM]: "AI provider unavailable — retrying automatically, then waits for you"; "UAT website not responding for 5 tests in a row"; "Blocked before start: API key rejected (pre-flight)".
-Banner actions: Resume from test <n> · Stop run (confirmation, D55). User pause: "Paused at test 3 of 4 — You paused this run. Progress up to test 3 is saved."
+Banner actions: Stop run (confirmation, D55) · **Resume from test <n>** (primary, last, D80). User pause: "Paused at test 3 of 4 — You paused this run. Progress up to test 3 is saved."
 Progress card: "<done> of <total> · passed · failed · <n> not run" + cost so far. Note: "Tests that never ran show as Not run, never as Failed, and do not count in the pass rate."
 
 ## 5.4 Runs list
-Header "Runs" + subtitle "Every execution, with the exact test versions it used." + New run (All tests, D56). Table: Run (link) · Started ("Today 10:02", "Yesterday 16:40", "16 Oct") · Scope ("All tests · 83", "09 Contact Us · 4 tests", "CNT-04 only") · Environment (run snapshot, D36) · **Duration** ("45s", "2m 54s", "1h 05m") · State (Running x/y · Paused · Interrupted at x/y · Completed · Stopped at x/y) · Results (chips computed from results) · Cost · action (Watch / Resume / Open). Running rows update live.
+Header "Runs" + subtitle "Every execution, with the exact test versions it used." + New run (All tests, D56). Table: Run (link) · Started ("Today 10:02", "Yesterday 16:40", "16 Oct") · Scope ("All tests · 83", "09 Contact Us · 4 tests", "CNT-04 only") · Environment (run snapshot, D36) · **Duration** ("45s", "2m 54s", "1h 05m") · State chip with icon (Running x/y · Paused · Interrupted at x/y · Completed · Stopped at x/y) · Results (compact, D80: mini proportion bar + ✓ n ✕ n ! n, computed from results; the full sentence is the accessible text) · Cost (right-aligned) · action (Watch / Resume / Open →, xs). 13 px rows. Running rows update live.
 **States** Empty: "No runs yet" + "Select tests in Suites to run them" + Go to Suites · Loading · Error with Retry.

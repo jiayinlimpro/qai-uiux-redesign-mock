@@ -1,3 +1,4 @@
+import { CircleStop, Play } from 'lucide-react';
 import { useState } from 'react';
 import { listResults, resumeRun, stopRun } from '@/data/api';
 import type { Run } from '@/data/types';
@@ -59,10 +60,8 @@ export function PausedRunScreen({ run }: { run: Run }) {
           <p>{b.text}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="primary" disabled={busy} onClick={() => void act(() => resumeRun(run.id))}>
-            Resume from test {Math.min(run.progress.done + 1, run.progress.total)}
-          </Button>
           <Button
+            icon={CircleStop}
             disabled={busy}
             onClick={async () => {
               const ok = await confirm({
@@ -75,6 +74,9 @@ export function PausedRunScreen({ run }: { run: Run }) {
             }}
           >
             Stop run
+          </Button>
+          <Button variant="primary" icon={Play} disabled={busy} onClick={() => void act(() => resumeRun(run.id))}>
+            Resume from test {Math.min(run.progress.done + 1, run.progress.total)}
           </Button>
         </div>
       </section>

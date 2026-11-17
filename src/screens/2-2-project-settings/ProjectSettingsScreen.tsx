@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Database, Download, Eye, Gauge, Globe, SlidersHorizontal, Sparkles, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getProject, listProjects, updateProject, DuplicateProjectNameError } from '@/data/api';
 import type { Project } from '@/data/types';
@@ -48,7 +49,7 @@ export function ProjectSettingsScreen() {
         <GeneralSection project={project} save={save} />
         <AiSection project={project} save={save} />
         <BrowserSection project={project} save={save} />
-        <SectionCard id="visual" title="Visual comparison">
+        <SectionCard id="visual" icon={Eye} title="Visual comparison">
           <AutoSaveCheckbox
             label="Compare screenshots with the previous run for all tests"
             help="Script replays only. Individual tests can be excluded in their Visual check tab. Changes are flagged, never failed."
@@ -71,7 +72,7 @@ function GeneralSection({ project, save }: { project: Project; save: (c: Change)
   const dirty = name !== project.name;
 
   return (
-    <SectionCard id="general" title="General">
+    <SectionCard id="general" icon={SlidersHorizontal} title="General">
       <Field label="Project name" required error={dirty ? error : undefined} className="max-w-md">
         {(p) => (
           <Input
@@ -101,7 +102,7 @@ function GeneralSection({ project, save }: { project: Project; save: (c: Change)
 function AiSection({ project, save }: { project: Project; save: (c: Change) => Promise<SaveStatus> }) {
   const [status, setStatus] = useState<SaveStatus>(null);
   return (
-    <SectionCard id="ai" title="AI">
+    <SectionCard id="ai" icon={Sparkles} title="AI">
       <div className="max-w-md">
         <ProjectModelSelect
           label="Default model"
@@ -135,7 +136,7 @@ function BrowserSection({ project, save }: { project: Project; save: (c: Change)
   }
 
   return (
-    <SectionCard id="browser" title="Browser">
+    <SectionCard id="browser" icon={Globe} title="Browser">
       <input
         ref={(el) => {
           input.current = el;
@@ -155,7 +156,7 @@ function BrowserSection({ project, save }: { project: Project; save: (c: Change)
         </p>
         <Button onClick={() => input.current?.click()}>{current ? 'Change' : 'Browse'}</Button>
         {current && (
-          <Button
+          <Button icon={Trash2}
             variant="ghost"
             onClick={() => void save((p) => ({ ...p, settings: { ...p.settings, browserExtensionPath: undefined } })).then(setStatus)}
           >
@@ -189,7 +190,7 @@ function RunDefaultsSection({ project, save }: { project: Project; save: (c: Cha
   };
 
   return (
-    <SectionCard id="run-defaults" title="Run defaults (advanced)" description="Pre-fill the Advanced section of the run dialog.">
+    <SectionCard id="run-defaults" icon={Gauge} title="Run defaults (advanced)" description="Pre-fill the Advanced section of the run dialog.">
       <div className="grid max-w-xl grid-cols-1 gap-4 sm:grid-cols-2">
         <Checkbox label="Headless (browser hidden)" checked={form.headless} onChange={(e) => toggle('headless', e.target.checked)} />
         <div className="flex flex-wrap items-start gap-3">
@@ -230,10 +231,10 @@ function DataSection({ project }: { project: Project }) {
   const [exporting, setExporting] = useState(false);
   const [status, setStatus] = useState<SaveStatus>(null);
   return (
-    <SectionCard id="data" title="Data" description="Export includes suites, tests, scripts, knowledge, runs and AI explore chats.">
+    <SectionCard id="data" icon={Database} title="Data" description="Export includes suites, tests, scripts, knowledge, runs and AI explore chats.">
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => setExporting(true)}>Export project</Button>
-        <Button variant="danger" onClick={() => setDeleting(true)}>
+        <Button icon={Download} onClick={() => setExporting(true)}>Export project</Button>
+        <Button icon={Trash2} variant="danger" onClick={() => setDeleting(true)}>
           Delete project
         </Button>
       </div>

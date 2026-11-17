@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowUp, BookOpen, Compass, FileText, ListChecks, LoaderCircle, Paperclip, X } from 'lucide-react';
+import { ArrowUp, BookOpen, Compass, FileCheck2, FileText, Inbox, ListChecks, LoaderCircle, Paperclip, Sparkles, X } from 'lucide-react';
 import { createChat, getChat, getTest, listKnowledge, sendChatMessage } from '@/data/api';
 import type { ChatMessage, ID, KnowledgeItem, TestCase } from '@/data/types';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { plural } from '@/lib/format';
 import { validationLabels } from '@/lib/labels';
 import { caseWhereabouts } from '@/lib/exploreRules';
 import { cn } from '@/lib/utils';
-import { validationTone } from './ReadyForSuites';
+import { validationIcons, validationTone } from './ReadyForSuites';
 
 /** New-chat suggestion cards (D70): our three starters; a click fills the message. */
 const STARTERS = [
@@ -82,6 +82,8 @@ export function ChatView({ chatId, onChanged, onOpenTray, onCreated, version }: 
     <>
       <div className="min-h-0 flex-1 overflow-auto px-6 py-6">
         <div className="mx-auto flex max-w-4xl flex-col gap-4">
+          {/* One h1 per page (rule 7): the greeting for a new chat, otherwise the chat's title for screen readers. */}
+          {chat && <h1 className="sr-only">AI explore · {chat.title}</h1>}
           {!chat && (
             // New chat (D70): greeting and suggestion cards, in the old QAI chat layout.
             <div className="flex flex-col gap-3 pt-[8vh]">
@@ -118,8 +120,9 @@ export function ChatView({ chatId, onChanged, onOpenTray, onCreated, version }: 
             <Message key={i} index={i} m={m} highlighted={target === String(i)} knowledge={knowledge} testsById={testsById} onOpenTray={onOpenTray} />
           ))}
           {running && (
-            <div role="status" className="flex items-center gap-2 text-text-muted">
-              <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" />
+            <div role="status" className="flex items-center gap-3 text-text-muted">
+              <AiAvatar />
+              <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               Exploring… You can leave this chat; the AI keeps working.
             </div>
           )}
@@ -164,9 +167,10 @@ function Message({
 }) {
   const project = useProject();
   const box = cn('rounded-card border p-4 focus:outline-none', highlighted && 'ring-2 ring-accent');
+  // D80: your messages are soft violet bubbles on the right; the AI's replies sit beside its avatar, cards in a light frame.
   if (m.kind === 'user') {
     return (
-      <div data-message-index={index} tabIndex={-1} className={cn(box, 'ml-auto max-w-[80%] border-border bg-surface')}>
+      <div data-message-index={index} tabIndex={-1} className={cn('ml-auto max-w-[80%] whitespace-pre-line rounded-card rounded-br-control bg-accent-soft px-4 py-3 text-text focus:outline-none', highlighted && 'ring-2 ring-accent')}>
         <span className="sr-only">You: </span>
         {m.text}
       </div>
@@ -174,19 +178,27 @@ function Message({
   }
   if (m.kind === 'ai') {
     return (
-      <div data-message-index={index} tabIndex={-1} className={cn(box, 'max-w-[85%] border-border bg-surface-muted')}>
-        <span className="sr-only">AI: </span>
-        {m.simulated && <Chip className="mb-1">Simulated (prototype)</Chip>}
-        <p>{m.text}</p>
+      <div data-message-index={index} tabIndex={-1} className={cn('flex max-w-[85%] gap-3 rounded-card focus:outline-none', highlighted && 'ring-2 ring-accent')}>
+        <AiAvatar />
+        <div className="min-w-0 pt-0.5">
+          <span className="sr-only">AI: </span>
+          {m.simulated && <Chip className="mb-1.5">Simulated (prototype)</Chip>}
+          <p>{m.text}</p>
+        </div>
       </div>
     );
   }
   if (m.kind === 'plan') {
     const used = m.usedKnowledge.map((id) => knowledge.find((k) => k.id === id)?.name ?? 'a removed knowledge item');
     return (
-      <section data-message-index={index} tabIndex={-1} aria-label="Plan" className={cn(box, 'border-border bg-surface')}>
-        <h3 className="text-label text-text-muted">Plan</h3>
-        <p>
+      <div className="flex gap-3">
+      <AiAvatar />
+      <section data-message-index={index} tabIndex={-1} aria-label="Plan" className={cn(box, 'min-w-0 flex-1 border-border bg-surface')}>
+        <h3 className="flex items-center gap-2 text-label text-text-muted">
+          <ListChecks aria-hidden="true" className="size-4 text-accent" />
+          Plan
+        </h3>
+        <p className="mt-1 font-medium">
           {plural(m.suites, 'suite')} · {plural(m.scenarios, 'scenario')}
         </p>
         <p className="text-label font-normal text-text-muted">
@@ -194,14 +206,20 @@ function Message({
           {used.length ? ` · used: ${used.join(', ')}` : ''}
         </p>
       </section>
+      </div>
     );
   }
   // Cases card (D65): status and where each case is now; no approval here.
   const cases = m.testIds.map((id) => testsById.get(id)).filter((t): t is TestCase => Boolean(t));
   return (
-    <section data-message-index={index} tabIndex={-1} aria-label="Test cases written" className={cn(box, 'border-border bg-surface')}>
+    <div className="flex gap-3">
+    <AiAvatar />
+    <section data-message-index={index} tabIndex={-1} aria-label="Test cases written" className={cn(box, 'min-w-0 flex-1 border-border bg-surface')}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-semibold">{plural(m.testIds.length, 'test case')} · sent to Ready for Suites</h3>
+        <h3 className="flex items-center gap-2 font-semibold">
+          <FileCheck2 aria-hidden="true" className="size-4 text-accent" />
+          {plural(m.testIds.length, 'test case')} · sent to Ready for Suites
+        </h3>
         {m.simulated && <Chip>Simulated (prototype)</Chip>}
       </div>
       <ul className="mt-2 flex flex-col divide-y divide-border">
@@ -211,7 +229,9 @@ function Message({
           return (
             <li key={c.id} className="flex flex-wrap items-center gap-2 py-1.5">
               <span className="min-w-0 flex-1">{c.title}</span>
-              <Chip tone={validationTone[status]}>{validationLabels[status]}</Chip>
+              <Chip tone={validationTone[status]} icon={validationIcons[status]}>
+                {validationLabels[status]}
+              </Chip>
               <span className="text-label font-normal">
                 {where.kind === 'tray' && <span className="text-text-muted">In Ready for Suites</span>}
                 {where.kind === 'discarded' && <span className="text-text-muted">Discarded</span>}
@@ -231,14 +251,24 @@ function Message({
         })}
         {cases.length < m.testIds.length && <li className="py-1.5 text-text-muted">{plural(m.testIds.length - cases.length, 'case')} no longer available</li>}
       </ul>
-      <Button size="sm" className="mt-2" onClick={onOpenTray}>
+      <Button size="sm" icon={Inbox} className="mt-3" onClick={onOpenTray}>
         Open Ready for Suites
       </Button>
     </section>
+    </div>
   );
 }
 
 const MESSAGE_ID = 'ai-explore-message';
+
+/** The AI's mark in the conversation: a soft violet tile with the AI explore sparkle (decorative; replies are labelled "AI"). */
+function AiAvatar() {
+  return (
+    <span aria-hidden="true" className="inline-flex size-8 shrink-0 items-center justify-center rounded-control bg-accent-soft text-accent-soft-text">
+      <Sparkles className="size-4" />
+    </span>
+  );
+}
 
 /**
  * Composer card (D70, in the old QAI chat layout): message · Attach · Knowledge: n items · Send (round arrow).

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { ArrowRight, ChevronRight } from 'lucide-react';
 import { saveGlobalSettings, saveProvider } from '@/data/api';
 import { Button } from '@/components/ui/button';
+import { QaiMark } from '@/components/QaiMark';
 import { ProviderFields } from '@/components/ProviderFields';
 import { CostSavingFields } from '@/components/CostSavingFields';
 import { useGlobalSettings } from '@/app/settings';
@@ -53,8 +54,9 @@ export function WelcomeScreen() {
           e.preventDefault();
           void onContinue();
         }}
-        className="w-full max-w-[560px] rounded-card border border-border bg-surface p-7"
+        className="w-full max-w-[560px] rounded-card border border-border bg-surface p-8 shadow-popover"
       >
+        <QaiMark className="mb-4 size-10" />
         <h1 className="text-h1">Welcome to QAI</h1>
         <p className="mt-1 text-text-muted">Connect an AI provider so QAI can run and create tests. You can change this later in Global settings.</p>
 
@@ -82,6 +84,7 @@ export function WelcomeScreen() {
           {!complete && <p className="text-label font-normal text-text-muted">Fill in the required fields to continue.</p>}
           <Button type="submit" variant="primary" disabled={!complete || state.kind === 'saving'}>
             {state.kind === 'saving' ? 'Saving…' : 'Continue to projects'}
+            {state.kind !== 'saving' && <ArrowRight aria-hidden="true" />}
           </Button>
         </div>
       </form>

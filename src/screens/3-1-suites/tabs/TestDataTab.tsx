@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Pencil, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { suggestTestDataRows } from '@/data/api';
 import type { TestCase, TestData } from '@/data/types';
@@ -145,10 +146,10 @@ export function TestDataTab({ test, save }: { test: TestCase; save: SaveTest }) 
             <p className="text-label font-normal text-text-muted">Each {'{field}'} in the steps becomes a column. Negative rows change one field at a time; the others stay valid.</p>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" onClick={() => setEditing('new')}>
+            <Button size="sm" icon={Plus} onClick={() => setEditing('new')}>
               Add row
             </Button>
-            <Button size="sm" aria-expanded={suggesting} onClick={() => setSuggesting((v) => !v)}>
+            <Button size="sm" icon={Sparkles} aria-expanded={suggesting} onClick={() => setSuggesting((v) => !v)}>
               Suggest rows
             </Button>
           </div>
@@ -215,11 +216,11 @@ export function TestDataTab({ test, save }: { test: TestCase; save: SaveTest }) 
                       <StatusChip status={rowResults.get(row.id) ?? 'not_run'} />
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-right">
-                      <Button size="sm" variant="ghost" onClick={() => setEditing(row)}>
+                      <Button size="xs" variant="ghost" icon={Pencil} onClick={() => setEditing(row)}>
                         Edit<span className="sr-only"> row {row.index}</span>
                       </Button>
                       {row.index !== 1 && (
-                        <Button size="sm" variant="ghost" onClick={() => update(draft.rows.filter((r) => r.id !== row.id))}>
+                        <Button size="xs" variant="ghost" icon={Trash2} onClick={() => update(draft.rows.filter((r) => r.id !== row.id))}>
                           Delete<span className="sr-only"> row {row.index}</span>
                         </Button>
                       )}

@@ -1,9 +1,10 @@
 import { useRef } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TabsProps<T extends string> {
   label: string;
-  tabs: { id: T; label: string }[];
+  tabs: { id: T; label: string; icon?: LucideIcon }[];
   value: T;
   onChange: (id: T) => void;
   idPrefix: string;
@@ -18,9 +19,10 @@ export function Tabs<T extends string>({ label, tabs, value, onChange, idPrefix 
     refs.current[(i + tabs.length) % tabs.length]?.focus();
   };
   return (
-    <div role="tablist" aria-label={label} className="flex gap-1 border-b border-border">
+    <div role="tablist" aria-label={label} className="flex gap-5 border-b border-border">
       {tabs.map((t, i) => {
         const selected = t.id === value;
+        const Icon = t.icon;
         return (
           <button
             key={t.id}
@@ -43,10 +45,11 @@ export function Tabs<T extends string>({ label, tabs, value, onChange, idPrefix 
               e.preventDefault();
             }}
             className={cn(
-              '-mb-px border-b-2 px-3 py-2 text-base',
-              selected ? 'border-accent font-semibold text-accent-soft-text' : 'border-transparent text-text-muted hover:text-text',
+              '-mb-px inline-flex h-10 items-center gap-2 border-b-2 px-1 text-base font-medium transition-colors duration-150',
+              selected ? 'border-accent text-text' : 'border-transparent text-text-muted hover:border-border-control hover:text-text',
             )}
           >
+            {Icon && <Icon aria-hidden="true" className="size-4 shrink-0" />}
             {t.label}
           </button>
         );

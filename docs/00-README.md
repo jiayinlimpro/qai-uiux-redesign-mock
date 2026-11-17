@@ -15,7 +15,7 @@ Source of truth for the QAI redesign prototype. Written for three readers:
 | 05 | `05-business-rules.md` | Numbered rules (BR-…) the UI must follow |
 | 06 | `screens/*.md` | One file per area: purpose, layout, content, actions, states |
 | 07 | `07-data-model.md` | Entities, fields, enums, data layer API, sample data |
-| 08 | `08-design-system.md` | Interim visual tokens and components |
+| 08 | `08-design-system.md` | Design system: tokens (light and dark), type, components (D79) |
 | 09 | `09-parked.md` | Ideas NOT to build now |
 | 10 | `10-open-questions.md` | Questions for the engine developers |
 | 11 | `11-build-plan.md` | Build slices, order, acceptance checks, prompts |

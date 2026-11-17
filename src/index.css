@@ -2,42 +2,124 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Interim tokens: docs/08-design-system.md. Dark theme values are defined in the design phase. */
+/*
+ * QAI design tokens: docs/08-design-system.md (D79). Screens use the Tailwind names in tailwind.config.ts, never raw colours.
+ * Light values on :root; dark values on [data-theme="dark"]. The theme is resolved before paint (index.html) and kept in
+ * sync with Global settings › Appearance (src/app/theme.ts): "Follow system" becomes light or dark here.
+ * Every text pair is checked for contrast in src/lib/designTokens.test.ts.
+ */
 :root {
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --surface-muted: #fbfbfc;
-  --border: #d9dde3;
-  --text: #1f2328;
-  --text-muted: #5b6370;
-  --accent: #1f5fbf;
-  --accent-soft: #e8f0fb;
-  --accent-soft-text: #1a4c99;
-  --accent-contrast: #ffffff; /* text on accent (primary buttons, brand mark) */
+  color-scheme: light;
 
-  --passed-fill: #e6f2e9;
-  --passed-border: #b9dcc2;
-  --passed-text: #1f5e2e;
+  /* Surfaces: page → list/card → dialog/menu. */
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-muted: #f9fafb; /* sidebar and masthead */
+  --surface-raised: #ffffff; /* dialogs, menus */
+  --border: #dde1e6; /* dividers (decorative) */
+  --border-control: #828c9b; /* input, select and checkbox edges: 3:1 against surface and bg */
+  --text: #1a1d23;
+  --text-muted: #596170;
+  --hover: #eef0f3; /* hovered rows, secondary and ghost buttons, menu items */
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23596170' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+
+  /* Accent: QAI Violet. --accent is the readable one (links, focus, selected edges, marks); --accent-fill is for solid fills. */
+  --accent: #5b3fd0;
+  --accent-fill: #5b3fd0;
+  --accent-fill-hover: #4e33bf;
+  --accent-contrast: #ffffff; /* text and icons on --accent-fill */
+  --accent-soft: #efebfd; /* selected rows, active nav, info chips */
+  --accent-soft-text: #4a30b0;
+
+  /* Inverse: toasts, tooltips. Dark on a light theme, light on a dark theme. */
+  --inverse: #1a1d23;
+  --inverse-text: #ffffff;
+  --inverse-accent: #c9c0ff; /* actions inside a toast (Undo) */
+  --inverse-hover: rgba(255, 255, 255, 0.12); /* buttons on an inverse surface (bulk bar) */
+
+  --passed-fill: #e6f3ea;
+  --passed-border: #b5dbc0;
+  --passed-text: #1e5c2d;
   --passed-dot: #2b8a4b;
 
-  --failed-fill: #fbeae3;
-  --failed-border: #f0c3b2;
-  --failed-text: #8e3414;
+  --failed-fill: #fcebe4;
+  --failed-border: #f1c2af;
+  --failed-text: #8c3312;
   --failed-dot: #c2410c;
 
-  --cc-fill: #fbf1dc;
-  --cc-border: #edd39a;
-  --cc-text: #6e4a00;
+  --cc-fill: #fcf2dc;
+  --cc-border: #ebd196;
+  --cc-text: #6b4800;
   --cc-dot: #b07a0a;
 
-  --notrun: #8a919c;
+  --notrun: #848c97; /* hollow ring: 3:1 on bg and surface */
 
-  /* Status colours for chart marks (D77): the dots' green and orange, a lighter yellow so Failed and Couldn't complete
-     stay apart side by side (checked for colour-blind separation; charts always carry text labels too). */
+  /* Status colours for chart marks (D77): the dots' green and orange, a clearer yellow so Failed and Couldn't complete
+     stay apart side by side (colour-blind separation checked; charts always carry text labels too). */
   --chart-passed: #2b8a4b;
   --chart-failed: #c2410c;
   --chart-cc: #ad8a00;
-  --backdrop: rgba(31, 35, 40, 0.45); /* behind dialogs */
+
+  --backdrop: rgba(26, 29, 35, 0.45); /* behind dialogs */
+  --shadow-lift: 0 1px 2px rgba(16, 18, 24, 0.06); /* secondary buttons, cards that can be pressed */
+  --shadow-primary: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 1px 2px rgba(16, 18, 24, 0.18); /* primary buttons */
+  --shadow-popover: 0 4px 12px rgba(16, 18, 24, 0.1), 0 1px 3px rgba(16, 18, 24, 0.08);
+  --shadow-overlay: 0 16px 40px rgba(16, 18, 24, 0.18), 0 2px 6px rgba(16, 18, 24, 0.08);
+}
+
+/* Dark: designed, not inverted. Surfaces get lighter as they rise; status fills are deep tints with light text. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0e1116;
+  --surface: #161a21;
+  --surface-muted: #12161c;
+  --surface-raised: #1d222b;
+  --border: #2a303a;
+  --border-control: #5f6978;
+  --text: #e7eaee;
+  --text-muted: #9aa3b0;
+  --hover: #20252e; /* lifts above the surface (bg is darker than surface in dark) */
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239AA3B0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+
+  --accent: #b0a2ff;
+  --accent-fill: #6d53e3;
+  --accent-fill-hover: #5e44d6; /* darker: every lighter violet fails white text */
+  --accent-contrast: #ffffff;
+  --accent-soft: #251f45;
+  --accent-soft-text: #c9c0ff;
+
+  --inverse: #e7eaee;
+  --inverse-text: #161a21;
+  --inverse-accent: #4a30b0;
+  --inverse-hover: rgba(22, 26, 33, 0.08);
+
+  --passed-fill: #10291a;
+  --passed-border: #24583a;
+  --passed-text: #82d9a0;
+  --passed-dot: #3fb96a;
+
+  --failed-fill: #33180d;
+  --failed-border: #74331a;
+  --failed-text: #ffa987;
+  --failed-dot: #f26b32;
+
+  --cc-fill: #2d2308;
+  --cc-border: #665019;
+  --cc-text: #f0cb6b;
+  --cc-dot: #d9a425;
+
+  --notrun: #7f8895;
+
+  --chart-passed: #3fb96a;
+  --chart-failed: #f26b32;
+  --chart-cc: #e3c443;
+
+  --backdrop: rgba(0, 0, 0, 0.6);
+  --shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-primary: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-popover: 0 4px 12px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-overlay: 0 16px 40px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 @layer base {
@@ -47,11 +129,23 @@
     height: 100%;
   }
   body {
+    /* Not tabular-nums here: Inter's tabular set also widens hyphens (NAV-01). Number columns use the tabular-nums utility. */
     @apply bg-bg font-sans text-base text-text antialiased;
   }
   /* Visible focus everywhere (CLAUDE.md rule 7). */
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
+  }
+  /* Reduced motion (D79, WCAG 2.3.3): spinners stop, fades and smooth scrolling become instant. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

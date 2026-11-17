@@ -1,6 +1,6 @@
 # 15 · Decisions since the plan that change or add scope
 
-Decisions D24–D78 (`12-decision-log.md`) compared with the original spec. One line each: what changed and where.
+Decisions D24–D81 (`12-decision-log.md`) compared with the original spec. One line each: what changed and where.
 **Changed** = the spec said something else. **Added** = the spec was silent or vague and the prototype now does it.
 Decisions that only clarify wording or implementation, without changing scope, are listed at the end.
 
@@ -58,6 +58,8 @@ Decisions that only clarify wording or implementation, without changing scope, a
 | D76 | Changed | QAI mark: supplied play-triangle logo as a vector (masthead, window / tab icon), replaces the "Q" tile | 03 · 08 · all shells |
 | D77 | Changed | Overview: pass-rate donut and status-by-suite stacked bars (latest status of each library test); trends still parked | 1.4 · 08 · 09 |
 | D78 | Added | New suite from the Suites header, the empty library and the test editor; one Suite dialog for create and edit (Rename suite becomes Edit suite); empty suites shown with a hint | BR-SUITE-01 · 3.1, 3.2 |
+| D79 | Changed | Design system made final: QAI Violet accent, light and dark themes (Appearance setting now applies real colours), new surface / control / inverse tokens, monospace stack, dense list size, contrast test; delivered in 6 slices | 08 · 2.3 · all screens |
+| D80 | Changed | Component language (icons in buttons and chips, filter toolbar, summary tiles, floating bulk bar) and six placement changes (Copy bug report in the failure card, primary last, Suites header and status filter, suite pass/fail bars, row quick Re-run, one floating bulk bar) | 08 · 6.1 · 3.1 · 3.2 |
 
 **Clarifications without a scope change**: D26 (hash addresses, all routes in `routes.ts`), D31 (the breadcrumb shows
-pages, not selections), D69 (the banned legacy "Upload" means test-file upload; Knowledge keeps "Upload").
+pages, not selections), D69 (the banned legacy "Upload" means test-file upload; Knowledge keeps "Upload"), D81 (accessibility pass: one h1 per page, app-wide reduced motion, filter pill focus ring; refreshed reference screenshots).

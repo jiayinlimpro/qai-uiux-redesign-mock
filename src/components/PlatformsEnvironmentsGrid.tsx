@@ -46,12 +46,10 @@ export function PlatformsEnvironmentsGrid({ value, onChange, errors, heading, co
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
         <div>{heading}</div>
         <div className="flex gap-2">
-          <Button size="sm" onClick={() => setEnvironments([...environments, { id: newKey('env'), name: '' }])}>
-            <Plus aria-hidden="true" className="h-4 w-4" />
+          <Button icon={Plus} size="sm" onClick={() => setEnvironments([...environments, { id: newKey('env'), name: '' }])}>
             Add environment
           </Button>
-          <Button size="sm" onClick={() => setPlatforms([...platforms, { id: newKey('platform'), name: '', urls: {} }])}>
-            <Plus aria-hidden="true" className="h-4 w-4" />
+          <Button icon={Plus} size="sm" onClick={() => setPlatforms([...platforms, { id: newKey('platform'), name: '', urls: {} }])}>
             Add platform
           </Button>
         </div>

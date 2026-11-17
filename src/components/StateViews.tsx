@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { CircleAlert, LoaderCircle } from 'lucide-react';
+import { CircleAlert, LoaderCircle, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /** Loading state shared by all screens (CLAUDE.md rule 6). */
@@ -31,6 +31,21 @@ export function ErrorState({ title, message, onRetry, children }: { title: strin
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Empty state (08 EmptyState, D80): an icon tile, a title, one line of explanation and the next actions. No illustrations. */
+export function EmptyState({ icon: Icon, title, children, actions, headingLevel = 2 }: { icon: LucideIcon; title: string; children?: ReactNode; actions?: ReactNode; headingLevel?: 1 | 2 }) {
+  const Heading = headingLevel === 1 ? 'h1' : 'h2';
+  return (
+    <div className="flex flex-col items-center rounded-card border border-border bg-surface px-8 py-10 text-center">
+      <span className="mb-4 inline-flex size-12 items-center justify-center rounded-card bg-accent-soft text-accent-soft-text">
+        <Icon aria-hidden="true" className="size-6" />
+      </span>
+      <Heading className="text-h2">{title}</Heading>
+      {children && <div className="mt-1 max-w-md text-text-muted">{children}</div>}
+      {actions && <div className="mt-5 flex flex-wrap justify-center gap-2">{actions}</div>}
     </div>
   );
 }

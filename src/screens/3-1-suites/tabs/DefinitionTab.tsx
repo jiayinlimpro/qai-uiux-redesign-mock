@@ -1,7 +1,7 @@
 import { useState } from 'react';
+import { Code, FileText, Link2, Target } from 'lucide-react';
 import type { KnowledgeItem, TestCase } from '@/data/types';
 import { Button } from '@/components/ui/button';
-import { Chip } from '@/components/ui/chip';
 import { Dialog } from '@/components/ui/dialog';
 import { errorText } from '@/components/StatusLine';
 import { useSuites } from '../suitesContext';
@@ -29,17 +29,26 @@ export function DefinitionTab({ test, save }: { test: TestCase; save: SaveTest }
       </section>
       <section>
         <h3 className="text-label text-text-muted">Steps</h3>
-        <ol className="mt-1 list-decimal space-y-1 pl-5">
+        <ol className="mt-2 flex flex-col gap-2.5">
           {test.steps.map((step, i) => (
-            <li key={i} className="whitespace-pre-line">
-              {step}
+            <li key={i} className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-3">
+              <span aria-hidden="true" className="inline-flex size-6 items-center justify-center rounded-pill bg-accent-soft text-label tabular-nums text-accent-soft-text">
+                {i + 1}
+              </span>
+              <span className="whitespace-pre-line pt-0.5">
+                <span className="sr-only">Step {i + 1}: </span>
+                {step}
+              </span>
             </li>
           ))}
         </ol>
       </section>
-      <section>
-        <h3 className="text-label text-text-muted">Expected result</h3>
-        <p className="mt-1 whitespace-pre-line">{test.expectedResult?.trim() || <span className="text-text-muted">Not given</span>}</p>
+      <section className="flex gap-3 rounded-card border border-border bg-surface-muted px-4 py-3">
+        <Target aria-hidden="true" className="mt-0.5 size-[18px] shrink-0 text-accent" />
+        <div>
+          <h3 className="text-label text-text-muted">Expected result</h3>
+          <p className="mt-0.5 whitespace-pre-line">{test.expectedResult?.trim() || <span className="text-text-muted">Not given</span>}</p>
+        </div>
       </section>
       {test.expectedKeywords?.trim() && (
         <section>
@@ -49,15 +58,19 @@ export function DefinitionTab({ test, save }: { test: TestCase; save: SaveTest }
       )}
       <section>
         <h3 className="text-label text-text-muted">Linked knowledge</h3>
-        <div className="mt-1 flex flex-wrap items-center gap-1.5">
-          {applying.map((k) => (
-            <Chip key={k.id}>
-              {k.name}
-              <span className="ml-1 text-text-muted">· {test.linkedKnowledge.includes(k.id) ? 'linked' : viaScope(k, test)}</span>
-            </Chip>
-          ))}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {applying.map((k) => {
+            const KIcon = k.kind === 'document' ? FileText : Code;
+            return (
+              <span key={k.id} className="inline-flex h-7 items-center gap-1.5 rounded-control border border-border bg-surface-muted px-2.5 text-label font-medium">
+                <KIcon aria-hidden="true" className="size-3.5 shrink-0 text-text-muted" />
+                {k.name}
+                <span className="font-normal text-text-muted">· {test.linkedKnowledge.includes(k.id) ? 'linked' : viaScope(k, test)}</span>
+              </span>
+            );
+          })}
           {applying.length === 0 && <span className="text-text-muted">None</span>}
-          <Button size="sm" onClick={() => setLinking(true)}>
+          <Button size="xs" icon={Link2} onClick={() => setLinking(true)}>
             Link…
           </Button>
         </div>

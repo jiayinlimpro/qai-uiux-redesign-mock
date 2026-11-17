@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Eye, History, ListChecks, Play } from 'lucide-react';
 import { listResults, listRuns, listLibraryTests, resumeRun, subscribeRun } from '@/data/api';
 import type { ID, Result, Run } from '@/data/types';
 import { Button, buttonClasses } from '@/components/ui/button';
-import { Chip } from '@/components/ui/chip';
 import { Table, Td, Th, Tr } from '@/components/ui/table';
-import { ErrorState, LoadingState } from '@/components/StateViews';
+import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
+import { StatusCountsCompact } from '@/components/StatusCountChips';
 import { RunDialog } from '@/components/RunDialog';
 import { RunStateChip } from '@/components/RunStateChip';
 import { errorText } from '@/components/StatusLine';
 import { useAsync } from '@/app/hooks/useAsync';
 import { useProject } from '@/app/projectContext';
 import { to } from '@/app/routes';
-import { formatDuration, formatStarted } from '@/lib/format';
+import { formatCost, formatDuration, formatStarted } from '@/lib/format';
 import { scopeWithCount } from '@/lib/runPlan';
 import { countRunStatuses } from '@/lib/status';
 
@@ -64,7 +65,7 @@ export function RunsScreen() {
           <h1 className="text-h1">Runs</h1>
           <p className="text-text-muted">Every execution, with the exact test versions it used.</p>
         </div>
-        <Button variant="primary" onClick={() => void openNewRun()}>
+        <Button variant="primary" icon={Play} onClick={() => void openNewRun()}>
           New run
         </Button>
       </div>
@@ -77,16 +78,21 @@ export function RunsScreen() {
         {data.status === 'loading' && <LoadingState label="Loading runs…" />}
         {data.status === 'error' && <ErrorState title="Couldn't load runs" message={data.error.message} onRetry={data.retry} />}
         {data.status === 'ready' && data.data.runs.length === 0 && (
-          <div className="rounded-card border border-border bg-surface px-6 py-10 text-center">
-            <h2 className="text-h2">No runs yet</h2>
-            <p className="mt-1 text-text-muted">Select tests in Suites to run them.</p>
-            <Link to={to.suites(project.id)} className={buttonClasses({ className: 'mt-4' })}>
-              Go to Suites
-            </Link>
-          </div>
+          <EmptyState
+            icon={History}
+            title="No runs yet"
+            actions={
+              <Link to={to.suites(project.id)} className={buttonClasses()}>
+                <ListChecks aria-hidden="true" />
+                Go to Suites
+              </Link>
+            }
+          >
+            Select tests in Suites to run them.
+          </EmptyState>
         )}
         {data.status === 'ready' && data.data.runs.length > 0 && (
-          <Table>
+          <Table dense>
             <thead>
               <tr>
                 <Th>Run</Th>
@@ -96,7 +102,7 @@ export function RunsScreen() {
                 <Th>Duration</Th>
                 <Th>State</Th>
                 <Th>Results</Th>
-                <Th>Cost</Th>
+                <Th className="text-right">Cost</Th>
                 <Th>
                   <span className="sr-only">Actions</span>
                 </Th>
@@ -111,7 +117,7 @@ export function RunsScreen() {
                 return (
                   <Tr key={run.id}>
                     <Td>
-                      <Link to={to.run(project.id, run.id)} className="text-accent underline underline-offset-2">
+                      <Link to={to.run(project.id, run.id)} className="font-semibold tabular-nums text-accent hover:underline">
                         #{run.number}
                       </Link>
                     </Td>
@@ -120,24 +126,22 @@ export function RunsScreen() {
                       {scopeWithCount(run.scopeLabel, run.progress.total)}
                     </Td>
                     <Td>{run.environment.name}</Td>
-                    <Td className="whitespace-nowrap">{formatDuration(run.durationMs ?? 0)}</Td>
+                    <Td className="whitespace-nowrap tabular-nums">{formatDuration(run.durationMs ?? 0)}</Td>
                     <Td className="whitespace-nowrap"><RunStateChip run={run} /></Td>
-                    <Td>
-                      <div className="flex flex-wrap gap-1">
-                        {c.passed > 0 && <Chip tone="passed">{c.passed} passed</Chip>}
-                        {c.failed > 0 && <Chip tone="failed">{c.failed} failed</Chip>}
-                        {c.couldnt_complete > 0 && <Chip tone="cc">{c.couldnt_complete} couldn't complete</Chip>}
-                      </div>
+                    <Td className="whitespace-nowrap">
+                      <StatusCountsCompact counts={{ ...c, not_run: 0 }} />
                     </Td>
-                    <Td className="whitespace-nowrap">${run.cost.toFixed(2)}</Td>
+                    <Td className="whitespace-nowrap text-right tabular-nums">{formatCost(run.cost)}</Td>
                     <Td className="text-right">
                       {run.state === 'running' ? (
-                        <Link to={to.run(project.id, run.id)} className={buttonClasses({ size: 'sm' })}>
+                        <Link to={to.run(project.id, run.id)} className={buttonClasses({ size: 'xs' })}>
+                          <Eye aria-hidden="true" />
                           Watch<span className="sr-only"> run #{run.number}</span>
                         </Link>
                       ) : run.state === 'paused' || run.state === 'interrupted' ? (
                         <Button
-                          size="sm"
+                          size="xs"
+                          icon={Play}
                           onClick={async () => {
                             try {
                               await resumeRun(run.id);
@@ -150,8 +154,9 @@ export function RunsScreen() {
                           Resume<span className="sr-only"> run #{run.number}</span>
                         </Button>
                       ) : (
-                        <Link to={to.run(project.id, run.id)} className={buttonClasses({ size: 'sm' })}>
+                        <Link to={to.run(project.id, run.id)} className={buttonClasses({ size: 'xs' })}>
                           Open<span className="sr-only"> run #{run.number}</span>
+                          <ArrowRight aria-hidden="true" />
                         </Link>
                       )}
                     </Td>

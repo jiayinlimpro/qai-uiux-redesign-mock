@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, TriangleAlert } from 'lucide-react';
+import { ArchiveRestore, ArchiveX, ChevronDown, ChevronRight, CircleCheck, CircleDashed, FolderInput, Inbox, type LucideIcon, MessageSquare, MessagesSquare, TriangleAlert, Wrench } from 'lucide-react';
 import { discardCases, listChats, listDiscardedCases, listLibraryTests, listTrayCases, moveToSuites, resolveDuplicate, restoreToTray, updateTrayCase, type MoveToSuitesResult } from '@/data/api';
 import type { Browser, Chat, ID, TestCase } from '@/data/types';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,9 @@ import { Chip, type ChipTone } from '@/components/ui/chip';
 import { Dialog } from '@/components/ui/dialog';
 import { Checkbox, Field, Input, Textarea } from '@/components/ui/field';
 import { Toast, type ToastMessage } from '@/components/ui/toast';
-import { ErrorState, LoadingState } from '@/components/StateViews';
+import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
+import { BulkBar } from '@/components/BulkBar';
+import { SegmentedControl } from '@/components/ui/segmented';
 import { errorText } from '@/components/StatusLine';
 import { useAsync } from '@/app/hooks/useAsync';
 import { browserLabels, validationLabels } from '@/lib/labels';
@@ -16,6 +18,8 @@ import { moveBlockerLabels, moveBlockers, trayCounts, VALIDATION_STATUSES, type 
 import { cn } from '@/lib/utils';
 
 export const validationTone: Record<ValidationStatus, ChipTone> = { not_checked: 'neutral', checked: 'passed', needs_fixing: 'cc' };
+/** Validation status icons (D80): dashed circle = not checked yet, check = checked, wrench = needs fixing. */
+export const validationIcons: Record<ValidationStatus, LucideIcon> = { not_checked: CircleDashed, checked: CircleCheck, needs_fixing: Wrench };
 
 /** Selections persist after closing and reopening, for this project and this session (3.5). */
 const selections = new Map<string, Set<ID>>();
@@ -152,19 +156,16 @@ export function ReadyForSuites({
         <p className="text-text-muted">Test cases the AI wrote in this project’s chats. Move them into Suites (they arrive in Not in a suite, marked New), or discard them.</p>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div role="group" aria-label="Filter by validation status" className="flex flex-wrap gap-1.5">
-            {(['all', ...VALIDATION_STATUSES] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                aria-pressed={filter === s}
-                onClick={() => setFilter(s)}
-                className={cn('h-8 rounded-pill border border-border px-3', filter === s ? 'border-accent bg-accent-soft font-semibold text-accent-soft-text' : 'bg-surface')}
-              >
-                {s === 'all' ? 'All' : validationLabels[s]} {counts[s]}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            label="Filter by validation status"
+            value={filter}
+            onChange={setFilter}
+            options={(['all', ...VALIDATION_STATUSES] as const).map((s) => ({
+              value: s,
+              label: `${s === 'all' ? 'All' : validationLabels[s]} ${counts[s]}`,
+              ...(s === 'all' ? {} : { icon: validationIcons[s] }),
+            }))}
+          />
           <Checkbox label="Show discarded" checked={showDiscarded} onChange={(e) => switchView(e.target.checked)} className="ml-2" />
           <Checkbox
             label={`Select all shown (${shown.length})`}
@@ -181,26 +182,22 @@ export function ReadyForSuites({
         </div>
 
         {selection.size > 0 && (
-          <div role="region" aria-label="Selected cases" className="flex flex-wrap items-center gap-2 rounded-card bg-accent-soft px-3 py-2">
-            <span className="font-semibold text-accent-soft-text">{selection.size} selected</span>
+          <BulkBar label="Selected cases" count={selection.size} floating={false} onClear={() => setSelection(new Set())}>
             {showDiscarded ? (
-              <Button size="sm" variant="primary" onClick={() => void restore(selected.map((c) => c.id))}>
+              <Button size="sm" variant="primary" icon={ArchiveRestore} onClick={() => void restore(selected.map((c) => c.id))}>
                 Restore to tray
               </Button>
             ) : (
               <>
-                <Button size="sm" onClick={() => void discard(selected.map((c) => c.id))}>
+                <Button size="sm" variant="inverse" icon={ArchiveX} onClick={() => void discard(selected.map((c) => c.id))}>
                   Discard
                 </Button>
-                <Button size="sm" variant="primary" onClick={() => void move()}>
+                <Button size="sm" variant="primary" icon={FolderInput} className="ml-1" onClick={() => void move()}>
                   Move to Suites
                 </Button>
               </>
             )}
-            <Button size="sm" variant="ghost" onClick={() => setSelection(new Set())}>
-              Clear
-            </Button>
-          </div>
+          </BulkBar>
         )}
         {blocked.length > 0 && (
           <div role="alert" className="rounded-card border border-cc-border bg-cc-fill px-4 py-2 text-cc-text">
@@ -223,9 +220,9 @@ export function ReadyForSuites({
         {data.status === 'loading' && <LoadingState label="Loading cases…" />}
         {data.status === 'error' && <ErrorState title="Couldn't load Ready for Suites" message={data.error.message} onRetry={data.retry} />}
         {data.status === 'ready' && cases.length === 0 && (
-          <div className="rounded-card border border-dashed border-border p-8 text-center text-text-muted">
-            {showDiscarded ? 'No discarded cases.' : 'Nothing waiting. When the AI writes test cases in a chat, they appear here, ready to move into Suites.'}
-          </div>
+          <EmptyState icon={Inbox} title={showDiscarded ? 'No discarded cases' : 'Nothing waiting'}>
+            {showDiscarded ? 'Cases you discard appear here, and can be restored to the tray.' : 'When the AI writes test cases in a chat, they appear here, ready to move into Suites.'}
+          </EmptyState>
         )}
         {data.status === 'ready' && cases.length > 0 && shown.length === 0 && (
           <div className="rounded-card border border-dashed border-border p-6 text-center text-text-muted">
@@ -310,31 +307,36 @@ function CaseRow({
   const panelId = `case-${c.id}`;
   return (
     <li className="border-b border-border last:border-b-0" data-case-id={c.id}>
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2">
-        <input type="checkbox" className="h-4 w-4 accent-accent" checked={checked} onChange={onToggle} aria-label={`Select ${c.title}`} />
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 hover:bg-hover">
+        <input type="checkbox" className="h-4 w-4 cursor-pointer accent-accent" checked={checked} onChange={onToggle} aria-label={`Select ${c.title}`} />
         <button type="button" aria-expanded={open} aria-controls={panelId} onClick={onToggleOpen} className="flex min-w-0 flex-1 items-center gap-1 rounded-control text-left">
-          {open ? <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0" /> : <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0" />}
-          <span className="truncate font-semibold">{c.title}</span>
+          {open ? <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-text-muted" /> : <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-text-muted" />}
+          <span className="truncate font-medium">{c.title}</span>
         </button>
-        <Chip tone={validationTone[status]}>{validationLabels[status]}</Chip>
+        <Chip tone={validationTone[status]} icon={validationIcons[status]}>
+          {validationLabels[status]}
+        </Chip>
         {missingSteps && (
           <span className="inline-flex items-center gap-1 text-label text-cc-text">
             <TriangleAlert aria-hidden="true" className="h-4 w-4" />
             {moveBlockerLabels.missing_steps}
           </span>
         )}
-        <span className="text-label font-normal text-text-muted">{chat ? chat.title : 'Chat removed'}</span>
+        <span className="inline-flex items-center gap-1 text-label font-normal text-text-muted">
+          <MessagesSquare aria-hidden="true" className="size-3.5" />
+          {chat ? chat.title : 'Chat removed'}
+        </span>
         {chat && (
-          <Button size="sm" variant="ghost" className="text-accent" onClick={onOpenChat}>
+          <Button size="xs" variant="ghost" icon={MessageSquare} className="text-accent" onClick={onOpenChat}>
             Open in chat<span className="sr-only"> for {c.title}</span>
           </Button>
         )}
         {discardedView ? (
-          <Button size="sm" onClick={onRestore}>
+          <Button size="xs" icon={ArchiveRestore} onClick={onRestore}>
             Restore to tray<span className="sr-only"> {c.title}</span>
           </Button>
         ) : (
-          <Button size="sm" variant="ghost" onClick={onDiscard}>
+          <Button size="xs" variant="ghost" icon={ArchiveX} onClick={onDiscard}>
             Discard<span className="sr-only"> {c.title}</span>
           </Button>
         )}

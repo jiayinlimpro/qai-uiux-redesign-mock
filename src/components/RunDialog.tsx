@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CircleAlert, CircleCheck, CircleX, LoaderCircle } from 'lucide-react';
+import { CircleAlert, CircleCheck, CircleX, FileCode, LoaderCircle, Play, Sparkles, Table2 } from 'lucide-react';
 import { listSuites, listLibraryTests, planRun, runPreflight, startRun, type PlannedTest } from '@/data/api';
 import type { Browser, ID } from '@/data/types';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ import { scopeLabel, scopeTitle, visualSummary, type PreflightCheck } from '@/li
 import { plural } from '@/lib/format';
 
 const BROWSERS: Browser[] = ['chrome', 'firefox', 'webkit'];
-const modeChip = { ai: { tone: 'info' as const, label: 'AI run' }, script: { tone: 'passed' as const, label: 'Script replay' }, data_rows: { tone: 'neutral' as const, label: modeLabels.data_rows } };
+const modeChip = { ai: { tone: 'info' as const, label: 'AI run', icon: Sparkles }, script: { tone: 'passed' as const, label: 'Script replay', icon: FileCode }, data_rows: { tone: 'neutral' as const, label: modeLabels.data_rows, icon: Table2 } };
 
 /**
  * 5.1 Run dialog (screens/06-runs.md). Opened from Suites (selection, test Run), Edit test "Save and re-run",
@@ -110,12 +110,13 @@ export function RunDialog({ testIds, onClose, presetModel, presetEnvironmentId }
         <>
           <Button onClick={onClose}>Cancel</Button>
           {warned && !blocked ? (
-            <Button variant="primary" disabled={!canStart} onClick={() => void start(true)}>
+            <Button icon={Play} variant="primary" disabled={!canStart} onClick={() => void start(true)}>
               Start anyway
             </Button>
           ) : (
             <Button variant="primary" disabled={!canStart || blocked} onClick={() => void start(false)}>
               {phase === 'checking' ? 'Checking…' : phase === 'starting' ? 'Starting…' : 'Start run'}
+              {phase !== 'checking' && phase !== 'starting' && <Play aria-hidden="true" />}
             </Button>
           )}
         </>
@@ -234,7 +235,7 @@ export function RunDialog({ testIds, onClose, presetModel, presetEnvironmentId }
                       <td className="px-4 py-2">
                         {t?.testId} {t?.title}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-2">{p.notRunReason ? <Chip>Not run</Chip> : <Chip tone={modeChip[p.mode].tone}>{modeChip[p.mode].label}</Chip>}</td>
+                      <td className="whitespace-nowrap px-4 py-2">{p.notRunReason ? <Chip>Not run</Chip> : <Chip tone={modeChip[p.mode].tone} icon={modeChip[p.mode].icon}>{modeChip[p.mode].label}</Chip>}</td>
                       <td className="px-4 py-2 text-text-muted">{p.notRunReason ?? p.reason}</td>
                       {showBrowsers && <td className="px-4 py-2 text-text-muted">{p.browsers.map((b) => browserLabels[b]).join(', ') || '—'}</td>}
                     </tr>

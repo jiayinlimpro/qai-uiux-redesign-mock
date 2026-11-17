@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Tag } from 'lucide-react';
 import { markKnownIssue } from '@/data/api';
 import type { TestCase } from '@/data/types';
 import { Button } from '@/components/ui/button';
@@ -35,7 +36,7 @@ export function KnownIssueDialog({ test, onClose }: { test: TestCase; onClose: (
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="primary">
+          <Button icon={Tag} type="submit" variant="primary">
             Mark known issue
           </Button>
         </>

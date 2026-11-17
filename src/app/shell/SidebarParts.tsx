@@ -111,7 +111,7 @@ export function NavItem({ to: target, icon: Icon, label, active, current = false
       className={cn(
         'flex h-10 items-center rounded-control',
         collapsed ? 'w-10 justify-center' : 'w-full gap-3 pl-[11px] pr-3 text-base',
-        active ? 'bg-accent-soft font-semibold text-accent-soft-text' : 'text-text hover:bg-bg',
+        active ? 'bg-accent-soft font-semibold text-accent-soft-text' : 'text-text hover:bg-hover',
       )}
     >
       <Icon aria-hidden="true" className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
@@ -159,7 +159,7 @@ export function SidebarToggle({ collapsed, onToggle, what = 'sidebar' }: { colla
         aria-label={label}
         aria-expanded={!collapsed}
         aria-keyshortcuts="Control+B Meta+B"
-        className="flex h-10 w-10 items-center justify-center rounded-pill text-text hover:bg-bg"
+        className="flex h-10 w-10 items-center justify-center rounded-pill text-text hover:bg-hover"
       >
         <Menu aria-hidden="true" className="h-5 w-5" strokeWidth={1.75} />
       </button>

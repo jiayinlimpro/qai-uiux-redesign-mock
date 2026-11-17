@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Bug, Code, Ellipsis, Folder, ListChecks, Pencil, RotateCcw, ShieldCheck } from 'lucide-react';
 import type { KnowledgeItem, ResultStep, Run, TestCase } from '@/data/types';
 import { Button, buttonClasses } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { TabPanel, Tabs } from '@/components/ui/tabs';
-import { ReasonChip, StatusChip } from '@/components/StatusViews';
-import { StatusIcon } from '@/components/StatusIcon';
+import { BrowserChip, ModeChip, ReasonChip, StatusChip } from '@/components/StatusViews';
 import { to } from '@/app/routes';
 import { formatDate } from '@/lib/format';
-import { browserLabels, modeLabels, reasonLabels, statusLabels } from '@/lib/labels';
-import { canOverride, hasBugReport, latestOverride, versionLine, type ResultOverride, type ResultRow } from '@/lib/resultRules';
+import { reasonLabels, statusLabels } from '@/lib/labels';
+import { canOverride, failureHeadline, hasBugReport, latestOverride, versionLine, type ResultOverride, type ResultRow } from '@/lib/resultRules';
 import { Menu } from '@/components/ui/menu';
 import { StepsEvidence } from './StepsEvidence';
 import { TechnicalTab } from './TechnicalTab';
@@ -58,35 +58,66 @@ export function ResultDetail({
   // D62: every override is kept; the newest applies, earlier ones are listed under History (newest first).
   const latest = r ? latestOverride(r) : undefined;
   const earlier: ResultOverride[] = r?.overrides ? r.overrides.slice(0, -1).reverse() : [];
+  // D79: Copy bug report sits in the failure card, next to the recommendation; the header keeps it only without a card.
+  const bugReport = Boolean(r && hasBugReport(r));
+  const failureCard = Boolean(r && r.failure && failureHeadline(r));
 
   return (
-    <div className="flex flex-col gap-3 p-5">
-      <div>
-        <p className="text-label font-normal text-text-muted">{row.suiteName || (row.deleted ? 'Deleted test' : '')}</p>
+    <div className="flex flex-col gap-4 px-6 pb-8 pt-5">
+      {/* First line: where the test lives, and the actions (primary last, D79). The title gets the full width below. */}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <p className="inline-flex items-center gap-1.5 text-label font-normal text-text-muted">
+            {row.suiteName && <Folder aria-hidden="true" className="size-3.5" />}
+            {row.suiteName || (row.deleted ? 'Deleted test' : '')}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {bugReport && !failureCard && (
+              <Button icon={Bug} onClick={onCopyBugReport}>
+                Copy bug report
+              </Button>
+            )}
+            {test && (
+              <Link to={to.editTest(projectId, test.id, r?.id)} className={buttonClasses()}>
+                <Pencil aria-hidden="true" />
+                Edit test
+              </Link>
+            )}
+            {r && canOverride(r) && (
+              <Button icon={ShieldCheck} onClick={onOverride}>
+                Override
+              </Button>
+            )}
+            {test && (
+              <Menu
+                label={<Ellipsis aria-hidden="true" />}
+                iconOnly
+                size="md"
+                accessibleLabel={`More actions for ${row.displayId}`}
+                variant="secondary"
+                items={[{ label: test.knownIssue ? 'Update known issue' : 'Mark known issue', onSelect: onKnownIssue }]}
+              />
+            )}
+            <Button variant="primary" icon={RotateCcw} onClick={onRerun} disabled={!test} title={test ? undefined : 'The test was deleted'}>
+              Re-run
+            </Button>
+          </div>
+        </div>
         <h2 className="text-h2">
-          {row.displayId} · {row.title}
+          <span className="font-mono text-[17px] font-medium text-text-muted">{row.displayId}</span> <span className="sr-only">· </span>
+          {row.title}
           {row.deleted && <span className="ml-2 text-base font-normal text-text-muted">(deleted)</span>}
         </h2>
-        <p className="mt-1 flex flex-wrap items-center gap-1.5">
+        <p className="flex flex-wrap items-center gap-1.5">
           <StatusChip status={row.status} />
           {r?.reason && <ReasonChip reason={r.reason} />}
-          {r && <Chip>{modeLabels[r.mode]}</Chip>}
-          {r &&
-            r.perBrowser.map((b) => (
-              <Chip key={b.browser}>
-                {browserLabels[b.browser]}
-                {multi && (
-                  <>
-                    <StatusIcon status={b.status} className="ml-1" />
-                  </>
-                )}
-              </Chip>
-            ))}
+          {r && <ModeChip mode={r.mode} />}
+          {r && r.perBrowser.map((b) => <BrowserChip key={b.browser} browser={b.browser} status={multi ? b.status : undefined} />)}
           {r?.aiVerdict.confidence === 'low' && <Chip tone="cc">Low confidence</Chip>}
           {r?.flags.scriptReRecorded && <Chip tone="info">Script re-recorded</Chip>}
           {test?.knownIssue && <Chip tone="cc">Known issue{test.knownIssue.ticketRef ? ` · ${test.knownIssue.ticketRef}` : ''}</Chip>}
         </p>
-        <p className="mt-1 text-text-muted">
+        <p className="text-dense text-text-muted">
           {r ? versionLine(r.testVersion, test?.version ?? null) : `Not run in Run #${run.number}`}
           {test && (
             <>
@@ -101,28 +132,7 @@ export function ResultDetail({
             </>
           )}
         </p>
-        {row.note && <p className="mt-1 text-text-muted">Note: {row.note}</p>}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Button variant="primary" onClick={onRerun} disabled={!test} title={test ? undefined : 'The test was deleted'}>
-          Re-run
-        </Button>
-        {r && hasBugReport(r) && <Button onClick={onCopyBugReport}>Copy bug report</Button>}
-        {test && (
-          <Link to={to.editTest(projectId, test.id, r?.id)} className={buttonClasses()}>
-            Edit test
-          </Link>
-        )}
-        {r && canOverride(r) && <Button onClick={onOverride}>Override</Button>}
-        {test && (
-          <Menu
-            label="More"
-            accessibleLabel={`More actions for ${row.displayId}`}
-            variant="secondary"
-            items={[{ label: test.knownIssue ? 'Update known issue' : 'Mark known issue', onSelect: onKnownIssue }]}
-          />
-        )}
+        {row.note && <p className="text-dense text-text-muted">Note: {row.note}</p>}
       </div>
 
       {r?.flags.worthALook && (
@@ -177,13 +187,21 @@ export function ResultDetail({
             value={tab}
             onChange={setTab}
             tabs={[
-              { id: 'steps', label: 'Steps and evidence' },
-              { id: 'technical', label: 'Technical' },
+              { id: 'steps', label: 'Steps and evidence', icon: ListChecks },
+              { id: 'technical', label: 'Technical', icon: Code },
             ]}
           />
           <TabPanel idPrefix={idPrefix} id={tab}>
             {tab === 'steps' ? (
-              <StepsEvidence result={r} test={test} showTechnical={showTechnical} setShowTechnical={setShowTechnical} onOpenScreenshot={onOpenScreenshot} onOpenVisual={onOpenVisual} />
+              <StepsEvidence
+                result={r}
+                test={test}
+                showTechnical={showTechnical}
+                setShowTechnical={setShowTechnical}
+                onOpenScreenshot={onOpenScreenshot}
+                onOpenVisual={onOpenVisual}
+                onCopyBugReport={bugReport ? onCopyBugReport : undefined}
+              />
             ) : (
               <TechnicalTab result={r} run={run} test={test} knowledge={knowledge} runs={runs} />
             )}

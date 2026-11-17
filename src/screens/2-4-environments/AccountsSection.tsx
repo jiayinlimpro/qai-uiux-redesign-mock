@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, Pencil, Plus, Trash2 } from 'lucide-react';
 import { deleteAccount, DuplicateAccountError, revealAccountPassword, saveAccount } from '@/data/api';
 import type { Account, Project } from '@/data/types';
 import { Button } from '@/components/ui/button';
@@ -24,10 +24,10 @@ export function AccountsSection({ accounts, onChanged }: { accounts: Account[]; 
 
   return (
     <SectionCard
-      id="accounts"
+      id="accounts" icon={KeyRound}
       title="Accounts"
       action={
-        <Button size="sm" disabled={noPlatforms} onClick={() => setEditing('new')}>
+        <Button icon={Plus} size="sm" disabled={noPlatforms} onClick={() => setEditing('new')}>
           Add account
         </Button>
       }
@@ -57,7 +57,7 @@ export function AccountsSection({ accounts, onChanged }: { accounts: Account[]; 
                 <Td>{a.username}</Td>
                 <Td>{a.hasPassword ? <PasswordCell account={a} label={`${a.role}, ${platformName(project, a.platformId)}, ${envName(project, a.environmentId)}`} /> : <span className="text-text-muted">Not set</span>}</Td>
                 <Td className="text-right">
-                  <Button size="sm" onClick={() => setEditing(a)}>
+                  <Button icon={Pencil} size="sm" onClick={() => setEditing(a)}>
                     Edit<span className="sr-only"> account {a.role}</span>
                   </Button>
                 </Td>
@@ -173,7 +173,7 @@ function AccountDialog({ account, accounts, onClose, onDone }: { account?: Accou
       footer={
         <>
           {account && (
-            <Button variant="danger" className="mr-auto" onClick={() => void remove()}>
+            <Button icon={Trash2} variant="danger" className="mr-auto" onClick={() => void remove()}>
               Delete account
             </Button>
           )}

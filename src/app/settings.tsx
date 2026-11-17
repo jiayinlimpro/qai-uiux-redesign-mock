@@ -3,8 +3,30 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { getGlobalSettings } from '@/data/api';
 import type { GlobalSettings } from '@/data/types';
 import { ErrorState, LoadingState } from '@/components/StateViews';
+import { resolveTheme, THEME_STORAGE_KEY, type ThemeChoice } from '@/lib/theme';
 import { useAsync } from './hooks/useAsync';
 import { paths, to } from './routes';
+
+/**
+ * Applies the Appearance choice as <html data-theme="light|dark"> (D79). "Follow system" tracks the OS while it is chosen.
+ * The choice is also remembered on this device so index.html can set the theme before the first paint.
+ * Returns a cleanup that stops tracking the OS.
+ */
+function applyTheme(choice: ThemeChoice): () => void {
+  try {
+    globalThis.localStorage?.setItem(THEME_STORAGE_KEY, choice);
+  } catch {
+    // Storage unavailable: the theme still applies; only the first paint of the next start may differ.
+  }
+  const media = globalThis.matchMedia?.('(prefers-color-scheme: dark)');
+  const apply = () => {
+    document.documentElement.dataset.theme = resolveTheme(choice, media?.matches ?? false);
+  };
+  apply();
+  if (choice !== 'system' || !media) return () => {};
+  media.addEventListener('change', apply);
+  return () => media.removeEventListener('change', apply);
+}
 
 interface SettingsContextValue {
   settings: GlobalSettings;
@@ -32,10 +54,10 @@ export function SettingsRoot({ children }: { children?: ReactNode }) {
     return next;
   }, []);
 
+  const themeChoice = settings?.theme;
   useEffect(() => {
-    // Dark theme colours come with the design phase (08); the attribute is the hook for them.
-    if (settings) document.documentElement.dataset.theme = settings.theme;
-  }, [settings]);
+    if (themeChoice) return applyTheme(themeChoice);
+  }, [themeChoice]);
 
   if (!settings) {
     if (initial.status === 'error') {

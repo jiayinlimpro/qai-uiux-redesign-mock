@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Code, FileText, FileUp, FolderOpen, RefreshCw, SlidersHorizontal, Trash2, Upload } from 'lucide-react';
 import { deleteKnowledge, saveKnowledge, type KnowledgeInput } from '@/data/api';
 import type { KnowledgeItem, Scope, Suite, TestCase } from '@/data/types';
 import { Button } from '@/components/ui/button';
@@ -78,10 +79,10 @@ export function DocumentsSection({ items, suites, tests, onChanged }: SectionPro
 
   return (
     <SectionCard
-      id="documents"
+      id="documents" icon={FileText}
       title="Documents"
       action={
-        <Button size="sm" onClick={() => uploadInput.current?.click()}>
+        <Button icon={Upload} size="sm" onClick={() => uploadInput.current?.click()}>
           Upload
         </Button>
       }
@@ -119,6 +120,7 @@ export function DocumentsSection({ items, suites, tests, onChanged }: SectionPro
                   <div className="inline-flex gap-2">
                     <Button
                       size="sm"
+                      icon={RefreshCw}
                       onClick={() => {
                         setReplacing(d);
                         replaceInput.current?.click();
@@ -126,10 +128,10 @@ export function DocumentsSection({ items, suites, tests, onChanged }: SectionPro
                     >
                       Replace<span className="sr-only"> {d.name}</span>
                     </Button>
-                    <Button size="sm" onClick={() => setScoping(d)}>
+                    <Button icon={SlidersHorizontal} size="sm" onClick={() => setScoping(d)}>
                       Edit scope<span className="sr-only"> of {d.name}</span>
                     </Button>
-                    <Button size="sm" variant="danger" onClick={() => void remove(d)}>
+                    <Button icon={Trash2} size="sm" variant="danger" onClick={() => void remove(d)}>
                       Delete<span className="sr-only"> {d.name}</span>
                     </Button>
                   </div>
@@ -243,10 +245,10 @@ export function SkillsSection({ items, suites, tests, onChanged }: SectionProps)
 
   return (
     <SectionCard
-      id="skills"
+      id="skills" icon={Code}
       title="Skills"
       action={
-        <Button size="sm" onClick={() => setLoading(true)}>
+        <Button icon={FolderOpen} size="sm" onClick={() => setLoading(true)}>
           Load skill
         </Button>
       }
@@ -277,10 +279,10 @@ export function SkillsSection({ items, suites, tests, onChanged }: SectionProps)
                 <Td>{s.usedBy?.length ? s.usedBy.map((u) => usedByLabels[u]).join(' · ') : <span className="text-text-muted">Not used</span>}</Td>
                 <Td className="whitespace-nowrap text-right">
                   <div className="inline-flex gap-2">
-                    <Button size="sm" onClick={() => setScoping(s)}>
+                    <Button icon={SlidersHorizontal} size="sm" onClick={() => setScoping(s)}>
                       Edit scope<span className="sr-only"> of {s.name}</span>
                     </Button>
-                    <Button size="sm" variant="danger" onClick={() => void remove(s)}>
+                    <Button icon={Trash2} size="sm" variant="danger" onClick={() => void remove(s)}>
                       Delete<span className="sr-only"> {s.name}</span>
                     </Button>
                   </div>
@@ -358,10 +360,10 @@ function LoadSkillDialog({ suites, tests, onClose, onDone }: { suites: Suite[]; 
       <div className="flex flex-col gap-4">
         <div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => fileInput.current?.click()}>
+            <Button icon={FileUp} size="sm" onClick={() => fileInput.current?.click()}>
               Choose a file
             </Button>
-            <Button size="sm" onClick={() => folderInput.current?.click()}>
+            <Button icon={FolderOpen} size="sm" onClick={() => folderInput.current?.click()}>
               Choose a folder
             </Button>
           </div>

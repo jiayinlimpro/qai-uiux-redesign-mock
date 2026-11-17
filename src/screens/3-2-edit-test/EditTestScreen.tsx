@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowDown, ArrowUp, Plus, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Plus, RotateCcw, X } from 'lucide-react';
 import { createTest, DuplicateTestIdError, getResult, getRun, listKnowledge, listSuites, listLibraryTests, saveTest } from '@/data/api';
 import type { Browser, KnowledgeItem, Result, Run, Suite, TestCase } from '@/data/types';
 import { Button, buttonClasses } from '@/components/ui/button';
@@ -248,14 +248,15 @@ function EditorForm({ test, data, onSuiteCreated }: { test?: TestCase; data: Dat
           </h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link to={backTo} className={buttonClasses()}>
+          <Link to={backTo} className={buttonClasses({ variant: 'ghost' })}>
+            <X aria-hidden="true" />
             Cancel
           </Link>
-          <Button type="submit" variant={fromRun ? 'secondary' : 'primary'} disabled={saving || (Boolean(test) && !dirty)}>
+          <Button type="submit" icon={Check} variant={fromRun ? 'secondary' : 'primary'} disabled={saving || (Boolean(test) && !dirty)}>
             {saving ? 'Saving…' : test ? (effect?.bumpVersion ? `Save as v${nextVersion}` : 'Save') : 'Create test'}
           </Button>
           {fromRun && (
-            <Button variant="primary" disabled={saving || !dirty} onClick={() => void save(true)}>
+            <Button variant="primary" icon={RotateCcw} disabled={saving || !dirty} onClick={() => void save(true)}>
               Save and re-run
             </Button>
           )}
@@ -439,8 +440,7 @@ function StepsEditor({ steps, onChange, error }: { steps: string[]; onChange: (s
           </li>
         ))}
       </ol>
-      <Button size="sm" className="mt-2" onClick={() => onChange([...steps, ''])}>
-        <Plus aria-hidden="true" className="h-4 w-4" />
+      <Button size="sm" icon={Plus} className="mt-2" onClick={() => onChange([...steps, ''])}>
         Add step
       </Button>
       <p id="steps-hint" className="mt-1 text-label font-normal text-text-muted">

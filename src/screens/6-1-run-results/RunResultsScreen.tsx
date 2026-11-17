@@ -1,11 +1,13 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { CalendarDays, CircleStop, Coins, Layers, Server, type LucideIcon } from 'lucide-react';
 import { listKnowledge, listResults, listRuns, listSuites, listLibraryTests } from '@/data/api';
-import type { ID, ResultStep, Run, Status } from '@/data/types';
+import type { ID, ResultStep, Run } from '@/data/types';
 import { SplitPane } from '@/components/ui/split-pane';
 import { Toast, type ToastMessage } from '@/components/ui/toast';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { RunDialog } from '@/components/RunDialog';
+import { StatusTiles } from '@/components/StatusTiles';
 import { BugReportDialog, type BugReportItem } from '@/components/BugReportDialog';
 import { VisualCompare } from '@/components/VisualCompare';
 import { modelOptions } from '@/components/ProjectModelSelect';
@@ -17,7 +19,6 @@ import { formatCost, formatStarted, plural } from '@/lib/format';
 import { statusLabels } from '@/lib/labels';
 import { buildResultRows, hasBugReport, NO_RESULT_FILTERS, shownRows, withStatus, type ResultFilterState, type ResultRow } from '@/lib/resultRules';
 import { countByStatus } from '@/lib/status';
-import { cn } from '@/lib/utils';
 import { ResultsList } from './ResultsList';
 import { ResultDetail } from './ResultDetail';
 import { KnownIssueDialog, OverrideDialog, ScreenshotViewer } from './ResultDialogs';
@@ -30,13 +31,6 @@ function readFlag(key: string): boolean {
     return false;
   }
 }
-
-const SUMMARY: { status: Status; label: (n: number) => string; tone: string }[] = [
-  { status: 'failed', label: (n) => `${n} failed`, tone: 'border-failed-border bg-failed-fill text-failed-text' },
-  { status: 'couldnt_complete', label: (n) => `${n} couldn't complete`, tone: 'border-cc-border bg-cc-fill text-cc-text' },
-  { status: 'passed', label: (n) => `${n} passed`, tone: 'border-passed-border bg-passed-fill text-passed-text' },
-  { status: 'not_run', label: (n) => `${n} not run`, tone: 'border-border bg-bg text-text-muted' },
-];
 
 type Dialogs =
   | { kind: 'rerun'; testIds: ID[]; model?: string }
@@ -115,26 +109,26 @@ export function RunResultsScreen({ run }: { run: Run }) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex flex-wrap items-end justify-between gap-3 border-b border-border bg-surface px-6 py-4">
-        <div>
-          <p className="text-label font-normal text-text-muted">
-            {run.scopeLabel} · {run.environment.name} · {formatStarted(run.startedAt)} · {formatCost(run.cost)}
-            {run.stoppedAt ? ` · Stopped at ${run.stoppedAt.done}/${run.stoppedAt.total}` : ''}
-          </p>
+      <header className="flex flex-col gap-4 border-b border-border bg-surface px-6 pb-4 pt-5">
+        <div className="flex flex-col gap-1.5">
           <h1 className="text-h1">
             Run #{run.number} · {plural(rows.length, 'test')}
           </h1>
+          <ul aria-label="Run details" className="flex flex-wrap gap-x-5 gap-y-1 text-text-muted">
+            <Meta icon={Layers}>{run.scopeLabel}</Meta>
+            <Meta icon={Server}>{run.environment.name}</Meta>
+            <Meta icon={CalendarDays}>{formatStarted(run.startedAt)}</Meta>
+            <Meta icon={Coins}>
+              <span className="tabular-nums">{formatCost(run.cost)}</span>
+            </Meta>
+            {run.stoppedAt && (
+              <Meta icon={CircleStop}>
+                Stopped at {run.stoppedAt.done}/{run.stoppedAt.total}
+              </Meta>
+            )}
+          </ul>
         </div>
-        <div role="group" aria-label="Filter by status" className="flex flex-wrap gap-2">
-          <SummaryButton pressed={filters.status === 'all'} tone="border-border bg-surface text-text" onClick={() => setFilters(withStatus(filters, 'all'))}>
-            All {rows.length}
-          </SummaryButton>
-          {SUMMARY.filter((s) => s.status !== 'not_run' || counts.not_run > 0).map((s) => (
-            <SummaryButton key={s.status} pressed={filters.status === s.status} tone={s.tone} onClick={() => setFilters(withStatus(filters, filters.status === s.status ? 'all' : s.status))}>
-              {s.label(counts[s.status])}
-            </SummaryButton>
-          ))}
-        </div>
+        <StatusTiles counts={counts} value={filters.status} onChange={(s) => setFilters(withStatus(filters, s))} />
       </header>
 
       <div className="min-h-0 flex-1">
@@ -165,7 +159,7 @@ export function RunResultsScreen({ run }: { run: Run }) {
             />
           }
           right={
-            <div className="h-full overflow-auto bg-bg">
+            <div className={selection.size > 0 ? 'h-full overflow-auto bg-bg pb-20' : 'h-full overflow-auto bg-bg'}>
               {selected ? (
                 <ResultDetail
                   key={selected.key}
@@ -240,11 +234,12 @@ export function RunResultsScreen({ run }: { run: Run }) {
   );
 }
 
-/** SummaryFilterButtons (08): toggle buttons that act as the status filter. Text carries the meaning (rule 7). */
-function SummaryButton({ pressed, tone, onClick, children }: { pressed: boolean; tone: string; onClick: () => void; children: React.ReactNode }) {
+/** One run fact with its icon (scope, environment, date, cost). */
+function Meta({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
   return (
-    <button type="button" aria-pressed={pressed} onClick={onClick} className={cn('h-8 rounded-pill border px-3 text-base', tone, pressed && 'font-semibold ring-2 ring-text ring-offset-1')}>
+    <li className="inline-flex items-center gap-1.5">
+      <Icon aria-hidden="true" className="size-4 shrink-0" />
       {children}
-    </button>
+    </li>
   );
 }

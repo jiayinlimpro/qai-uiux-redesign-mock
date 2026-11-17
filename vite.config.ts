@@ -14,5 +14,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // Let the design-token contrast test read src/index.css as text (Vitest blanks CSS imports by default).
+    css: { include: [/src[\/]index\.css/] },
   },
 });

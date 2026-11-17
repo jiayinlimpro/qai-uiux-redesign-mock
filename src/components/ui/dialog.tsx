@@ -81,7 +81,7 @@ export function Dialog({ title, onClose, children, footer, size = 'md', onSubmit
         onClose();
       }}
       className={cn(
-        'max-h-[85vh] w-[calc(100%-2rem)] flex-col rounded-card border border-border bg-surface p-0 text-text shadow-xl backdrop:bg-backdrop open:flex',
+        'max-h-[85vh] w-[calc(100%-2rem)] flex-col rounded-card border border-border bg-surface-raised p-0 text-text shadow-overlay backdrop:bg-backdrop open:flex',
         size === 'xl' ? 'h-[80vh] max-h-[80vh] w-[78vw] max-w-[78vw]' : size === 'lg' ? 'max-w-[1200px]' : size === 'md' ? 'max-w-[720px]' : 'max-w-[480px]',
       )}
     >

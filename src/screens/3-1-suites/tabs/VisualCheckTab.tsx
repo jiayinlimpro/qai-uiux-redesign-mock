@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { X } from 'lucide-react';
+import { Columns2, Plus, X } from 'lucide-react';
 import { getTestHistory } from '@/data/api';
 import type { TestCase } from '@/data/types';
 import { Button } from '@/components/ui/button';
@@ -119,7 +119,7 @@ export function VisualCheckTab({ test, save }: { test: TestCase; save: SaveTest 
                       </td>
                       <td className="px-4 py-2 text-right">
                         {st.screenshotId ? (
-                          <Button size="sm" variant="ghost" className="text-accent underline underline-offset-2" onClick={() => setCompare({ stepIndex: st.index })}>
+                          <Button size="xs" icon={Columns2} onClick={() => setCompare({ stepIndex: st.index })}>
                             Compare<span className="sr-only"> step {st.index}</span>
                           </Button>
                         ) : (
@@ -140,7 +140,7 @@ export function VisualCheckTab({ test, save }: { test: TestCase; save: SaveTest 
       <section className="rounded-card border border-border bg-surface p-4">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-semibold">Ignored areas</h3>
-          <Button size="sm" onClick={() => setAdding(true)}>
+          <Button size="sm" icon={Plus} onClick={() => setAdding(true)}>
             Add area
           </Button>
         </div>

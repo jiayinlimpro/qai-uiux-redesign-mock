@@ -32,7 +32,7 @@ function useHoverTip() {
   const node = tip && (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-control bg-text px-2 py-1 text-label text-surface"
+      className="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-control bg-inverse px-2 py-1 text-label text-inverse-text"
       style={{ left: tip.x, top: tip.y - 10 }}
     >
       {tip.text}

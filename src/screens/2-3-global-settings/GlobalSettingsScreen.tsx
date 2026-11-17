@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Bot, HardDrive, type LucideIcon, Pencil, PiggyBank, Plus, SunMoon, Trash2, Wrench } from 'lucide-react';
 import { getGlobalSettings, saveGlobalSettings, type ModelSwitch } from '@/data/api';
 import type { AiProvider, GlobalSettings } from '@/data/types';
 import { Button, buttonClasses } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Checkbox, RadioGroup } from '@/components/ui/field';
 import { Table, Td, Th, Tr } from '@/components/ui/table';
 import { CostSavingFields } from '@/components/CostSavingFields';
 import { StatusLine, type SaveStatus } from '@/components/StatusLine';
+import { SectionHeading } from '@/components/SectionCard';
 import { useGlobalSettings } from '@/app/settings';
 import { to } from '@/app/routes';
 import { canRemoveProvider, isCostSavingComplete, type CostSavingForm } from '@/lib/providers';
@@ -64,9 +65,10 @@ export function GlobalSettingsScreen() {
       <main id="main" tabIndex={-1} className="relative min-h-0 flex-1 overflow-auto bg-bg focus:outline-none">
         <div className="mx-auto flex max-w-[900px] flex-col gap-5 p-6">
           <Section
+            icon={Bot}
             title="AI providers"
             action={
-              <Button size="sm" onClick={() => setEditing('new')}>
+              <Button icon={Plus} size="sm" onClick={() => setEditing('new')}>
                 Add provider
               </Button>
             }
@@ -90,10 +92,10 @@ export function GlobalSettingsScreen() {
                     <Td>{p.defaultModel}</Td>
                     <Td className="whitespace-nowrap text-right">
                       <div className="inline-flex gap-2">
-                        <Button size="sm" onClick={() => setEditing(p)}>
+                        <Button icon={Pencil} size="sm" onClick={() => setEditing(p)}>
                           Edit<span className="sr-only"> {p.label}</span>
                         </Button>
-                        <Button size="sm" variant="danger" disabled={!removable} aria-describedby={removable ? undefined : 'last-provider-note'} onClick={() => setRemoving(p)}>
+                        <Button icon={Trash2} size="sm" variant="danger" disabled={!removable} aria-describedby={removable ? undefined : 'last-provider-note'} onClick={() => setRemoving(p)}>
                           Remove<span className="sr-only"> {p.label}</span>
                         </Button>
                       </div>
@@ -110,11 +112,11 @@ export function GlobalSettingsScreen() {
             <StatusLine status={providerStatus} />
           </Section>
 
-          <Section title="Cost saving (optional)" description="Browser Use + Jev: a cheaper, faster agent for AI runs and failure classification.">
+          <Section icon={PiggyBank} title="Cost saving (optional)" description="Browser Use + Jev: a cheaper, faster agent for AI runs and failure classification.">
             <CostSavingSection settings={settings} save={save} />
           </Section>
 
-          <Section title="Appearance">
+          <Section icon={SunMoon} title="Appearance">
             <AutoSave>
               {(report) => (
                 <RadioGroup
@@ -133,11 +135,11 @@ export function GlobalSettingsScreen() {
             </AutoSave>
           </Section>
 
-          <Section title="Data on this computer">
+          <Section icon={HardDrive} title="Data on this computer">
             <DataActions />
           </Section>
 
-          <Section title="Advanced">
+          <Section icon={Wrench} title="Advanced">
             <AutoSave>
               {(report) => (
                 <div>
@@ -195,17 +197,12 @@ function removedMessage(label: string, switched: ModelSwitch[]): string {
   return `Removed ${label}. ${names} ${switched.length === 1 ? 'now uses' : 'now use'} ${switched[0]!.to} as the default model.`;
 }
 
-function Section({ title, description, action, children }: { title: string; description?: string; action?: ReactNode; children: ReactNode }) {
+function Section({ icon, title, description, action, children }: { icon?: LucideIcon; title: string; description?: string; action?: ReactNode; children: ReactNode }) {
   const id = `section-${title.toLowerCase().replace(/[^a-z]+/g, '-')}`;
   return (
     <section aria-labelledby={id} className="rounded-card border border-border bg-surface p-5">
       <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <h2 id={id} className="text-h3">
-            {title}
-          </h2>
-          {description && <p className="text-label font-normal text-text-muted">{description}</p>}
-        </div>
+        <SectionHeading id={id} icon={icon} title={title} description={description} />
         {action}
       </div>
       {children}

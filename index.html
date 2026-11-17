@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/qai-mark.svg" />
     <title>QAI</title>
+    <script>
+      // Theme before the first paint (D79), so a dark-mode user never sees a white flash while QAI starts.
+      // Mirrors src/lib/theme.ts resolveTheme; Global settings takes over once loaded (src/app/settings.tsx).
+      try {
+        var choice = localStorage.getItem('qai.theme') || 'system';
+        var dark = choice === 'dark' || (choice === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

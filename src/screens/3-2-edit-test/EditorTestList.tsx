@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder } from 'lucide-react';
 import type { Suite, TestCase } from '@/data/types';
 import { useProject } from '@/app/projectContext';
 import { to } from '@/app/routes';
@@ -26,7 +26,7 @@ export function EditorTestList({ suites, tests, currentId }: { suites: Suite[]; 
               <button
                 type="button"
                 aria-expanded={isOpen}
-                className="flex w-full items-center gap-1 rounded-control px-2 py-1 text-left hover:bg-bg"
+                className="flex w-full items-center gap-1 rounded-control px-2 py-1 text-left hover:bg-hover"
                 onClick={() =>
                   setOpen((prev) => {
                     const next = new Set(prev);
@@ -36,19 +36,20 @@ export function EditorTestList({ suites, tests, currentId }: { suites: Suite[]; 
                   })
                 }
               >
-                {isOpen ? <ChevronDown aria-hidden="true" className="h-4 w-4" /> : <ChevronRight aria-hidden="true" className="h-4 w-4" />}
-                <span className="truncate">{g.name}</span>
+                {isOpen ? <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-text-muted" /> : <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-text-muted" />}
+                <Folder aria-hidden="true" className="h-4 w-4 shrink-0 text-text-muted" />
+                <span className="truncate font-medium">{g.name}</span>
               </button>
               {isOpen && (
-                <ul className="ml-5">
+                <ul className="ml-6">
                   {g.tests.map((t) => (
                     <li key={t.id}>
                       <Link
                         to={to.editTest(project.id, t.id)}
                         aria-current={t.id === currentId ? 'page' : undefined}
-                        className={cn('flex gap-2 rounded-control px-2 py-1 text-base', t.id === currentId ? 'bg-accent-soft font-semibold text-accent-soft-text' : 'hover:bg-bg')}
+                        className={cn('flex items-center gap-2 rounded-control px-2 py-1 text-dense', t.id === currentId ? 'bg-accent-soft font-semibold text-accent-soft-text' : 'hover:bg-hover')}
                       >
-                        <span className="shrink-0 text-text-muted">{t.testId}</span>
+                        <span className={cn('shrink-0 font-mono text-label font-normal', t.id === currentId ? 'text-accent-soft-text' : 'text-text-muted')}>{t.testId}</span>
                         <span className="truncate">{t.title}</span>
                       </Link>
                     </li>

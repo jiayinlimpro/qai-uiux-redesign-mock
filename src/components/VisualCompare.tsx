@@ -1,3 +1,4 @@
+import { Bug, Check, ChevronLeft, ChevronRight, EyeOff } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { dismissVisualFlag, getTest, getTestHistory, listRuns, saveTest } from '@/data/api';
 import type { ID, Result, Run, TestCase } from '@/data/types';
@@ -140,11 +141,12 @@ export function VisualCompare({
             {displayId} · Run #{run.number} · {browser} {run.viewport.width}×{run.viewport.height}
           </p>
           <div className="flex gap-2">
-            <Button size="sm" disabled={pos <= 0 || !!drawing} onClick={() => setIndex(ran[pos - 1]!.index)}>
+            <Button size="sm" icon={ChevronLeft} disabled={pos <= 0 || !!drawing} onClick={() => setIndex(ran[pos - 1]!.index)}>
               Previous step
             </Button>
             <Button size="sm" disabled={pos < 0 || pos >= ran.length - 1 || !!drawing} onClick={() => setIndex(ran[pos + 1]!.index)}>
               Next step
+              <ChevronRight aria-hidden="true" />
             </Button>
           </div>
         </div>
@@ -218,12 +220,14 @@ export function VisualCompare({
           <p className="text-label font-normal text-text-muted">A visual change is a flag, never a failure. Ignored areas are not compared.</p>
           {!drawing && (
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => setBugReport(true)}>Mark as bug</Button>
-              <Button disabled={!currentTest} title={currentTest ? undefined : 'The test was deleted'} onClick={() => setDrawing({ label: '', rect: DEFAULT_RECT })}>
+              <Button icon={Bug} onClick={() => setBugReport(true)}>
+                Mark as bug
+              </Button>
+              <Button icon={EyeOff} disabled={!currentTest} title={currentTest ? undefined : 'The test was deleted'} onClick={() => setDrawing({ label: '', rect: DEFAULT_RECT })}>
                 Ignore an area…
               </Button>
               {v && v.changedAreas > 0 && !v.dismissed && (
-                <Button variant="primary" onClick={() => void setLooksFine(true)}>
+                <Button variant="primary" icon={Check} onClick={() => void setLooksFine(true)}>
                   Looks fine
                 </Button>
               )}

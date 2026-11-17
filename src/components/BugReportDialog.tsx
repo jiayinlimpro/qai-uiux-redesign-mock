@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Images } from 'lucide-react';
 import { buildBugReport, type BugReport } from '@/data/api';
 import type { ID } from '@/data/types';
 import { Button } from '@/components/ui/button';
@@ -84,7 +85,7 @@ export function BugReportDialog({ items, onClose }: { items: BugReportItem[]; on
       onClose={onClose}
       footer={
         <>
-          <Button onClick={saveScreenshots} disabled={!reports}>
+          <Button icon={Images} onClick={saveScreenshots} disabled={!reports}>
             Save screenshots
           </Button>
           <Button

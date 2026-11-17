@@ -1,7 +1,9 @@
-import type { CcReason, FailReason, Status } from '@/data/types';
+import { Ban, Bot, Bug, CircleHelp, CloudOff, Database, FileCode, FileQuestion, Globe, ServerCrash, Sparkles, Table2, type LucideIcon } from 'lucide-react';
+import type { Browser, CcReason, FailReason, Mode, Status } from '@/data/types';
 import { Chip, type ChipTone } from '@/components/ui/chip';
-import { reasonLabels, statusLabels } from '@/lib/labels';
+import { browserLabels, modeLabels, reasonLabels, statusLabels } from '@/lib/labels';
 import { cn } from '@/lib/utils';
+import { statusIcons } from './StatusIcon';
 
 const dotClass: Record<Status, string> = {
   passed: 'bg-passed-dot',
@@ -20,14 +22,51 @@ export function StatusDot({ status, className }: { status: Status; className?: s
   );
 }
 
-export const statusTone: Record<Status, ChipTone> = { passed: 'passed', failed: 'failed', couldnt_complete: 'cc', not_run: 'neutral' };
+export const statusTone: Record<Status, ChipTone> = { passed: 'passed', failed: 'failed', couldnt_complete: 'cc', not_run: 'outline' };
 
+/** Status chip: the status's own icon and text on its tint (D79). */
 export function StatusChip({ status }: { status: Status }) {
-  return <Chip tone={statusTone[status]}>{statusLabels[status]}</Chip>;
+  return (
+    <Chip tone={statusTone[status]} icon={statusIcons[status].Icon}>
+      {statusLabels[status]}
+    </Chip>
+  );
 }
 
-/** Failure reason chip; Needs confirmation and couldn't-complete reasons use the warning tone. */
+const reasonIcons: Record<FailReason | CcReason, LucideIcon> = {
+  product_bug: Bug,
+  needs_confirmation: CircleHelp,
+  test_data_problem: Database,
+  test_case_unclear: FileQuestion,
+  blocked: Ban,
+  environment_down: CloudOff,
+  service_problem: ServerCrash,
+  ai_couldnt_finish: Bot,
+};
+
+/** Failure reason chip: neutral with the reason's icon; the status chip next to it already carries the colour (D79). */
 export function ReasonChip({ reason }: { reason: FailReason | CcReason }) {
-  const tone: ChipTone = reason === 'product_bug' || reason === 'blocked' ? 'failed' : 'cc';
-  return <Chip tone={tone}>{reasonLabels[reason]}</Chip>;
+  return <Chip icon={reasonIcons[reason]}>{reasonLabels[reason]}</Chip>;
+}
+
+const modeIcons: Record<Mode, LucideIcon> = { ai: Sparkles, script: FileCode, data_rows: Table2 };
+
+export function ModeChip({ mode }: { mode: Mode }) {
+  return <Chip icon={modeIcons[mode]}>{modeLabels[mode]}</Chip>;
+}
+
+/** Browser chip; with several browsers it also shows that browser's status icon. */
+export function BrowserChip({ browser, status }: { browser: Browser; status?: Status }) {
+  const s = status ? statusIcons[status] : null;
+  return (
+    <Chip icon={Globe}>
+      {browserLabels[browser]}
+      {s && status && (
+        <>
+          <s.Icon aria-hidden="true" className={cn('ml-1 size-3.5', s.className)} />
+          <span className="sr-only"> {statusLabels[status]}</span>
+        </>
+      )}
+    </Chip>
+  );
 }

@@ -12,7 +12,7 @@ Read with: `07-data-model.md` (types and data layer), `05-business-rules.md` (ru
 | Area | Where | Status |
 |---|---|---|
 | Screens, app shells, routing, dialogs | `src/app`, `src/screens`, `src/components` | **Real.** Keep. Hash routes defined only in `src/app/routes.ts` (D26). |
-| UI primitives and tokens | `src/components/ui`, `tailwind.config.ts`, `src/index.css` | **Real**, interim visual design (08). Restyle there only. |
+| UI primitives and tokens | `src/components/ui`, `tailwind.config.ts`, `src/index.css` | **Real**, final design system with light and dark themes (08, D79). Restyle there only. |
 | Business rules | `src/lib/*.ts` (+ `*.test.ts`) | **Real.** Pure, unit-tested, tagged with rule IDs (`// BR-…`). The data layer and screens call them. |
 | Domain types | `src/data/types.ts` | **Real**, exactly `07-data-model.md`. The engine maps its output into these. |
 | Data layer signatures | `src/data/api.ts` (exports, parameter/return types, error classes) | **Real contract.** Keep the signatures; see §3 for the ones still marked "shape to confirm". |
@@ -164,7 +164,7 @@ return value were decided by the prototype and need the backend's agreement.
   A seed change (`SEED_VERSION`) also resets it.
 - **Parked items** (`09-parked.md`) are not built, e.g. "View plan" / plan checklist (Sprint 3 item 3-03), pin a
   reference, more filters, Overview metrics, ClickUp integration.
-- **Visual design is interim** (08): tokens and components will be restyled in the design phase.
+- **Visual design** (08, D79–D81): final design system with light and dark themes, the component language (icons, filter toolbars, summary tiles, bulk bar) and an accessibility pass. `reference/prototype-screens/` shows every screen in the light theme.
 
 ## 6. Running, testing and dev switches
 

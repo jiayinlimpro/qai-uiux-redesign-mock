@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowRight, Copy, Ellipsis, Eye, FileCode, FileText, Folder, History, PenLine, Pencil, Play, Sparkles, Table2, Tag, type LucideIcon } from 'lucide-react';
 import { deleteTests, getTest, getTestHistory, restoreTests, saveTest } from '@/data/api';
 import type { TestCase } from '@/data/types';
 import { Button, buttonClasses } from '@/components/ui/button';
@@ -7,7 +8,8 @@ import { Chip } from '@/components/ui/chip';
 import { Menu } from '@/components/ui/menu';
 import { TabPanel, Tabs } from '@/components/ui/tabs';
 import { ErrorState } from '@/components/StateViews';
-import { ReasonChip, StatusChip } from '@/components/StatusViews';
+import { ReasonChip } from '@/components/StatusViews';
+import { statusIcons } from '@/components/StatusIcon';
 import { errorText } from '@/components/StatusLine';
 import { useConfirm } from '@/components/useConfirm';
 import { useProject } from '@/app/projectContext';
@@ -16,7 +18,8 @@ import { to, type TestTab } from '@/app/routes';
 import { NEEDS_FIXING_TIP, showsNeedsFixingBadge } from '@/lib/exploreRules';
 import { formatDate, plural } from '@/lib/format';
 import { deleteImpact } from '@/lib/suiteRules';
-import { browserLabels, scriptLabels, sourceLabels } from '@/lib/labels';
+import { browserLabels, scriptLabels, sourceLabels, statusLabels } from '@/lib/labels';
+import { cn } from '@/lib/utils';
 import { useSuites } from './suitesContext';
 import { DefinitionTab } from './tabs/DefinitionTab';
 import { TestDataTab } from './tabs/TestDataTab';
@@ -24,12 +27,26 @@ import { VisualCheckTab } from './tabs/VisualCheckTab';
 import { HistoryTab } from './tabs/HistoryTab';
 import { KnownIssueDialog } from './KnownIssueDialog';
 
-const tabs: { id: TestTab; label: string }[] = [
-  { id: 'definition', label: 'Definition' },
-  { id: 'test-data', label: 'Test data' },
-  { id: 'visual-check', label: 'Visual check' },
-  { id: 'history', label: 'History' },
+const tabs: { id: TestTab; label: string; icon: LucideIcon }[] = [
+  { id: 'definition', label: 'Definition', icon: FileText },
+  { id: 'test-data', label: 'Test data', icon: Table2 },
+  { id: 'visual-check', label: 'Visual check', icon: Eye },
+  { id: 'history', label: 'History', icon: History },
 ];
+
+const sourceIcons: Record<TestCase['source'], LucideIcon> = { import: FileText, written: PenLine, ai_explore: Sparkles, clone: Copy };
+const latestTile: Record<'passed' | 'failed' | 'couldnt_complete' | 'not_run', string> = {
+  passed: 'bg-passed-fill text-passed-dot',
+  failed: 'bg-failed-fill text-failed-dot',
+  couldnt_complete: 'bg-cc-fill text-cc-dot',
+  not_run: 'border border-border text-notrun',
+};
+const latestText: Record<'passed' | 'failed' | 'couldnt_complete' | 'not_run', string> = {
+  passed: 'text-passed-text',
+  failed: 'text-failed-text',
+  couldnt_complete: 'text-cc-text',
+  not_run: 'text-text',
+};
 
 /** Saves a change to the latest saved test; the data layer decides version and script (BR-VERSION-01, BR-SCRIPT-02). */
 export type SaveTest = (change: (t: TestCase) => TestCase) => Promise<TestCase>;
@@ -135,88 +152,84 @@ export function TestDetail() {
   }
 
   return (
-    <article className="p-6" aria-labelledby="test-title">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-label font-normal text-text-muted">
-            {suite?.name ?? 'Not in a suite'} › {test.testId}
+    <article className="flex flex-col gap-4 px-7 pb-8 pt-5" aria-labelledby="test-title">
+      {/* First line: where the test lives, and the actions (primary last, D80). The title gets the full width below. */}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <p className="inline-flex items-center gap-1.5 text-label font-normal text-text-muted">
+            <Folder aria-hidden="true" className="size-3.5" />
+            {suite?.name ?? 'Not in a suite'}
           </p>
-          <h2 id="test-title" className="text-h1">
-            {test.title}
-          </h2>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <Chip>v{test.version}</Chip>
-            <Chip>{test.source === 'clone' ? `Source: Clone of ${original?.testId ?? 'a deleted test'}` : sourceLabels[test.source]}</Chip>
-            <Chip>{scriptLabels[test.script.state]}</Chip>
-            {test.knownIssue && <Chip tone="cc">Known issue{test.knownIssue.ticketRef ? ` · ${test.knownIssue.ticketRef}` : ''}</Chip>}
-            {needsFixing && (
-              <>
-                <span title={NEEDS_FIXING_TIP}>
-                  <Chip tone="cc">Needs fixing</Chip>
-                </span>
-                <span className="text-label font-normal text-text-muted">{NEEDS_FIXING_TIP}</span>
-                {test.aiOrigin && (
-                  <Link to={to.exploreChat(project.id, test.aiOrigin.chatId, test.aiOrigin.messageIndex)} className="text-label text-accent underline underline-offset-2">
-                    View in AI explore
-                  </Link>
-                )}
-              </>
-            )}
+          <div className="flex flex-wrap gap-2">
+            <Link to={to.editTest(project.id, test.id)} className={buttonClasses()}>
+              <Pencil aria-hidden="true" />
+              Edit
+            </Link>
+            <Button icon={Copy} onClick={() => void s.clone([test.id])}>
+              Clone
+            </Button>
+            <Menu
+              label={<Ellipsis aria-hidden="true" />}
+              iconOnly
+              size="md"
+              accessibleLabel={`More actions for ${test.testId}`}
+              items={[
+                { label: 'Move to suite', onSelect: () => s.openMove([test.id]) },
+                test.knownIssue
+                  ? {
+                      label: 'Remove known issue',
+                      onSelect: () => {
+                        void save((t) => {
+                          const { knownIssue: _k, ...rest } = t;
+                          return rest;
+                        }).then(() => s.showToast({ text: 'Known issue removed' }));
+                      },
+                    }
+                  : { label: 'Mark known issue', onSelect: () => setKnownIssue(true) },
+                { label: 'Delete', onSelect: () => void remove(), danger: true },
+              ]}
+            />
+            <Button variant="primary" icon={Play} onClick={() => s.openRun([test.id])}>
+              Run
+            </Button>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="primary" onClick={() => s.openRun([test.id])}>
-            Run
-          </Button>
-          <Link to={to.editTest(project.id, test.id)} className={buttonClasses()}>
-            Edit
-          </Link>
-          <Button onClick={() => void s.clone([test.id])}>Clone</Button>
-          <Menu
-            label="More"
-            accessibleLabel={`More actions for ${test.testId}`}
-            items={[
-              { label: 'Move to suite', onSelect: () => s.openMove([test.id]) },
-              test.knownIssue
-                ? {
-                    label: 'Remove known issue',
-                    onSelect: () => {
-                      void save((t) => {
-                        const { knownIssue: _k, ...rest } = t;
-                        return rest;
-                      }).then(() => s.showToast({ text: 'Known issue removed' }));
-                    },
-                  }
-                : { label: 'Mark known issue', onSelect: () => setKnownIssue(true) },
-              { label: 'Delete', onSelect: () => void remove(), danger: true },
-            ]}
-          />
+        <h2 id="test-title" className="text-h1">
+          <span className="font-mono text-[18px] font-medium text-text-muted">{test.testId}</span> <span className="sr-only">· </span>
+          {test.title}
+        </h2>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Chip icon={Tag}>v{test.version}</Chip>
+          <Chip icon={sourceIcons[test.source]}>{test.source === 'clone' ? `Source: Clone of ${original?.testId ?? 'a deleted test'}` : sourceLabels[test.source]}</Chip>
+          <Chip icon={FileCode} tone={test.script.state === 'recorded' ? 'info' : 'neutral'}>
+            {scriptLabels[test.script.state]}
+          </Chip>
+          {test.knownIssue && <Chip tone="cc">Known issue{test.knownIssue.ticketRef ? ` · ${test.knownIssue.ticketRef}` : ''}</Chip>}
+          {needsFixing && (
+            <>
+              <span title={NEEDS_FIXING_TIP}>
+                <Chip tone="cc">Needs fixing</Chip>
+              </span>
+              <span className="text-label font-normal text-text-muted">{NEEDS_FIXING_TIP}</span>
+              {test.aiOrigin && (
+                <Link to={to.exploreChat(project.id, test.aiOrigin.chatId, test.aiOrigin.messageIndex)} className="text-label text-accent underline underline-offset-2">
+                  View in AI explore
+                </Link>
+              )}
+            </>
+          )}
         </div>
       </div>
 
-      {/* Latest strip: one line, no full result here (results live in Runs). */}
-      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-card border border-border bg-surface px-4 py-3">
-        <span className="font-semibold">Latest</span>
-        {latest && latestRun ? (
-          <>
-            <StatusChip status={latest.status} />
-            {latest.reason && <ReasonChip reason={latest.reason} />}
-            <span className="text-text-muted">
-              Run #{latestRun.number} · {latestRun.environment.name} · {latest.perBrowser.map((b) => browserLabels[b.browser]).join(', ')} · {formatDate(latestRun.startedAt)}
-            </span>
-            <Link to={to.run(project.id, latestRun.id, latest.id)} className="ml-auto text-accent underline underline-offset-2">
-              Open result
-            </Link>
-          </>
-        ) : (
-          <>
-            <StatusChip status="not_run" />
-            <span className="text-text-muted">This test hasn’t run yet.</span>
-          </>
-        )}
-      </div>
+      {/* Latest result: one line, no full result here (results live in Runs). */}
+      <LatestCard
+        status={latest && latestRun ? latest.status : 'not_run'}
+        reason={latest && latestRun ? latest.reason : undefined}
+        details={latest && latestRun ? `Run #${latestRun.number} · ${latestRun.environment.name} · ${latest.perBrowser.map((b) => browserLabels[b.browser]).join(', ')} · ${formatDate(latestRun.startedAt)}` : 'This test hasn’t run yet.'}
+        href={latest && latestRun ? to.run(project.id, latestRun.id, latest.id) : undefined}
+      />
 
-      <div className="mt-5">
+      <div>
         <Tabs
           label="Test details"
           idPrefix="test"
@@ -243,5 +256,31 @@ export function TestDetail() {
       {knownIssue && <KnownIssueDialog test={test} onClose={() => setKnownIssue(false)} />}
       {confirmDialog}
     </article>
+  );
+}
+
+/** Latest result card (D80): status tile · status, reason and run facts · Open result. */
+function LatestCard({ status, reason, details, href }: { status: keyof typeof latestTile; reason?: Parameters<typeof ReasonChip>[0]['reason']; details: string; href?: string }) {
+  const Icon = statusIcons[status].Icon;
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-card border border-border bg-surface px-4 py-3">
+      <span className={cn('inline-flex size-8 shrink-0 items-center justify-center rounded-control', latestTile[status])}>
+        <Icon aria-hidden="true" className="size-[18px]" />
+      </span>
+      <div className="min-w-0 flex-[1_1_16rem]">
+        <p className="text-label text-text-muted">Latest result</p>
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className={cn('font-semibold', latestText[status])}>{statusLabels[status]}</span>
+          {reason && <ReasonChip reason={reason} />}
+          <span className="text-text-muted">· {details}</span>
+        </p>
+      </div>
+      {href && (
+        <Link to={href} className={buttonClasses({ size: 'xs' })}>
+          Open result
+          <ArrowRight aria-hidden="true" />
+        </Link>
+      )}
+    </div>
   );
 }

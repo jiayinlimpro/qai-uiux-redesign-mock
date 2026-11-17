@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Database } from 'lucide-react';
 import { loadSampleData } from '@/data/api';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
@@ -28,7 +29,7 @@ export function SampleDataAction() {
     <div className="mt-4 rounded-control border border-dashed border-border p-4">
       <div className="flex items-center gap-2">
         <Chip tone="cc">Prototype only</Chip>
-        <Button size="sm" onClick={() => setConfirming(true)}>
+        <Button icon={Database} size="sm" onClick={() => setConfirming(true)}>
           Load sample data
         </Button>
       </div>

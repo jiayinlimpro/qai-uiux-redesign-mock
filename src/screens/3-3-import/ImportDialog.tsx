@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { ArrowLeft, ArrowRight, Check, Download, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   importCheck,
@@ -84,17 +85,18 @@ export function ImportDialog() {
           <Button onClick={close}>Cancel</Button>
           <span className="flex-1" />
           {step > 1 && (
-            <Button disabled={busy !== null} onClick={() => setStep((s) => (s - 1) as Step)}>
+            <Button icon={ArrowLeft} disabled={busy !== null} onClick={() => setStep((s) => (s - 1) as Step)}>
               Back
             </Button>
           )}
           {step === 2 && check && (
             <Button variant="primary" disabled={check.missingRequired || toImport === 0} onClick={() => setStep(3)}>
               Next: review {plural(toImport, 'test')}
+              <ArrowRight aria-hidden="true" />
             </Button>
           )}
           {step === 3 && (
-            <Button variant="primary" disabled={busy !== null || toImport === 0} onClick={() => void runImport()}>
+            <Button variant="primary" icon={Upload} disabled={busy !== null || toImport === 0} onClick={() => void runImport()}>
               {busy === 'importing' ? 'Importing…' : `Import ${plural(toImport, 'test')}`}
             </Button>
           )}
@@ -103,14 +105,30 @@ export function ImportDialog() {
     >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-text-muted">{check ? `${check.fileName} · ${plural(check.rowsRead, 'row')}` : 'CSV or Excel (first sheet)'}</p>
-        <ol aria-label="Import steps" className="flex gap-1">
-          {(['File', 'Check', 'Review'] as const).map((label, i) => (
-            <li key={label} aria-current={step === i + 1 ? 'step' : undefined}>
-              <Chip tone={step === i + 1 ? 'info' : 'neutral'}>
-                {i + 1} {label}
-              </Chip>
-            </li>
-          ))}
+        {/* Stepper (D80): done steps show a check, the current one is filled, later ones are outlined. */}
+        <ol aria-label="Import steps" className="flex items-center gap-2">
+          {(['File', 'Check', 'Review'] as const).map((label, i) => {
+            const n = i + 1;
+            const done = step > n;
+            const current = step === n;
+            return (
+              <li key={label} aria-current={current ? 'step' : undefined} className="flex items-center gap-2">
+                {i > 0 && <span aria-hidden="true" className={cn('h-px w-6', step >= n ? 'bg-accent' : 'bg-border')} />}
+                <span
+                  className={cn(
+                    'inline-flex size-6 items-center justify-center rounded-pill text-label tabular-nums',
+                    current ? 'bg-accent-fill text-accent-contrast' : done ? 'bg-accent-soft text-accent-soft-text' : 'border border-border-control text-text-muted',
+                  )}
+                >
+                  {done ? <Check aria-hidden="true" className="size-3.5" strokeWidth={2.5} /> : n}
+                </span>
+                <span className={cn('text-dense', current ? 'font-semibold text-text' : 'text-text-muted')}>
+                  {label}
+                  {done && <span className="sr-only"> (done)</span>}
+                </span>
+              </li>
+            );
+          })}
         </ol>
       </div>
 
@@ -133,7 +151,7 @@ export function ImportDialog() {
               <p className="font-semibold">Use the QAI template</p>
               <p className="text-label font-normal text-text-muted">Fill your test cases into the template first, then import it. CSV or Excel (first sheet).</p>
             </div>
-            <Button size="sm" onClick={() => void template()}>
+            <Button icon={Download} size="sm" onClick={() => void template()}>
               Download template
             </Button>
           </div>

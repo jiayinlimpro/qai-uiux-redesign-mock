@@ -8,7 +8,7 @@
 - Right: conversation, composer at bottom.
 
 **Conversation elements**
-- User messages; AI messages; **plan summary card** ("2 suites · 5 scenarios · View plan"; "Explored 4 pages on UAT · used: <knowledge items>").
+- User messages (soft violet bubbles on the right); AI messages and cards beside the AI avatar (a sparkle tile, decorative) (D80); **plan summary card** ("2 suites · 5 scenarios · View plan"; "Explored 4 pages on UAT · used: <knowledge items>").
 - **Cases card** (the AI wrote test cases; no approval here, D65): "<n> test cases · sent to Ready for Suites"; one row per case: title · validation status (**Not checked** · **Checked** · **Needs fixing**, BR-EXPLORE-03) · where it is now: **In Ready for Suites** · once moved, a link to the test in Suites (**"CNT-07 in Suites"** / **"Replaced CNT-02"**) · **Discarded**. Button **Open Ready for Suites**. No checkboxes, no Add button.
 - Composer (card at the bottom of the chat column): message · Attach (paperclip icon) · "Knowledge: n items" · **Send** (round arrow icon); hint line under it "Enter to send, Shift+Enter for a new line." (Enter does not send while an input method is composing). No starter chips and no mode dropdown in the composer (D70). Bigger changes to a case are asked for here ("Open in chat" from 3.5 lands on the case's cases card).
 
@@ -20,10 +20,10 @@
 ## 3.5 Ready for Suites (modal over AI explore)
 **Purpose** The project-level tray where every test case the AI produces waits until the tester moves it into Suites (D65). AI cases have the same fields as imported tests and behave like an import.
 **Layout** Large centre modal (70–80% of the screen), title "Ready for Suites", lists cases from **all chats** of the project.
-- Top: status filter **All · Not checked · Checked · Needs fixing** (with counts) · **Show discarded** (toggle: lists discarded cases instead, each with **Restore to tray**) · "Select all shown (n)".
+- Top: status filter **All · Not checked · Checked · Needs fixing** (segmented control with counts and status icons: dashed circle · check · wrench, D80) · **Show discarded** (toggle: lists discarded cases instead, each with **Restore to tray**) · "Select all shown (n)".
 - Rows: checkbox · title · validation status chip · from chat (name, **Open in chat**) · warnings: a case without test steps shows a warning icon and "Missing: steps" (text, not colour or symbol alone) and cannot be moved · possible duplicate: "Similar to CNT-02" with inline **Keep both · Replace existing · Discard** (must be chosen before the case can move) · row action **Discard** (every case, BR-EXPLORE-09).
 - Expanding a row shows the fields (title, preconditions, steps, expected result, expected keywords, start page, browser preference). **Small fields are edited inline** (title, expected result, expected keywords, start page, browser preference); steps and preconditions are changed by asking in the chat (**Open in chat**). No dialogs open from this modal (**no nested modals**).
-- Footer / bulk bar: "<n> selected" · **Discard** · **Move to Suites** (primary). With Show discarded on: "<n> selected" · **Restore to tray**. Selected cases that cannot move (missing steps, unresolved duplicate) are listed inline with the reason; the others move.
+- Bulk bar (the shared inverse bar, in place above the list inside the modal, D80): "<n> selected" · **Discard** · **Move to Suites** (primary). With Show discarded on: "<n> selected" · **Restore to tray**. Selected cases that cannot move (missing steps, unresolved duplicate) are listed inline with the reason; the others move.
 **Behaviour**
 - **Move to Suites** moves the selected cases to Suites › **Not in a suite** (BR-EXPLORE-05): each gets a T- ID (BR-TEST-01) and the **New** badge (BR-TEST-04); a case resolved with **Replace existing** updates that test instead (like an import Update, BR-IMPORT-06). Any validation status can be moved. Toast "Moved <n> tests to Suites · Not in a suite" with **Undo**. The tester then organises them with Move to suite… in Suites.
 - **Discard** (any case, single or bulk; also a duplicate's choice) applies at once: the case leaves the tray (location Discarded, who and when kept); toast with **Undo**; the chat shows "Discarded". **Show discarded** lists them; **Restore to tray** puts them back with their validation status (BR-EXPLORE-09).
