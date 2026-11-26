@@ -118,7 +118,7 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 ## Results actions (BR-ACTION)
 - **BR-ACTION-01** Override: single result only; new status Passed/Failed; reason (required) and proof file (required); shows "Overridden by <user> · <date>" and the AI verdict. Overriding again adds to the history (earlier overrides listed under History in the result detail); the newest applies (D62).
 - **BR-ACTION-02** Known issue: single (result detail › More, or Suites › More) or bulk (bulk bar); optional note and ticket reference; stored with who and when (CLAUDE.md rule 10, D63).
-- **BR-ACTION-03** Bug report: generated per result (title, environment, browser, run, steps to reproduce in plain language, expected, actual, screenshots), editable, Copy; bulk = one report per result. Only **Failed** results have a report; Visual compare › Mark as bug reports a visual change for any status; in bulk, other results are skipped with a message (D63).
+- **BR-ACTION-03** Bug report: generated per result (title, environment, browser, run, steps to reproduce in plain language, expected, actual, screenshot), editable, Copy; the screenshot is the failing step's, else the last one before it, and the earlier ones are offered, not included; each screenshot is copied or saved on its own (D90); bulk = one report per result. Only **Failed** results have a report; Visual compare › Mark as bug reports a visual change for any status; in bulk, other results are skipped with a message (D63).
 - **BR-ACTION-04** Re-run / Re-run with model: open the run dialog prefilled with the selection, the run's environment, and the run's model (or the chosen model) (D60). Deleted tests are left out.
 
 ## Lists and filters (BR-LIST)

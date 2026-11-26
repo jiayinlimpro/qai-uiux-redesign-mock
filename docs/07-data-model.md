@@ -149,7 +149,7 @@ listRuns / getRun / listResults(runId, filters?) / getResult     // filters: sta
                                                                      // tests of the run without a result are Not run (the screen adds them, D55)
 overrideResult(resultId, { status, reason, proofName }) → Result    // adds to Result.overrides with by + at; the newest applies; AI verdict kept (BR-ACTION-01, BR-STATUS-05, D62)
 markKnownIssue(testIds, { note?, ticketRef? }) → TestCase[]          // stores by + markedAt; no new version (BR-ACTION-02)
-buildBugReport(resultId, { visualStepIndex? }) → BugReport           // { title, environment, steps[], expected, actual, screenshots[] },
+buildBugReport(resultId, { visualStepIndex? }) → BugReport           // { title, environment, steps[], expected, actual, screenshot?, earlierScreenshots[] } (D90),
                                                                      // editable; formatBugReport (lib) makes the Copy text (BR-ACTION-03, D60)
 dismissVisualFlag(resultId, stepIndex, dismissed) → Result           // 6.2 Looks fine / Undo, stores by + at (D59); shape to confirm
 listChats(projectId) (newest first) / getChat

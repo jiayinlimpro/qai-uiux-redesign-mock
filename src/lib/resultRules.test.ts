@@ -11,6 +11,7 @@ import {
   platformForStartPage,
   browserMarks,
   buildBugReportFor,
+  bugReportScreenshots,
   buildResultRows,
   canOverride,
   clampRect,
@@ -288,7 +289,7 @@ describe('bug report (BR-ACTION-03)', () => {
     expect(platformForStartPage('https://other.test/', platforms)).toBeUndefined();
     expect(platformForStartPage(undefined, platforms)).toBeUndefined();
   });
-  it('title, environment, steps up to the failing step, expected, actual, screenshots', () => {
+  it("title, environment, steps up to the failing step, expected, actual, the failing step's screenshot", () => {
     const r = buildBugReportFor({ result: result(), test: { testId: 'CNT-04', title: 'Contact phone and email links' }, platformName: 'Customer website', run });
     expect(r).toMatchObject({
       title: 'Contact phone and email links: https://wa.link/mgz96d',
@@ -296,10 +297,11 @@ describe('bug report (BR-ACTION-03)', () => {
       steps: ['Step 1 text.', 'Step 2 text.'],
       expected: 'tel: link',
       actual: 'https://wa.link/mgz96d',
-      screenshots: [{ stepIndex: 1, screenshotId: 's1' }, { stepIndex: 2, screenshotId: 's2' }],
+      screenshot: { stepIndex: 2, screenshotId: 's2', atProblemStep: true },
+      earlierScreenshots: [{ stepIndex: 1, screenshotId: 's1' }],
     });
     expect(formatBugReport(r)).toBe(
-      'Contact phone and email links: https://wa.link/mgz96d\n\nEnvironment: UAT · Customer website · Chrome 1920×1080 · Run #12, 3 Nov 2026\n\nSteps to reproduce:\n1. Step 1 text.\n2. Step 2 text.\n\nExpected: tel: link\nActual: https://wa.link/mgz96d\n\nScreenshots: step 1, step 2',
+      'Contact phone and email links: https://wa.link/mgz96d\n\nEnvironment: UAT · Customer website · Chrome 1920×1080 · Run #12, 3 Nov 2026\n\nSteps to reproduce:\n1. Step 1 text.\n2. Step 2 text.\n\nExpected: tel: link\nActual: https://wa.link/mgz96d\n\nScreenshot: step 2',
     );
   });
   it('a visual change report (6.2 Mark as bug)', () => {
@@ -307,7 +309,20 @@ describe('bug report (BR-ACTION-03)', () => {
     const r = buildBugReportFor({ result: res, test: { testId: 'NAV-01', title: 'Homepage loads' }, run, visualStep: { index: 2, previousRunNumber: 9 } });
     expect(r.expected).toBe('The page looks as it did in Run #9.');
     expect(r.actual).toBe('3 areas changed at step 2 (Step 2 text).');
-    expect(r.screenshots).toEqual([{ stepIndex: 2, screenshotId: 's2' }]);
+    expect(r.screenshot).toEqual({ stepIndex: 2, screenshotId: 's2', atProblemStep: true });
+    expect(r.earlierScreenshots).toEqual([]);
+  });
+  it("D90: the failing step's screenshot, else the last one before it; none → no screenshot line", () => {
+    const steps = [{ index: 1, screenshotId: 's1' }, { index: 2, screenshotId: 's2' }, { index: 3 }, { index: 4, screenshotId: 's4' }];
+    expect(bugReportScreenshots(steps, 2)).toEqual({ screenshot: { stepIndex: 2, screenshotId: 's2', atProblemStep: true }, earlierScreenshots: [{ stepIndex: 1, screenshotId: 's1' }] });
+    expect(bugReportScreenshots(steps, 3)).toEqual({
+      screenshot: { stepIndex: 2, screenshotId: 's2', atProblemStep: false },
+      earlierScreenshots: [{ stepIndex: 1, screenshotId: 's1' }],
+    });
+    expect(bugReportScreenshots([{ index: 1 }], 1)).toEqual({ earlierScreenshots: [] });
+    const r = buildBugReportFor({ result: result({ steps: [step(1, 'passed'), step(2, 'failed')] }), test: { testId: 'CNT-04', title: 'Contact phone and email links' }, run });
+    expect(r.screenshot).toBeUndefined();
+    expect(formatBugReport(r)).not.toContain('Screenshot');
   });
 });
 
@@ -386,6 +401,7 @@ describe('evidence per browser (D86)', () => {
     const r = buildBugReportFor({ result: multi, test: { testId: 'NAV-07', title: 'Our Services mega menu' }, run });
     expect(r.environment).toBe('Prod · Safari (WebKit) 1920×1080 · Run #7, 6 Oct 2026');
     expect(r.actual).toBe('No menu in Safari');
-    expect(r.screenshots.map((x) => x.screenshotId)).toEqual(['w1', 'w2']);
+    expect(r.screenshot?.screenshotId).toBe('w2');
+    expect(r.earlierScreenshots.map((x) => x.screenshotId)).toEqual(['w1']);
   });
 });

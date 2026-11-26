@@ -66,7 +66,8 @@ describe('buildBugReport (BR-ACTION-03)', () => {
     });
     expect(r.environment).toMatch(/^UAT · Customer website · Chrome 1920×1080 · Run #12, 3 Nov 2026$/);
     expect(r.steps).toHaveLength(2);
-    expect(r.screenshots.map((s) => s.stepIndex)).toEqual([1, 2]);
+    expect(r.screenshot).toMatchObject({ stepIndex: 2, atProblemStep: true });
+    expect(r.earlierScreenshots.map((s) => s.stepIndex)).toEqual([1]);
   });
   it('a visual change report names the previous run', async () => {
     const r = await api.buildBugReport('res-12-nav-01', { visualStepIndex: 2 });

@@ -427,7 +427,25 @@ export interface BugReport {
   steps: string[];
   expected: string;
   actual: string;
-  screenshots: { stepIndex: number; screenshotId: ID }[];
+  /**
+   * D90: the one screenshot that shows the problem: the failing (or changed) step's, else the last one before it
+   * (`atProblemStep` false). Absent when no step up to the problem has a screenshot.
+   */
+  screenshot?: BugReportScreenshot & { atProblemStep: boolean };
+  /** D90: the other screenshots up to the problem, oldest first; offered in the dialog, not in the report text. */
+  earlierScreenshots: BugReportScreenshot[];
+}
+
+export interface BugReportScreenshot {
+  stepIndex: number;
+  screenshotId: ID;
+}
+
+/** D90: the screenshot that shows the problem, and the earlier ones (steps up to the problem, oldest first). */
+export function bugReportScreenshots(steps: Pick<ResultStep, 'index' | 'screenshotId'>[], problemStep: number): Pick<BugReport, 'screenshot' | 'earlierScreenshots'> {
+  const shots = steps.filter((s) => s.index <= problemStep && s.screenshotId).map((s) => ({ stepIndex: s.index, screenshotId: s.screenshotId! }));
+  const main = shots[shots.length - 1];
+  return main ? { screenshot: { ...main, atProblemStep: main.stepIndex === problemStep }, earlierScreenshots: shots.slice(0, -1) } : { earlierScreenshots: [] };
 }
 
 /** Bug reports describe platform problems: Failed results only (D63). Visual compare › Mark as bug reports a visual change for any status. */
@@ -449,8 +467,8 @@ export function platformForStartPage(startPage: string | undefined, platforms: P
 
 /**
  * BR-ACTION-03: generated per result — title, environment (env · platform · browser · viewport · run · date), steps to
- * reproduce in plain language (up to the failing step), expected, actual, screenshots. `visualStep` → a report of
- * a visual change at that step (6.2 Mark as bug).
+ * reproduce in plain language (up to the failing step), expected, actual, screenshot (D90: the failing step's, the
+ * earlier ones offered). `visualStep` → a report of a visual change at that step (6.2 Mark as bug).
  */
 export function buildBugReportFor(opts: {
   result: Result;
@@ -480,7 +498,8 @@ export function buildBugReportFor(opts: {
       steps: upTo.map((s) => s.text),
       expected: `The page looks as it did in ${opts.visualStep.previousRunNumber ? `Run #${opts.visualStep.previousRunNumber}` : 'the previous run'}.`,
       actual: `${areas} ${areas === 1 ? 'area' : 'areas'} changed at step ${failing}${step ? ` (${step.text.replace(/\.$/, '')})` : ''}.`,
-      screenshots: upTo.filter((s) => s.screenshotId && s.index === failing).map((s) => ({ stepIndex: s.index, screenshotId: s.screenshotId! })),
+      ...(step?.screenshotId ? { screenshot: { stepIndex: failing, screenshotId: step.screenshotId, atProblemStep: true } } : {}),
+      earlierScreenshots: [],
     };
   }
   return {
@@ -490,12 +509,12 @@ export function buildBugReportFor(opts: {
     steps: upTo.map((s) => s.text),
     expected: result.failure?.expected ?? test.expectedResult ?? '',
     actual: result.failure?.found ?? result.note ?? '',
-    screenshots: upTo.filter((s) => s.screenshotId).map((s) => ({ stepIndex: s.index, screenshotId: s.screenshotId! })),
+    ...bugReportScreenshots(upTo, failing),
   };
 }
 
 /** Copy report: formatted text for a ClickUp task. Several reports are separated by a line. */
-export function formatBugReport(r: Pick<BugReport, 'title' | 'environment' | 'steps' | 'expected' | 'actual' | 'screenshots'>): string {
+export function formatBugReport(r: Pick<BugReport, 'title' | 'environment' | 'steps' | 'expected' | 'actual' | 'screenshot'>): string {
   return [
     r.title,
     '',
@@ -506,7 +525,7 @@ export function formatBugReport(r: Pick<BugReport, 'title' | 'environment' | 'st
     '',
     `Expected: ${r.expected}`,
     `Actual: ${r.actual}`,
-    ...(r.screenshots.length ? ['', `Screenshots: ${r.screenshots.map((s) => `step ${s.stepIndex}`).join(', ')}`] : []),
+    ...(r.screenshot ? ['', `Screenshot: step ${r.screenshot.stepIndex}`] : []),
   ].join('\n');
 }
 

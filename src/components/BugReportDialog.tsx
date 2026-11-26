@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Images } from 'lucide-react';
+import { ChevronDown, Ellipsis } from 'lucide-react';
 import { buildBugReport, type BugReport } from '@/data/api';
 import type { Browser, ID } from '@/data/types';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input, Textarea } from '@/components/ui/field';
+import { Menu } from '@/components/ui/menu';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { StatusLine, errorText, type SaveStatus } from '@/components/StatusLine';
 import { ScreenshotPlaceholder } from '@/components/Screenshot';
 import { useAsync } from '@/app/hooks/useAsync';
-import { copyText } from '@/app/clipboard';
+import { copyImage, copyText } from '@/app/clipboard';
 import { downloadBlob } from '@/app/download';
-import { formatBugReport, formatBugReports } from '@/lib/resultRules';
-import { plural } from '@/lib/format';
+import { placeholderPng } from '@/app/placeholderImage';
+import { formatBugReport, formatBugReports, type BugReportScreenshot } from '@/lib/resultRules';
+import { cn } from '@/lib/utils';
 
 export interface BugReportItem {
   resultId: ID;
@@ -32,12 +34,31 @@ const textToSteps = (text: string) =>
     .map((l) => l.replace(/^\s*\d+[.)]\s*/, '').trim())
     .filter(Boolean);
 
-/** Prototype: screenshots are placeholders, saved as small SVG images with their caption. */
-function placeholderSvg(caption: string): Blob {
-  const esc = caption.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  return new Blob(
-    [`<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540"><rect width="100%" height="100%" fill="#F6F7F9"/><text x="50%" y="50%" text-anchor="middle" font-family="sans-serif" font-size="24" fill="#5B6370">${esc}</text></svg>`],
-    { type: 'image/svg+xml' },
+/**
+ * D90: one screenshot of the report with its own ⋯ menu on the caption line: Copy image (paste into the ClickUp task;
+ * the report text and an image can't share one copy) and Save image (one file, one save dialog).
+ */
+function ReportScreenshot({ shot, label, onCopy, onSave }: { shot: BugReportScreenshot; label: string; onCopy: () => void; onSave: () => void }) {
+  return (
+    <li className="w-44">
+      <figure>
+        <ScreenshotPlaceholder caption={`Step ${shot.stepIndex} screenshot`} />
+        <div className="mt-1 flex items-center justify-between gap-1">
+          <figcaption className="min-w-0 text-label font-normal text-text-muted">{label}</figcaption>
+          <Menu
+            label={<Ellipsis aria-hidden="true" />}
+            iconOnly
+            size="xs"
+            variant="ghost"
+            accessibleLabel={`Actions for the step ${shot.stepIndex} screenshot`}
+            items={[
+              { label: 'Copy image', onSelect: onCopy },
+              { label: 'Save image', onSelect: onSave },
+            ]}
+          />
+        </div>
+      </figure>
+    </li>
   );
 }
 
@@ -52,6 +73,8 @@ export function BugReportDialog({ items, onClose }: { items: BugReportItem[]; on
   );
   const [reports, setReports] = useState<(BugReport & { stepsText: string })[] | null>(null);
   const [status, setStatus] = useState<SaveStatus>(null);
+  /** Reports (by position) whose earlier screenshots are shown. */
+  const [showEarlier, setShowEarlier] = useState<ReadonlySet<number>>(new Set());
 
   // Fill the editable copy once the reports arrive (not on every render, or edits would be lost).
   const arrived = loaded.status === 'ready' ? loaded.data : null;
@@ -71,17 +94,34 @@ export function BugReportDialog({ items, onClose }: { items: BugReportItem[]; on
     }
   }
 
-  function saveScreenshots() {
-    if (!reports) return;
-    let n = 0;
-    reports.forEach((r, i) =>
-      r.screenshots.forEach((s) => {
-        n++;
-        downloadBlob(placeholderSvg(`${items[i]!.label} · step ${s.stepIndex} (prototype placeholder)`), `${items[i]!.label}-step-${s.stepIndex}.svg`);
-      }),
-    );
-    setStatus({ tone: 'ok', text: n ? `Saved ${plural(n, 'screenshot')}.` : 'There are no screenshots to save.' });
+  // Prototype: a placeholder image stands in for the stored screenshot (D90).
+  const imageOf = (i: number, s: BugReportScreenshot) => placeholderPng(`${items[i]!.label} · step ${s.stepIndex} (prototype placeholder)`);
+
+  async function copyShot(i: number, s: BugReportScreenshot) {
+    try {
+      await copyImage(imageOf(i, s));
+      setStatus({ tone: 'ok', text: `Step ${s.stepIndex} screenshot copied. Paste it into the ClickUp task.` });
+    } catch (e) {
+      setStatus({ tone: 'error', text: errorText(e) });
+    }
   }
+
+  async function saveShot(i: number, s: BugReportScreenshot) {
+    const fileName = `${items[i]!.label}-step-${s.stepIndex}.png`;
+    try {
+      downloadBlob(await imageOf(i, s), fileName);
+      setStatus({ tone: 'ok', text: `Saved ${fileName}.` });
+    } catch (e) {
+      setStatus({ tone: 'error', text: errorText(e) });
+    }
+  }
+
+  const toggleEarlier = (i: number) =>
+    setShowEarlier((set) => {
+      const next = new Set(set);
+      if (!next.delete(i)) next.add(i);
+      return next;
+    });
 
   const single = items.length === 1;
   return (
@@ -90,9 +130,6 @@ export function BugReportDialog({ items, onClose }: { items: BugReportItem[]; on
       onClose={onClose}
       footer={
         <>
-          <Button icon={Images} onClick={saveScreenshots} disabled={!reports}>
-            Save screenshots
-          </Button>
           <Button
             variant="primary"
             disabled={!reports}
@@ -127,17 +164,44 @@ export function BugReportDialog({ items, onClose }: { items: BugReportItem[]; on
             <Field label="Expected">{(p) => <Textarea {...p} value={r.expected} onChange={(e) => update(i, { expected: e.target.value })} />}</Field>
             <Field label="Actual">{(p) => <Textarea {...p} value={r.actual} onChange={(e) => update(i, { actual: e.target.value })} />}</Field>
             <div>
-              <h4 className="text-label text-text-muted">Screenshots</h4>
-              {r.screenshots.length === 0 ? (
-                <p className="text-text-muted">None</p>
+              <h4 className="text-label text-text-muted">Screenshot</h4>
+              {!r.screenshot ? (
+                <p className="text-text-muted">None recorded</p>
               ) : (
-                <ul className="mt-1 flex flex-wrap gap-2">
-                  {r.screenshots.map((s) => (
-                    <li key={s.screenshotId}>
-                      <ScreenshotPlaceholder caption={`Step ${s.stepIndex}`} className="h-16 w-28" />
-                    </li>
-                  ))}
+                <ul className="mt-1 flex flex-wrap gap-3">
+                  <ReportScreenshot
+                    shot={r.screenshot}
+                    label={
+                      items[i]!.visualStepIndex !== undefined
+                        ? `Step ${r.screenshot.stepIndex} · changed`
+                        : r.screenshot.atProblemStep
+                          ? `Step ${r.screenshot.stepIndex} · failed`
+                          : `Step ${r.screenshot.stepIndex} · last screenshot before the failure`
+                    }
+                    onCopy={() => void copyShot(i, r.screenshot!)}
+                    onSave={() => void saveShot(i, r.screenshot!)}
+                  />
                 </ul>
+              )}
+              {r.earlierScreenshots.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    aria-expanded={showEarlier.has(i)}
+                    onClick={() => toggleEarlier(i)}
+                    className="mt-2 inline-flex items-center gap-1 rounded-control text-label text-accent hover:underline"
+                  >
+                    <ChevronDown aria-hidden="true" className={cn('size-4 transition-transform', showEarlier.has(i) && 'rotate-180')} />
+                    Earlier steps ({r.earlierScreenshots.length})
+                  </button>
+                  {showEarlier.has(i) && (
+                    <ul aria-label="Earlier steps" className="mt-2 flex flex-wrap gap-3">
+                      {r.earlierScreenshots.map((s) => (
+                        <ReportScreenshot key={s.screenshotId} shot={s} label={`Step ${s.stepIndex}`} onCopy={() => void copyShot(i, s)} onSave={() => void saveShot(i, s)} />
+                      ))}
+                    </ul>
+                  )}
+                </>
               )}
             </div>
           </div>
