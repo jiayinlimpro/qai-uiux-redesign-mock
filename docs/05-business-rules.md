@@ -124,7 +124,7 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 ## Lists and filters (BR-LIST)
 - **BR-LIST-01** Suites: tree by suite (alphabetical by suite name), "Not in a suite" last; within a suite by test ID. Filters: search (ID/title), latest status.
 - **BR-LIST-02** Suites selection: suite checkbox selects its visible tests; when ≥1 test selected, show Move to suite… · Clone · Run N selected.
-- **BR-LIST-03** Run results: flat list sorted Failed → Couldn't complete → Passed → Not run, then by ID. Filters: status (the summary buttons), reason (options depend on status; hidden for Passed), mode (AI / Script / Data rows), search, Worth a look [PROPOSAL].
+- **BR-LIST-03** Run results: flat list sorted Failed → Couldn't complete → Passed → Not run, then by ID. Filters: status (the summary buttons), reason (options depend on status, grouped by status when All, each with its count given the other filters; disabled with "None for <status>" for Passed and Not run, D87), mode (AI / Script / Data rows), search, Worth a look [PROPOSAL].
 - **BR-LIST-04** Run results bulk bar appears only when ≥1 selected; "Select all shown" respects filters.
 - **BR-LIST-05** All list/detail screens have a draggable split (min list 280 px, min detail 420 px; keyboard ←/→ on the handle).
 

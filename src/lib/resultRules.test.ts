@@ -21,6 +21,8 @@ import {
   formatBugReport,
   hasBugReport,
   NO_RESULT_FILTERS,
+  reasonCounts,
+  reasonGroups,
   reasonOptions,
   rectFromCorners,
   rollUpBrowsers,
@@ -94,6 +96,21 @@ describe('sorting and filters (BR-LIST-03 / BR-LIST-04)', () => {
     expect(reasonOptions('all')).toHaveLength(8);
     expect(reasonOptions('passed')).toBeNull();
     expect(reasonOptions('not_run')).toBeNull();
+  });
+  it('D87: reason options are grouped by status; All has both groups; none for Passed and Not run', () => {
+    expect(reasonGroups('failed')!.map((g) => g.status)).toEqual(['failed']);
+    expect(reasonGroups('couldnt_complete')![0]!.reasons).toEqual(['environment_down', 'service_problem', 'ai_couldnt_finish']);
+    expect(reasonGroups('all')!.map((g) => [g.status, g.reasons.length])).toEqual([['failed', 5], ['couldnt_complete', 3]]);
+    expect(reasonGroups('passed')).toBeNull();
+    expect(reasonGroups('not_run')).toBeNull();
+  });
+  it('D87: reason counts follow the other filters, not the chosen reason', () => {
+    const all = reasonCounts(rows, NO_RESULT_FILTERS);
+    expect(all).toMatchObject({ product_bug: 1, blocked: 2, ai_couldnt_finish: 1, needs_confirmation: 0, environment_down: 0 });
+    expect(reasonCounts(rows, { ...NO_RESULT_FILTERS, reason: 'product_bug' })).toEqual(all);
+    expect(reasonCounts(rows, { ...NO_RESULT_FILTERS, mode: 'script' })).toMatchObject({ product_bug: 0, blocked: 2, ai_couldnt_finish: 0 });
+    expect(reasonCounts(rows, { ...NO_RESULT_FILTERS, status: 'failed' }).ai_couldnt_finish).toBe(0);
+    expect(reasonCounts(rows, { ...NO_RESULT_FILTERS, search: 'abt-10' }).blocked).toBe(1);
   });
   it('changing the status drops a reason that is no longer offered', () => {
     const f = { ...NO_RESULT_FILTERS, status: 'failed' as const, reason: 'blocked' as const };

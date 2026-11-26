@@ -89,6 +89,17 @@ export function reasonOptions(status: StatusFilter): Reason[] | null {
   return null;
 }
 
+/**
+ * BR-LIST-03 (D87): the reason options grouped by the status they belong to, so "All" shows a Failed group and a
+ * Couldn't complete group instead of one mixed list. null for Passed and Not run (no reasons; the filter is disabled).
+ */
+export function reasonGroups(status: StatusFilter): { status: 'failed' | 'couldnt_complete'; reasons: Reason[] }[] | null {
+  if (status === 'failed') return [{ status: 'failed', reasons: FAIL_REASONS }];
+  if (status === 'couldnt_complete') return [{ status: 'couldnt_complete', reasons: CC_REASONS }];
+  if (status === 'all') return [{ status: 'failed', reasons: FAIL_REASONS }, { status: 'couldnt_complete', reasons: CC_REASONS }];
+  return null;
+}
+
 export interface ResultFilterState {
   status: StatusFilter;
   reason: Reason | 'all';
@@ -116,6 +127,17 @@ export function matchesResultFilters(row: Pick<ResultRow, 'status' | 'reason' | 
   if (f.worthALook && !row.worthALook) return false;
   const q = f.search.trim().toLowerCase();
   return !q || row.displayId.toLowerCase().includes(q) || row.title.toLowerCase().includes(q);
+}
+
+/**
+ * BR-LIST-03 (D87): how many rows each reason option would show, given every other filter (status, mode, search,
+ * Worth a look). Computed from the rows, never hard-coded; the current reason choice does not change the counts.
+ */
+export function reasonCounts(rows: Pick<ResultRow, 'status' | 'reason' | 'mode' | 'displayId' | 'title' | 'worthALook'>[], f: ResultFilterState): Record<Reason, number> {
+  const counts = Object.fromEntries([...FAIL_REASONS, ...CC_REASONS].map((r) => [r, 0])) as Record<Reason, number>;
+  const others = { ...f, reason: 'all' as const };
+  for (const row of rows) if (row.reason && matchesResultFilters(row, others)) counts[row.reason] += 1;
+  return counts;
 }
 
 /** BR-LIST-03 + BR-LIST-04: the rows shown (filtered, sorted); "Select all shown" selects exactly these. */

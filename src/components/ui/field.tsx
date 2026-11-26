@@ -77,23 +77,41 @@ export function FilterSelect({
   icon: Icon,
   className,
   children,
+  active = false,
+  disabled,
   ...props
-}: SelectHTMLAttributes<HTMLSelectElement> & { label: string; icon?: LucideIcon }) {
+}: SelectHTMLAttributes<HTMLSelectElement> & {
+  label: string;
+  icon?: LucideIcon;
+  /** The filter narrows the list (a value other than "All"): accent pill, like the other active filter toggles (D87). */
+  active?: boolean;
+}) {
+  const on = active && !disabled;
   return (
     <label
       className={cn(
-        'relative inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-control border border-border bg-surface pl-2.5 text-dense font-medium text-text shadow-lift',
+        // max-w-full + min-w-0 on the select: in a narrow pane a long option is cut off with an ellipsis inside the border, never past it.
+        'relative inline-flex h-8 min-w-0 max-w-full items-center gap-1.5 rounded-control border pl-2.5 text-dense font-medium transition-colors duration-150',
         // The select inside has no ring of its own: the whole pill shows the focus ring when the select has keyboard focus.
-        'transition-colors duration-150 focus-within:border-accent hover:bg-hover has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent',
+        'has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent',
+        disabled
+          ? 'cursor-not-allowed border-dashed border-border bg-surface-muted text-text-muted'
+          : on
+            ? 'cursor-pointer border-accent bg-accent-soft text-accent-soft-text'
+            : 'cursor-pointer border-border bg-surface text-text shadow-lift focus-within:border-accent hover:bg-hover',
         className,
       )}
     >
-      {Icon && <Icon aria-hidden="true" className="size-3.5 shrink-0 text-text-muted" />}
-      <span className="text-text-muted">{label}:</span>
-      <select className="h-full cursor-pointer appearance-none bg-transparent pr-7 font-semibold focus-visible:outline-none" {...props}>
+      {Icon && <Icon aria-hidden="true" className={cn('size-3.5 shrink-0', on ? 'text-accent-soft-text' : 'text-text-muted')} />}
+      <span className={cn('shrink-0 whitespace-nowrap', on ? 'text-accent-soft-text' : 'text-text-muted')}>{label}:</span>
+      <select
+        className={cn('h-full min-w-0 appearance-none truncate bg-transparent pr-7 focus-visible:outline-none', disabled ? 'cursor-not-allowed font-medium' : 'cursor-pointer font-semibold')}
+        disabled={disabled}
+        {...props}
+      >
         {children}
       </select>
-      <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-2 size-3.5 text-text-muted" />
+      <ChevronDown aria-hidden="true" className={cn('pointer-events-none absolute right-2 size-3.5', on ? 'text-accent-soft-text' : 'text-text-muted')} />
     </label>
   );
 }

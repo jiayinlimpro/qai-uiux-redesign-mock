@@ -12,7 +12,7 @@ import { StatusIcon } from '@/components/StatusIcon';
 import { BulkBar } from '@/components/BulkBar';
 import { formatCost } from '@/lib/format';
 import { modeLabels, reasonLabels, statusLabels } from '@/lib/labels';
-import { browserMarks, hasActiveResultFilters, NO_RESULT_FILTERS, reasonOptions, rowDetails, type Reason, type ResultFilterState, type ResultRow } from '@/lib/resultRules';
+import { browserMarks, hasActiveResultFilters, NO_RESULT_FILTERS, reasonCounts, reasonGroups, rowDetails, type Reason, type ResultFilterState, type ResultRow } from '@/lib/resultRules';
 import { cn } from '@/lib/utils';
 
 export interface BulkActions {
@@ -25,7 +25,8 @@ export interface BulkActions {
 const MODES: (Mode | 'all')[] = ['all', 'ai', 'script', 'data_rows'];
 
 /**
- * 6.1 left: results list (screens/07-results.md). Toolbar: search · Reason pill (BR-LIST-03) · Mode segmented control ·
+ * 6.1 left: results list (screens/07-results.md). Toolbar (D87): search on its own line; then Reason pill (BR-LIST-03:
+ * grouped by status, a count per reason, accent when set, disabled for Passed / Not run) · Mode segmented control ·
  * Worth a look toggle [PROPOSAL] · Clear filters; "Select all shown (n)"; floating bulk bar only when ≥1 selected (BR-LIST-04);
  * flat two-line rows sorted per BR-LIST-03, with a quick Re-run on hover or focus (D79).
  */
@@ -52,7 +53,8 @@ export function ResultsList({
   models: string[];
   actions: BulkActions;
 }) {
-  const reasons = reasonOptions(filters.status);
+  const groups = reasonGroups(filters.status);
+  const counts = reasonCounts(rows, filters);
   const selectedRows = rows.filter((r) => selection.has(r.key));
   const shownSelected = shown.filter((r) => selection.has(r.key)).length;
   const allShown = shown.length > 0 && shownSelected === shown.length;
@@ -71,20 +73,33 @@ export function ResultsList({
   return (
     <div className="relative flex h-full flex-col bg-surface">
       <div className="flex flex-col gap-2.5 border-b border-border p-4">
+        <SearchInput placeholder="Search by ID or title" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
         <div className="flex flex-wrap items-center gap-2">
-          <SearchInput className="min-w-[12rem] flex-1" placeholder="Search by ID or title" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
-          {reasons && (
-            <FilterSelect label="Reason" icon={ListFilter} className="h-9 max-w-[10.5rem]" value={filters.reason} onChange={(e) => setFilters({ ...filters, reason: e.target.value as Reason | 'all' })}>
+          {groups ? (
+            <FilterSelect
+              label="Reason"
+              icon={ListFilter}
+              active={filters.reason !== 'all'}
+              value={filters.reason}
+              onChange={(e) => setFilters({ ...filters, reason: e.target.value as Reason | 'all' })}
+            >
               <option value="all">All</option>
-              {reasons.map((r) => (
-                <option key={r} value={r}>
-                  {reasonLabels[r]}
-                </option>
-              ))}
+              {groups.length === 1
+                ? groups[0]!.reasons.map((r) => <ReasonOption key={r} reason={r} count={counts[r]} />)
+                : groups.map((g) => (
+                    <optgroup key={g.status} label={statusLabels[g.status]}>
+                      {g.reasons.map((r) => (
+                        <ReasonOption key={r} reason={r} count={counts[r]} />
+                      ))}
+                    </optgroup>
+                  ))}
+            </FilterSelect>
+          ) : (
+            // D87: kept in place (disabled) for Passed and Not run, so the toolbar does not shift and it says why.
+            <FilterSelect label="Reason" icon={ListFilter} disabled value="none">
+              <option value="none">None for {statusLabels[filters.status as 'passed' | 'not_run']}</option>
             </FilterSelect>
           )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
           <SegmentedControl
             label="Mode"
             value={filters.mode}
@@ -178,6 +193,15 @@ export function ResultsList({
  * ResultRow (08): checkbox · status icon · ID · title · Worth a look · Known issue / "<reason> · <mode> · <suite>" · cost.
  * Hover or keyboard focus shows a quick Re-run (D79).
  */
+/** One reason option with how many results it would show (D87), e.g. "Product bug (2)". */
+function ReasonOption({ reason, count }: { reason: Reason; count: number }) {
+  return (
+    <option value={reason}>
+      {reasonLabels[reason]} ({count})
+    </option>
+  );
+}
+
 function ResultRowItem({ row, checked, onToggle, selected, href, onRerun }: { row: ResultRow; checked: boolean; onToggle: () => void; selected: boolean; href: string; onRerun?: () => void }) {
   const marks = row.result ? browserMarks(row.result.perBrowser) : [];
   return (
