@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Columns2, Plus, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { getTestHistory } from '@/data/api';
 import type { Browser, TestCase } from '@/data/types';
 import { Button } from '@/components/ui/button';
@@ -13,17 +13,19 @@ import { StatusLine, errorText, type SaveStatus } from '@/components/StatusLine'
 import { useAsync } from '@/app/hooks/useAsync';
 import { useProject } from '@/app/projectContext';
 import { to } from '@/app/routes';
-import { plural } from '@/lib/format';
+import { formatDate } from '@/lib/format';
 import { browserLabels } from '@/lib/labels';
-import { browserEvidence } from '@/lib/resultRules';
+import { browserEvidence, visualMark, visualResultText } from '@/lib/resultRules';
 import { latestComparison } from '@/lib/suiteRules';
 import { VisualCompare } from '@/components/VisualCompare';
+import { ScreenshotPlaceholder, VisualMarkBadge } from '@/components/Screenshot';
 import { useSuites } from '../suitesContext';
 import type { SaveTest } from '../TestDetail';
 
 /**
- * Visual check tab (screens/04-suites.md, BR-VISUAL-*): project on/off · Exclude this test · latest comparison
- * (Step · No change / n areas changed / No previous run · Compare) · Ignore areas · Pin a reference (Later, display only).
+ * Visual check tab (screens/04-suites.md, BR-VISUAL-*): project on/off · Exclude this test · latest comparison, its two
+ * runs named and linked (D89): Step · Result text (visualResultText) · Screenshot with its corner mark, opening the one
+ * screenshot viewer (D88) · Ignore areas · Pin a reference (Later, display only).
  * D86: when the latest replay ran in several browsers, a Browser switcher picks whose comparison is shown (BR-VISUAL-02).
  * Visual settings never create a new version.
  */
@@ -42,6 +44,7 @@ export function VisualCheckTab({ test, save }: { test: TestCase; save: SaveTest 
   const multi = (comparison?.result.perBrowser.length ?? 0) > 1;
   const evidence = comparison ? browserEvidence(comparison.result, comparison.result.perBrowser.find((b) => b.browser === chosen)?.browser) : null;
   const compared = evidence?.steps ?? [];
+  const previousResult = comparison?.previousRun && history.status === 'ready' ? history.data.find((r) => r.runId === comparison.previousRun!.id) : undefined;
   const stepNames = comparison ? compared.map((st) => st.text) : test.steps;
   /** A step can be drawn on when the latest comparison has its screenshot. */
   const drawable = (stepIndex: number) => Boolean(compared.find((st) => st.index === stepIndex)?.screenshotId);
@@ -90,10 +93,25 @@ export function VisualCheckTab({ test, save }: { test: TestCase; save: SaveTest 
         )}
         {comparison && (
           <>
+            {/* D89: name the two runs and link to their results, so it is clear which comparison this is. */}
             <h3 className="p-4 font-semibold">
-              Latest comparison · Run #{comparison.run.number}
-              {comparison.previousRun ? ` vs Run #${comparison.previousRun.number}` : ''} · {comparison.run.environment.name}
-              {multi && evidence ? ` · ${browserLabels[evidence.browser]}` : ''}
+              Latest comparison:{' '}
+              <Link to={to.run(project.id, comparison.run.id, comparison.result.id, multi ? evidence?.browser : undefined)} className="text-accent underline underline-offset-2">
+                Run #{comparison.run.number}
+              </Link>{' '}
+              <span className="font-normal text-text-muted">({formatDate(comparison.run.startedAt)})</span>
+              {comparison.previousRun && (
+                <>
+                  {' '}
+                  vs{' '}
+                  <Link to={to.run(project.id, comparison.previousRun.id, previousResult?.id, multi ? evidence?.browser : undefined)} className="text-accent underline underline-offset-2">
+                    Run #{comparison.previousRun.number}
+                  </Link>
+                </>
+              )}
+              {' · '}
+              {comparison.run.environment.name}
+              {evidence ? ` · ${browserLabels[evidence.browser]}` : ''}
             </h3>
             {multi && evidence && (
               <div className="flex flex-wrap items-center gap-2.5 px-4 pb-3">
@@ -115,38 +133,42 @@ export function VisualCheckTab({ test, save }: { test: TestCase; save: SaveTest 
                   <th scope="col" className="px-4 py-2">
                     Result
                   </th>
-                  <th scope="col" className="px-4 py-2">
-                    <span className="sr-only">Compare</span>
+                  <th scope="col" className="px-4 py-2 text-right">
+                    Screenshot
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {compared.map((st) => {
-                  const v = st.visual;
+                  // D89: a text result (the comparison is this tab's content) and the same screenshot + corner mark as Runs (D88).
+                  const result = visualResultText(st);
+                  const mark = visualMark(st);
                   return (
                     <tr key={st.index} className="border-b border-border last:border-b-0">
                       <td className="px-4 py-2">
                         {st.index}. {st.text}
                       </td>
                       <td className="px-4 py-2">
-                        {!v || !v.previousScreenshotId ? (
-                          <Chip>No previous run</Chip>
-                        ) : v.changedAreas === 0 ? (
-                          <Chip tone="passed">No change</Chip>
-                        ) : (
-                          <Chip tone="cc">{plural(v.changedAreas, 'area')} changed</Chip>
-                        )}
+                        <Chip tone={result.tone}>{result.text}</Chip>
                       </td>
-                      <td className="px-4 py-2 text-right">
-                        {st.screenshotId ? (
-                          <Button size="xs" icon={Columns2} onClick={() => setCompare({ stepIndex: st.index })}>
-                            Compare<span className="sr-only"> step {st.index}</span>
-                          </Button>
-                        ) : (
-                          <Link to={to.run(project.id, comparison.run.id, comparison.result.id, multi ? evidence?.browser : undefined)} className="text-accent underline underline-offset-2">
-                            Open result<span className="sr-only"> of step {st.index}</span>
-                          </Link>
-                        )}
+                      <td className="px-4 py-2">
+                        <div className="flex justify-end">
+                          {st.screenshotId ? (
+                            <ScreenshotPlaceholder
+                              size="thumb"
+                              caption={`Screenshot of step ${st.index}`}
+                              openLabel={`Open screenshot of step ${st.index}, ${result.text}`}
+                              onOpen={() => setCompare({ stepIndex: st.index })}
+                            >
+                              {mark && <VisualMarkBadge mark={mark} size="thumb" />}
+                            </ScreenshotPlaceholder>
+                          ) : (
+                            <span className="inline-flex aspect-video w-20 items-center justify-center rounded-control border border-dashed border-border text-label text-text-muted">
+                              <span aria-hidden="true">–</span>
+                              <span className="sr-only">No screenshot of step {st.index}</span>
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

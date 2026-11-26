@@ -1,16 +1,14 @@
 import { useState } from 'react';
 import { ShieldCheck, Tag } from 'lucide-react';
 import { markKnownIssue, overrideResult } from '@/data/api';
-import type { Browser, ID, Result, ResultStep, Run, TestCase } from '@/data/types';
+import type { ID, Result, TestCase } from '@/data/types';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input, RadioGroup, Textarea } from '@/components/ui/field';
 import { ReasonChip, StatusChip } from '@/components/StatusViews';
-import { ScreenshotPlaceholder } from '@/components/Screenshot';
 import { errorText } from '@/components/StatusLine';
-import { browserLabels } from '@/lib/labels';
 import { plural } from '@/lib/format';
-import { browserEvidence, validateOverride } from '@/lib/resultRules';
+import { validateOverride } from '@/lib/resultRules';
 import { cn } from '@/lib/utils';
 
 /** 6.3 Override (dialog, 720 px), BR-ACTION-01: single result; reason and proof required; the AI verdict is kept for audit. */
@@ -155,19 +153,6 @@ export function KnownIssueDialog({ testIds, labels, onClose, onDone }: { testIds
           {error}
         </p>
       )}
-    </Dialog>
-  );
-}
-
-/** Screenshot viewer (6.1: screenshot click → viewer). Prototype: a large placeholder. */
-export function ScreenshotViewer({ step, label, run, result, browser: chosen, onClose }: { step: ResultStep; label: string; run: Run; result: Result; browser?: Browser; onClose: () => void }) {
-  const browser = browserLabels[browserEvidence(result, chosen).browser];
-  return (
-    <Dialog title={`Screenshot · step ${step.index}`} size="lg" onClose={onClose}>
-      <p className="mb-2 text-label font-normal text-text-muted">
-        {label} · Run #{run.number} · {browser} {run.viewport.width}×{run.viewport.height} · {step.index}. {step.text}
-      </p>
-      <ScreenshotPlaceholder caption={`Screenshot of step ${step.index}${step.url ? ` · ${step.url}` : ''}`} />
     </Dialog>
   );
 }

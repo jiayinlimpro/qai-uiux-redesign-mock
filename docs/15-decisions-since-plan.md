@@ -1,6 +1,6 @@
 # 15 · Decisions since the plan that change or add scope
 
-Decisions D24–D87 (`12-decision-log.md`) compared with the original spec. One line each: what changed and where.
+Decisions D24–D89 (`12-decision-log.md`) compared with the original spec. One line each: what changed and where.
 **Changed** = the spec said something else. **Added** = the spec was silent or vague and the prototype now does it.
 Decisions that only clarify wording or implementation, without changing scope, are listed at the end.
 
@@ -61,6 +61,8 @@ Decisions that only clarify wording or implementation, without changing scope, a
 | D79 | Changed | Design system made final: QAI Violet accent, light and dark themes (Appearance setting now applies real colours), new surface / control / inverse tokens, monospace stack, dense list size, contrast test; delivered in 6 slices | 08 · 2.3 · all screens |
 | D80 | Changed | Component language (icons in buttons and chips, filter toolbar, summary tiles, floating bulk bar) and six placement changes (Copy bug report in the failure card, primary last, Suites header and status filter, suite pass/fail bars, row quick Re-run, one floating bulk bar) | 08 · 6.1 · 3.1 · 3.2 |
 | D87 | Changed | Run results Reason filter: fits its longest option (overflow fixed), grouped by status when All, a count per option, accent while set, disabled ("None for Passed") instead of hidden; Search on its own line | BR-LIST-03 · 6.1 · 08 |
+| D88 | Changed | One screenshot viewer: a step's screenshot opens side-by-side compare when compared, else the screenshot full width with why not (`ResultStep.notCompared`, recorded with the result); visual mark moves from the step row to the screenshot's top-right corner; Suites Compare opens the same viewer | BR-VISUAL-02 · 6.1, 6.2 · 3.1 Visual check · 07 · 08 |
+| D89 | Changed | Suites › Visual check: Step · Result · Screenshot (thumbnail + corner mark opens the one viewer; replaces Compare / Open result); result text says more ("No change · 3 areas ignored", recorded with the comparison); heading names and links both runs | 3.1 Visual check · 07 |
 
 **Clarifications without a scope change**: D26 (hash addresses, all routes in `routes.ts`), D31 (the breadcrumb shows
 pages, not selections), D69 (the banned legacy "Upload" means test-file upload; Knowledge keeps "Upload"), D81 (accessibility pass: one h1 per page, app-wide reduced motion, filter pill focus ring; refreshed reference screenshots), D82 (AI explore has its own icon: a compass with the AI sparkle; Sparkles stays for AI in general), D83 ("Show technical details" renamed "Show raw actions and locators"; its box is "As recorded"), D84 (one screenshot per step: the thumbnail grows into a preview when the step expands), D85 (multi-browser examples in Runs #7 and #10; browser marks only when browsers disagree, never cut off; browsers in the run header), D86 (evidence per browser: Browser switcher in Run results; By browser line, browser marks and switcher in Suites; the test status stays its latest result).

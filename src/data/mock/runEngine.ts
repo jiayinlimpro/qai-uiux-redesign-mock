@@ -11,6 +11,7 @@ import { sumCost } from '@/lib/status';
 import { SEED_RUN_PACE } from './seed';
 import { actionsFor, aiThoughtFor, intentSteps, logsFor, startUrl, urlsFor, usageFor } from './evidence';
 import { knowledgeForRun } from '@/lib/runRules';
+import { notComparedReason } from '@/lib/resultRules';
 import { getDb, mutate } from './store';
 
 export interface Narration {
@@ -244,7 +245,12 @@ function finish(runId: ID, a: Active, forced?: 'not_run', note?: string): void {
     }
     const stopAt = status === 'passed' ? a.steps.length + 1 : forced ? Math.min(a.step + 1, a.steps.length) : Math.min(failure?.stepIndex ?? a.steps.length, a.steps.length);
     const scriptFrom = test.script.fromRunId ? (db.runs.find((r) => r.id === test.script.fromRunId)?.number ?? 0) : 0;
-    const prevReplay = a.plan.mode === 'script' && !test.visual.excluded ? previousReplay(db, test.id, run, scriptFrom) : undefined;
+    // BR-VISUAL-01/02: script replays compare with the previous replay, when the project and the test have it on.
+    const comparisonOn = db.projects.find((p) => p.id === run.projectId)?.settings.visualComparison ?? true;
+    const prevReplay = a.plan.mode === 'script' && comparisonOn && !test.visual.excluded ? previousReplay(db, test.id, run, scriptFrom) : undefined;
+    const notCompared = prevReplay
+      ? undefined
+      : notComparedReason({ mode: a.plan.mode, dataRowsReplayed: test.script.state === 'recorded' && !run.forceAi, comparisonOn, excluded: test.visual.excluded, hasPrevious: a.plan.mode === 'script' && !!previousReplay(db, test.id, run, scriptFrom) });
     // Evidence written when the result is created (D58): URL, actions with locators, AI thought, usage, knowledge, logs.
     const platformUrl = run.environment.platforms.find((x) => x.url)?.url ?? null;
     const urls = urlsFor(a.steps, startUrl(test, platformUrl));
@@ -262,7 +268,11 @@ function finish(runId: ID, a: Active, forced?: 'not_run', note?: string): void {
       };
       if (!forced && index === stopAt && failure) step.check = { expected: failure.expected, found: failure.found, ok: false };
       if (ran && a.plan.mode !== 'script') step.aiThought = aiThoughtFor(step, a.steps.length); // a script replay has no AI
-      if (ran && prevReplay) step.visual = { previousScreenshotId: prevReplay.steps[i]?.screenshotId ?? `shot-prev-${index}`, changedAreas: 0 };
+      if (ran && prevReplay) {
+        const ignored = test.visual.ignoreAreas.filter((x) => x.stepIndex === index && x.rect).length; // D89: frozen with the comparison
+        step.visual = { previousScreenshotId: prevReplay.steps[i]?.screenshotId ?? `shot-prev-${index}`, changedAreas: 0, ...(ignored > 0 ? { ignoredAreas: ignored } : {}) };
+      }
+      if (ran && !prevReplay && notCompared) step.notCompared = notCompared; // D88
       return step;
     });
     const usedRows = test.testData?.rows.filter((r) => r.use) ?? [];

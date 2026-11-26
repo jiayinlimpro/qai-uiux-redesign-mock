@@ -55,6 +55,8 @@ export type RunState = 'running'|'paused'|'interrupted'|'completed';
 export type Status = 'passed'|'failed'|'couldnt_complete'|'not_run';
 export type FailReason = 'product_bug'|'needs_confirmation'|'test_data_problem'|'test_case_unclear'|'blocked';
 export type CcReason = 'environment_down'|'service_problem'|'ai_couldnt_finish';
+/** BR-VISUAL-01/02 (D88): why a step's screenshot was not compared with an earlier replay. */
+export type NotComparedReason = 'ai_run'|'no_previous'|'test_excluded'|'comparison_off';
 export type Mode = 'ai'|'script'|'data_rows';
 
 export interface Viewport { width: number; height: number }
@@ -98,7 +100,10 @@ export interface ResultStep { index: number; text: string; status: Status; durat
   url?: string;                         // page URL at the end of the step (D58)
   visual?: { previousScreenshotId?: ID; changedAreas: number;
     changedRegions?: { x: number; y: number; w: number; h: number }[];   // where they changed (share of the screenshot, 0–1); absent → placeholder outlines (D64)
-    dismissed?: { by: string; at: string } } }   // "Looks fine" in Visual compare: kept, not counted as a flag (D59)
+    ignoredAreas?: number;              // drawn ignore areas on this step left out of this comparison, written when compared (D89)
+    dismissed?: { by: string; at: string } };   // "Looks fine" in Visual compare: kept, not counted as a flag (D59)
+  notCompared?: NotComparedReason }     // a step with a screenshot and no `visual`: why it was not compared, written when the result
+                                        // is created (D88); absent on older results → "reason not recorded"
 
 export interface Chat { id: ID; projectId: ID; title: string; updatedAt: string; running: boolean; messages: ChatMessage[] }
 export type ChatMessage =

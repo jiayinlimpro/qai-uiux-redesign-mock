@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { CalendarDays, CircleStop, Coins, Globe, Layers, Server, type LucideIcon } from 'lucide-react';
 import { listKnowledge, listResults, listRuns, listSuites, listLibraryTests } from '@/data/api';
-import type { Browser, ID, ResultStep, Run } from '@/data/types';
+import type { Browser, ID, Run } from '@/data/types';
 import { SplitPane } from '@/components/ui/split-pane';
 import { Toast, type ToastMessage } from '@/components/ui/toast';
 import { ErrorState, LoadingState } from '@/components/StateViews';
@@ -21,7 +21,7 @@ import { browserEvidence, buildResultRows, hasBugReport, NO_RESULT_FILTERS, show
 import { countByStatus } from '@/lib/status';
 import { ResultsList } from './ResultsList';
 import { ResultDetail } from './ResultDetail';
-import { KnownIssueDialog, OverrideDialog, ScreenshotViewer } from './ResultDialogs';
+import { KnownIssueDialog, OverrideDialog } from './ResultDialogs';
 
 const RAW_ACTIONS_KEY = 'qai.results.showRawActions';
 function readFlag(key: string): boolean {
@@ -38,7 +38,6 @@ type Dialogs =
   | { kind: 'knownIssue'; rows: ResultRow[] }
   | { kind: 'override'; row: ResultRow }
   | { kind: 'visual'; row: ResultRow; stepIndex: number; browser?: Browser }
-  | { kind: 'screenshot'; row: ResultRow; step: ResultStep; browser?: Browser }
   | null;
 
 /**
@@ -195,7 +194,6 @@ export function RunResultsScreen({ run }: { run: Run }) {
                   onOverride={() => setDialog({ kind: 'override', row: selected })}
                   onKnownIssue={() => setDialog({ kind: 'knownIssue', rows: [selected] })}
                   onOpenVisual={(stepIndex) => setDialog({ kind: 'visual', row: selected, stepIndex, ...(browser ? { browser } : {}) })}
-                  onOpenScreenshot={(step) => setDialog({ kind: 'screenshot', row: selected, step, ...(browser ? { browser } : {}) })}
                 />
               ) : (
                 <div className="flex h-full items-center justify-center p-8 text-text-muted">
@@ -245,9 +243,6 @@ export function RunResultsScreen({ run }: { run: Run }) {
           onResultChange={() => data.retry()}
           onTestChange={() => data.retry()}
         />
-      )}
-      {dialog?.kind === 'screenshot' && dialog.row.result && (
-        <ScreenshotViewer step={dialog.step} label={dialog.row.displayId} run={run} result={dialog.row.result} {...(dialog.browser ? { browser: dialog.browser } : {})} onClose={() => setDialog(null)} />
       )}
       <Toast toast={toast} onClose={closeToast} />
     </div>

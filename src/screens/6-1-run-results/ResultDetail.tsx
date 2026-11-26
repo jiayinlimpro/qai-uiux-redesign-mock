@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Bug, Code, Ellipsis, Folder, ListChecks, Pencil, RotateCcw, ShieldCheck } from 'lucide-react';
-import type { Browser, KnowledgeItem, ResultStep, Run, TestCase } from '@/data/types';
+import type { Browser, KnowledgeItem, Run, TestCase } from '@/data/types';
 import { Button, buttonClasses } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { TabPanel, Tabs } from '@/components/ui/tabs';
@@ -36,7 +36,6 @@ export function ResultDetail({
   onOverride,
   onKnownIssue,
   onOpenVisual,
-  onOpenScreenshot,
 }: {
   row: ResultRow;
   run: Run;
@@ -54,7 +53,6 @@ export function ResultDetail({
   onOverride: () => void;
   onKnownIssue: () => void;
   onOpenVisual: (stepIndex: number) => void;
-  onOpenScreenshot: (step: ResultStep) => void;
 }) {
   const [tab, setTab] = useState<DetailTab>('steps');
   const r = row.result;
@@ -205,7 +203,6 @@ export function ResultDetail({
                 onBrowserChange={onBrowserChange}
                 showRawActions={showRawActions}
                 setShowRawActions={setShowRawActions}
-                onOpenScreenshot={onOpenScreenshot}
                 onOpenVisual={onOpenVisual}
                 onCopyBugReport={bugReport ? onCopyBugReport : undefined}
               />

@@ -1,4 +1,7 @@
 import type { ReactNode } from 'react';
+import { Check, ScanEye } from 'lucide-react';
+import { plural } from '@/lib/format';
+import type { VisualMark } from '@/lib/resultRules';
 import { cn } from '@/lib/utils';
 
 /**
@@ -46,6 +49,36 @@ export function ScreenshotPlaceholder({
       {body}
     </div>
   );
+}
+
+/**
+ * D88: the visual mark in the top-right corner of a step's screenshot. `thumb`: compact (icon + number, or a check),
+ * `preview`: the full chip. Decorative: the screenshot button's accessible name says the same (see `visualMarkText`).
+ * Solid fill and a surface ring so it stays readable over any screenshot.
+ */
+export function VisualMarkBadge({ mark, size }: { mark: Exclude<VisualMark, null>; size: 'thumb' | 'preview' }) {
+  const changed = mark.kind === 'changed';
+  const Icon = changed ? ScanEye : Check;
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'pointer-events-none absolute right-1 top-1 inline-flex items-center rounded-pill font-semibold shadow-lift ring-1 ring-surface',
+        changed ? 'bg-cc-fill text-cc-text' : 'bg-passed-fill text-passed-text',
+        size === 'thumb' ? 'h-4 gap-0.5 px-1 text-[11px] leading-none' : 'h-[22px] gap-1 px-2 text-label',
+      )}
+    >
+      <Icon className={size === 'thumb' ? 'size-3' : 'size-3.5'} />
+      {size === 'thumb' ? (changed ? mark.areas : null) : changed ? plural(mark.areas, 'area') + ' changed' : 'Looks fine'}
+    </span>
+  );
+}
+
+/** D88: the mark in words, for the screenshot button's accessible name ("…, 3 areas changed"). */
+export function visualMarkText(mark: VisualMark, compared: boolean): string {
+  if (mark?.kind === 'changed') return `${plural(mark.areas, 'area')} changed`;
+  if (mark?.kind === 'looks_fine') return 'visual change marked looks fine';
+  return compared ? 'no visual change' : '';
 }
 
 /**

@@ -29,10 +29,10 @@ import type {
 import { contentToSteps, idPrefixOf, parseBrowserList, readTemplateCsv } from '@/lib/importRules';
 import { knowledgeForRun, modeFor, snapshotEnvironment } from '@/lib/runRules';
 import { sumCost } from '@/lib/status';
-import { leadBrowser } from '@/lib/resultRules';
+import { leadBrowser, notComparedReason } from '@/lib/resultRules';
 import { actionsFor, aiThoughtFor, deriveSteps, intentSteps, logsFor, startUrl, urlsFor, usageFor } from './evidence';
 
-export const SEED_VERSION = 16; // 15: multi-browser examples in #7 and #10 (D85); 16: evidence per browser (D86)
+export const SEED_VERSION = 18; // 15: multi-browser examples in #7 and #10 (D85); 16: evidence per browser (D86); 17: why a step is not compared (D88); 18: ignored areas per comparison (D89)
 
 /**
  * Mock engine pace for seeded demo runs: timer ticks per work tick (normal runs: 1). Run #14 has 14 work ticks left
@@ -304,6 +304,12 @@ function buildSteps(runNumber: number, t: TestCase, mode: Mode, o: Outcome, dura
         changedAreas: o.visualChanges?.[index] ?? 0,
         ...(o.visualRegions?.[index] ? { changedRegions: o.visualRegions[index] } : {}),
       };
+      const ignored = t.visual.ignoreAreas.filter((a) => a.stepIndex === index && a.rect).length; // D89: frozen with the comparison
+      if (ignored > 0) step.visual.ignoredAreas = ignored;
+    } else if (ran) {
+      // D88: why this screenshot is not compared, recorded with the result.
+      const notCompared = notComparedReason({ mode, dataRowsReplayed: t.script.state === 'recorded', comparisonOn: projects[0]!.settings.visualComparison, excluded: t.visual.excluded, hasPrevious: previous !== undefined });
+      if (notCompared) step.notCompared = notCompared;
     }
     return step;
   });

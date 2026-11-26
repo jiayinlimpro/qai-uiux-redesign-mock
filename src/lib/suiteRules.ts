@@ -197,7 +197,7 @@ export function placeholdersIn(steps: string[]): string[] {
 // ---------- Visual check tab (BR-VISUAL-02) ----------
 /**
  * The latest visual comparison of a test: its newest script replay that has step comparisons, and the previous
- * replay of the same environment it was compared with (null → "No previous run to compare").
+ * replay of the same environment it was compared with (null → the tab says there is no comparison yet).
  * `history` is newest first.
  */
 export function latestComparison<R extends Pick<Result, 'runId' | 'mode' | 'steps'> & { perBrowser?: { steps?: Result['steps'] }[] }, Rn extends { id: ID; environmentId: ID }>(

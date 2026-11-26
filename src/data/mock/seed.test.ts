@@ -171,6 +171,27 @@ describe('sample data matches docs/07', () => {
     expect(test('NAV-01').visual.ignoreAreas.map((a) => a.label)).toEqual(['Hero rotating word', 'Statistics counters', 'Team carousel']);
   });
 
+  it('D89: #13 compares NAV-01 with #12; step 2 has no change because its 3 areas are ignored (added after #12)', () => {
+    expect(resultFor(13, 'NAV-01').steps[1]!.visual).toMatchObject({ previousScreenshotId: 'shot-12-nav-01-2', changedAreas: 0, ignoredAreas: 3 });
+    expect(resultFor(12, 'NAV-01').steps[1]!.visual!.ignoredAreas).toBeUndefined();
+    expect(resultFor(13, 'NAV-01').steps[0]!.visual!.ignoredAreas).toBeUndefined();
+  });
+
+  it('D88: every step with a screenshot is either compared or says why not', () => {
+    // #9: the first UAT replays of Navigation, so nothing earlier to compare with.
+    expect(resultFor(9, 'NAV-01').steps.every((s) => s.notCompared === 'no_previous' && !s.visual)).toBe(true);
+    // #12: compared with #9, so no reason is recorded.
+    expect(resultFor(12, 'NAV-02').steps.every((s) => s.visual && !s.notCompared)).toBe(true);
+    // AI runs are never compared.
+    const ai = db.results.find((r) => r.mode === 'ai' && r.steps.some((s) => s.screenshotId))!;
+    expect(ai.steps.filter((s) => s.screenshotId).every((s) => s.notCompared === 'ai_run')).toBe(true);
+    // Never both, and no step without a screenshot carries a reason.
+    for (const r of db.results) for (const s of r.steps) {
+      expect(Boolean(s.visual && s.notCompared)).toBe(false);
+      if (!s.screenshotId) expect(s.notCompared).toBeUndefined();
+    }
+  });
+
   it('PRT-02 and PRT-03 are Blocked by PRT-01', () => {
     expect(resultFor(12, 'PRT-02').steps[0]!.aiReasoning).toContain('PRT-01');
     expect(resultFor(12, 'PRT-03').steps[0]!.aiReasoning).toContain('PRT-01');

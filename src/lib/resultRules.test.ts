@@ -21,6 +21,8 @@ import {
   formatBugReport,
   hasBugReport,
   NO_RESULT_FILTERS,
+  notComparedReason,
+  notComparedText,
   reasonCounts,
   reasonGroups,
   reasonOptions,
@@ -33,6 +35,8 @@ import {
   validateOverride,
   versionLine,
   visualFlagCount,
+  visualMark,
+  visualResultText,
   withStatus,
 } from './resultRules';
 
@@ -201,6 +205,43 @@ describe('override (BR-ACTION-01 / BR-STATUS-05)', () => {
   it('a Not run result cannot be overridden', () => {
     expect(canOverride(result({ aiVerdict: { status: 'not_run', confidence: 'high' } }))).toBe(false);
     expect(canOverride(result())).toBe(true);
+  });
+});
+
+describe('screenshot viewer and visual mark (D88, BR-VISUAL-01/02)', () => {
+  const base = { comparisonOn: true, excluded: false, hasPrevious: true };
+  it('records why a step is not compared', () => {
+    expect(notComparedReason({ ...base, mode: 'script' })).toBeUndefined();
+    expect(notComparedReason({ ...base, mode: 'script', hasPrevious: false })).toBe('no_previous');
+    expect(notComparedReason({ ...base, mode: 'script', excluded: true, hasPrevious: false })).toBe('test_excluded');
+    expect(notComparedReason({ ...base, mode: 'ai' })).toBe('ai_run');
+    expect(notComparedReason({ ...base, mode: 'data_rows' })).toBe('ai_run');
+    expect(notComparedReason({ ...base, mode: 'data_rows', dataRowsReplayed: true })).toBeUndefined();
+    expect(notComparedReason({ ...base, mode: 'ai', comparisonOn: false })).toBe('comparison_off');
+  });
+  it('says why in the viewer; an older result without a reason says so', () => {
+    expect(notComparedText({ notCompared: 'no_previous' }, 'UAT', 'webkit')).toBe('No earlier replay on UAT · Safari (WebKit) to compare with.');
+    expect(notComparedText({ notCompared: 'ai_run' }, 'UAT', 'chrome')).toMatch(/^AI runs are not compared/);
+    expect(notComparedText({ notCompared: 'test_excluded' }, 'UAT', 'chrome')).toBe('Visual check is off for this test.');
+    expect(notComparedText({}, 'UAT', 'chrome')).toBe('Not compared. Reason not recorded.');
+  });
+  it('D89: Visual check result text says more than the mark, and ignored areas come from the comparison', () => {
+    const v = { previousScreenshotId: 'p', changedAreas: 3 };
+    const shot = { screenshotId: 's' };
+    expect(visualResultText({ ...shot, visual: v })).toEqual({ text: '3 areas changed', tone: 'cc' });
+    expect(visualResultText({ ...shot, visual: { ...v, dismissed: { by: 'Jia Yin', at: '2026-11-03T10:00:00' } } })).toEqual({ text: 'Looks fine · Jia Yin · 3 Nov 2026', tone: 'passed' });
+    expect(visualResultText({ ...shot, visual: { ...v, changedAreas: 0, ignoredAreas: 3 } })).toEqual({ text: 'No change · 3 areas ignored', tone: 'passed' });
+    expect(visualResultText({ ...shot, visual: { ...v, changedAreas: 0, ignoredAreas: 1 } }).text).toBe('No change · 1 area ignored');
+    expect(visualResultText({ ...shot, visual: { ...v, changedAreas: 0 } }).text).toBe('No change');
+    expect(visualResultText({ ...shot })).toEqual({ text: 'No previous run', tone: 'neutral' });
+    expect(visualResultText({})).toEqual({ text: 'Not run', tone: 'neutral' });
+  });
+  it('marks only open changes and Looks fine; no change and no comparison have no mark', () => {
+    const v = { previousScreenshotId: 'p', changedAreas: 3 };
+    expect(visualMark({ visual: v })).toEqual({ kind: 'changed', areas: 3 });
+    expect(visualMark({ visual: { ...v, dismissed: { by: 'Jia Yin', at: '2026-11-03T10:00:00.000Z' } } })).toEqual({ kind: 'looks_fine' });
+    expect(visualMark({ visual: { ...v, changedAreas: 0 } })).toBeNull();
+    expect(visualMark({})).toBeNull();
   });
 });
 

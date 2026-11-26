@@ -1,4 +1,4 @@
-import { Bug, Check, ChevronLeft, ChevronRight, EyeOff } from 'lucide-react';
+import { Bug, Check, ChevronLeft, ChevronRight, EyeOff, Info } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { dismissVisualFlag, getTest, getTestHistory, listRuns, saveTest } from '@/data/api';
 import type { Browser, ID, Result, Run, TestCase } from '@/data/types';
@@ -12,7 +12,8 @@ import { BugReportDialog } from '@/components/BugReportDialog';
 import { useAsync } from '@/app/hooks/useAsync';
 import { browserLabels } from '@/lib/labels';
 import { formatDate, plural } from '@/lib/format';
-import { allBrowserSteps, browserEvidence, clampRect, rectFromCorners, type Rect } from '@/lib/resultRules';
+import { allBrowserSteps, browserEvidence, clampRect, notComparedText, rectFromCorners, type Rect } from '@/lib/resultRules';
+import { cn } from '@/lib/utils';
 
 const DEFAULT_RECT: Rect = { x: 0.35, y: 0.35, width: 0.3, height: 0.2 };
 /** D64: outline the regions the engine returned; without them, the prototype's placeholder positions. */
@@ -21,8 +22,11 @@ const changedOutlines = (v: { changedAreas: number; changedRegions?: { x: number
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
 /**
- * 6.2 Visual compare (overlay, screens/07-results.md; BR-VISUAL-*): previous run vs this run for one step, changed areas
- * outlined. Actions: Mark as bug (→ 6.4) · Ignore an area… (draw on this step's screenshot, D45) · Looks fine (D59).
+ * 6.2 Screenshot viewer / Visual compare (overlay, screens/07-results.md; BR-VISUAL-*). D88: the one viewer for a step's
+ * screenshot. A compared step shows previous run vs this run side by side, changed areas outlined; a step without a
+ * comparison shows this run's screenshot full width and why it was not compared (`ResultStep.notCompared`).
+ * Actions: Mark as bug (→ 6.4, compared steps) · Ignore an area… (draw on this step's screenshot, D45) · Looks fine (D59).
+ * Previous step / Next step move through every step with a screenshot.
  * `draw` opens straight in drawing mode (Suites › Visual check › Add area / Draw, D45).
  */
 export function VisualCompare({
@@ -71,6 +75,7 @@ export function VisualCompare({
 
   const step = stepsOf(current).find((s) => s.index === index) ?? stepsOf(current)[0]!;
   const v = step.visual;
+  const compared = Boolean(v?.previousScreenshotId);
   const prevRun = v?.previousScreenshotId && previous.status === 'ready' ? previous.data(v.previousScreenshotId) : undefined;
   const pos = ran.findIndex((s) => s.index === index);
   const which = browserEvidence(current, chosen).browser;
@@ -158,7 +163,10 @@ export function VisualCompare({
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {!v?.previousScreenshotId ? (
-            <Chip>No previous run to compare</Chip>
+            <p className="inline-flex items-center gap-1.5 text-text-muted">
+              <Info aria-hidden="true" className="size-4 shrink-0" />
+              {notComparedText(step, run.environment.name, which)}
+            </p>
           ) : v.changedAreas === 0 ? (
             <Chip tone="passed">No change since the previous run</Chip>
           ) : (
@@ -176,15 +184,19 @@ export function VisualCompare({
           )}
         </div>
 
-        <div className="mt-3 grid gap-4 md:grid-cols-2">
-          <figure>
-            <figcaption className="mb-1 text-label">Previous run{prevRun ? ` · Run #${prevRun.number}` : ''}</figcaption>
-            {v?.previousScreenshotId ? <ScreenshotPlaceholder caption={`Screenshot · Run #${prevRun?.number ?? ''} · step ${index}`} /> : <ScreenshotPlaceholder caption="No previous run to compare" />}
-          </figure>
+        <div className={cn('mt-3 grid gap-4', compared && 'md:grid-cols-2')}>
+          {compared && (
+            <figure>
+              <figcaption className="mb-1 text-label">Previous run{prevRun ? ` · Run #${prevRun.number}` : ''}</figcaption>
+              <ScreenshotPlaceholder caption={`Screenshot · Run #${prevRun?.number ?? ''} · step ${index}`} />
+            </figure>
+          )}
           <figure>
             <figcaption className="mb-1 text-label">This run · Run #{run.number}</figcaption>
             <div ref={surface} onPointerDown={onPointerDown} className={drawing ? 'relative cursor-crosshair touch-none select-none' : 'relative'}>
-              <ScreenshotPlaceholder caption={v && v.changedAreas > 0 ? `Screenshot with ${plural(v.changedAreas, 'changed area')} outlined` : `Screenshot · Run #${run.number} · step ${index}`}>
+              <ScreenshotPlaceholder
+                caption={v && v.changedAreas > 0 ? `Screenshot with ${plural(v.changedAreas, 'changed area')} outlined` : `Screenshot · Run #${run.number} · step ${index}${!compared && step.url ? ` · ${step.url}` : ''}`}
+              >
                 {v && !v.dismissed && changedOutlines(v).map((r, i) => <AreaOutline key={i} rect={r} label={`Change ${i + 1}`} tone="changed" />)}
                 {ignored.map((a) => (
                   <AreaOutline key={a.id} rect={a.rect!} label={`Ignored: ${a.label}`} tone="ignored" />
@@ -222,12 +234,16 @@ export function VisualCompare({
         ) : null}
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-          <p className="text-label font-normal text-text-muted">A visual change is a flag, never a failure. Ignored areas are not compared.</p>
+          <p className="text-label font-normal text-text-muted">
+            {compared ? 'A visual change is a flag, never a failure. Ignored areas are not compared.' : 'Ignored areas are left out of later comparisons.'}
+          </p>
           {!drawing && (
             <div className="flex flex-wrap gap-2">
-              <Button icon={Bug} onClick={() => setBugReport(true)}>
-                Mark as bug
-              </Button>
+              {compared && (
+                <Button icon={Bug} onClick={() => setBugReport(true)}>
+                  Mark as bug
+                </Button>
+              )}
               <Button icon={EyeOff} disabled={!currentTest} title={currentTest ? undefined : 'The test was deleted'} onClick={() => setDrawing({ label: '', rect: DEFAULT_RECT })}>
                 Ignore an area…
               </Button>

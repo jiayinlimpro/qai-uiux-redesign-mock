@@ -2,10 +2,10 @@
  * Run results rules (screens/07-results.md, 6.1–6.4): rows, sorting, filters, reason guidance, version line,
  * override, visual flags, bug report. Pure functions; the rule ID is in each comment.
  */
-import type { Platform, Browser, CcReason, FailReason, ID, Mode, Result, ResultStep, Run, Status, Suite, TestCase, TestData } from '@/data/types';
+import type { Platform, Browser, CcReason, FailReason, ID, Mode, NotComparedReason, Result, ResultStep, Run, Status, Suite, TestCase, TestData } from '@/data/types';
 import { browserLabels, browserShortLabels, modeLabels, reasonLabels } from './labels';
 import { compareTestIds } from './suiteRules';
-import { formatDate } from './format';
+import { formatDate, plural } from './format';
 
 export type Reason = FailReason | CcReason;
 
@@ -319,6 +319,61 @@ export function visualFlagCount(steps: Pick<ResultStep, 'visual'>[]): number {
 /** Steps that have a comparison with a previous run (Previous step / Next step in 6.2 move between these). */
 export function comparedSteps<S extends Pick<ResultStep, 'index' | 'visual'>>(steps: S[]): S[] {
   return steps.filter((s) => s.visual?.previousScreenshotId);
+}
+
+/**
+ * BR-VISUAL-01/02 (D88): why a step's screenshot is not compared, written on the step when the result is created.
+ * Only script replays are compared, with the previous replay of the same test, environment, browser and viewport.
+ * undefined: the step is compared, or (data rows replayed by script) the engine does not record a reason.
+ */
+export function notComparedReason(o: { mode: Mode; dataRowsReplayed?: boolean; comparisonOn: boolean; excluded: boolean; hasPrevious: boolean }): NotComparedReason | undefined {
+  if (!o.comparisonOn) return 'comparison_off';
+  if (o.mode === 'ai' || (o.mode === 'data_rows' && !o.dataRowsReplayed)) return 'ai_run';
+  if (o.mode === 'data_rows') return undefined;
+  if (o.excluded) return 'test_excluded';
+  if (!o.hasPrevious) return 'no_previous';
+  return undefined;
+}
+
+/** D88: the line the screenshot viewer shows when a step has no comparison. */
+export function notComparedText(step: Pick<ResultStep, 'notCompared'>, environmentName: string, browser: Browser): string {
+  switch (step.notCompared) {
+    case 'ai_run':
+      return 'AI runs are not compared. Only script replays are compared with the previous replay.';
+    case 'no_previous':
+      return `No earlier replay on ${environmentName} · ${browserLabels[browser]} to compare with.`;
+    case 'test_excluded':
+      return 'Visual check is off for this test.';
+    case 'comparison_off':
+      return 'Visual comparison was off for this project.';
+    default:
+      return 'Not compared. Reason not recorded.';
+  }
+}
+
+/**
+ * D88: the visual mark on a step's screenshot (top-right corner). Only what needs attention is marked: open changes
+ * ("changed") and changes someone marked Looks fine ("looks_fine"). No change or no comparison → no mark.
+ */
+export type VisualMark = { kind: 'changed'; areas: number } | { kind: 'looks_fine' } | null;
+export function visualMark(step: Pick<ResultStep, 'visual'>): VisualMark {
+  const v = step.visual;
+  if (!v?.previousScreenshotId || v.changedAreas === 0) return null;
+  return v.dismissed ? { kind: 'looks_fine' } : { kind: 'changed', areas: v.changedAreas };
+}
+
+/**
+ * D89: the result text for a step in Suites › Visual check, where the comparison is the content, so it says more than the
+ * mark: "3 areas changed" · "Looks fine · <user> · <date>" · "No change · 3 areas ignored" · "No change" · "No previous run"
+ * · "Not run" (the step has no screenshot). Ignored areas come from the comparison (`visual.ignoredAreas`), never from
+ * today's ignore areas, which may have been added later.
+ */
+export function visualResultText(step: Pick<ResultStep, 'visual' | 'screenshotId'>): { text: string; tone: 'cc' | 'passed' | 'neutral' } {
+  const v = step.visual;
+  if (!step.screenshotId) return { text: 'Not run', tone: 'neutral' };
+  if (!v?.previousScreenshotId) return { text: 'No previous run', tone: 'neutral' };
+  if (v.changedAreas > 0) return v.dismissed ? { text: `Looks fine · ${v.dismissed.by} · ${formatDate(v.dismissed.at)}`, tone: 'passed' } : { text: `${plural(v.changedAreas, 'area')} changed`, tone: 'cc' };
+  return { text: v.ignoredAreas ? `No change · ${plural(v.ignoredAreas, 'area')} ignored` : 'No change', tone: 'passed' };
 }
 
 /**

@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { Checkbox } from '@/components/ui/field';
 import { SegmentedControl } from '@/components/ui/segmented';
-import { ScreenshotPlaceholder } from '@/components/Screenshot';
+import { ScreenshotPlaceholder, VisualMarkBadge, visualMarkText } from '@/components/Screenshot';
 import { StatusChip } from '@/components/StatusViews';
 import { StatusIcon, statusIcons } from '@/components/StatusIcon';
 import { formatDuration, plural } from '@/lib/format';
 import { browserLabels, reasonLabels, statusLabels } from '@/lib/labels';
-import { browserEvidence, browserNotRunNote, dataRowsBreakdown, defaultExpandedStep, failureHeadline, leadBrowser, reasonGuidance } from '@/lib/resultRules';
+import { browserEvidence, browserNotRunNote, dataRowsBreakdown, defaultExpandedStep, failureHeadline, leadBrowser, reasonGuidance, visualMark } from '@/lib/resultRules';
 import { rowsPassed } from '@/lib/suiteRules';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +19,7 @@ const stepDuration = (ms: number) => (ms < 60_000 ? `${(ms / 1000).toFixed(1)}s`
 
 /**
  * 6.1 › Steps and evidence: failure summary card (BR-REASON-04) · "Show raw actions and locators" (remembered) · step list
- * (3 levels, failed step expanded) · data rows breakdown (BR-STATUS-04) · visual flags per step (→ 6.2).
+ * (3 levels, failed step expanded) · data rows breakdown (BR-STATUS-04) · visual mark on each step's screenshot (D88; → 6.2).
  * D86: a multi-browser result has a Browser switcher; the failure card and steps are the selected browser's evidence.
  */
 export function StepsEvidence({
@@ -29,7 +29,6 @@ export function StepsEvidence({
   onBrowserChange,
   showRawActions,
   setShowRawActions,
-  onOpenScreenshot,
   onOpenVisual,
   onCopyBugReport,
 }: {
@@ -40,7 +39,7 @@ export function StepsEvidence({
   onBrowserChange: (browser: Browser) => void;
   showRawActions: boolean;
   setShowRawActions: (on: boolean) => void;
-  onOpenScreenshot: (step: ResultStep) => void;
+  /** Opens the screenshot viewer on a step: side by side when the step was compared, else one screenshot (D88). */
   onOpenVisual: (stepIndex: number) => void;
   /** Failed results only (D63); shown next to the recommendation (D79). */
   onCopyBugReport?: () => void;
@@ -156,7 +155,7 @@ export function StepsEvidence({
 
           <ol aria-label={multi ? `Steps in ${browserLabels[ev.browser]}` : 'Steps'} className="overflow-hidden rounded-card border border-border bg-surface">
             {steps.map((s) => (
-              <StepItem key={`${result.id}-${ev.browser}-${s.index}`} step={s} result={result} showRawActions={showRawActions} defaultOpen={defaultExpandedStep(steps) === s.index} onOpenScreenshot={onOpenScreenshot} onOpenVisual={onOpenVisual} />
+              <StepItem key={`${result.id}-${ev.browser}-${s.index}`} step={s} result={result} showRawActions={showRawActions} defaultOpen={defaultExpandedStep(steps) === s.index} onOpenVisual={onOpenVisual} />
             ))}
           </ol>
         </>
@@ -201,20 +200,19 @@ function StepItem({
   result,
   showRawActions,
   defaultOpen,
-  onOpenScreenshot,
   onOpenVisual,
 }: {
   step: ResultStep;
   result: Result;
   showRawActions: boolean;
   defaultOpen: boolean;
-  onOpenScreenshot: (step: ResultStep) => void;
   onOpenVisual: (stepIndex: number) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const ran = s.status !== 'not_run';
   const panelId = `step-${result.id}-${s.index}`;
-  const v = s.visual;
+  const mark = visualMark(s);
+  const markText = visualMarkText(mark, Boolean(s.visual?.previousScreenshotId));
   return (
     <li className={cn('border-b border-border last:border-b-0', open && (s.status === 'failed' || s.status === 'couldnt_complete') && 'bg-surface-muted')}>
       {/* D84: one screenshot per step, at the right; it grows from a thumbnail into a preview when the step opens. */}
@@ -231,18 +229,6 @@ function StepItem({
               </span>
               {open ? <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-text-muted" /> : <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-text-muted" />}
             </button>
-            {v && v.changedAreas > 0 && (
-              <button type="button" onClick={() => onOpenVisual(s.index)} className="shrink-0 rounded-pill">
-                <Chip tone={v.dismissed ? 'passed' : 'cc'}>{v.dismissed ? 'Looks fine' : `${plural(v.changedAreas, 'area')} changed`}</Chip>
-                <span className="sr-only"> on step {s.index}: open Visual compare</span>
-              </button>
-            )}
-            {v && v.changedAreas === 0 && v.previousScreenshotId && (
-              <button type="button" onClick={() => onOpenVisual(s.index)} className="shrink-0 rounded-pill">
-                <Chip>No visual change</Chip>
-                <span className="sr-only"> on step {s.index}: open Visual compare</span>
-              </button>
-            )}
           </div>
           <div id={panelId} hidden={!open} className="mt-3 pl-9">
             {!ran ? (
@@ -293,12 +279,15 @@ function StepItem({
           </div>
         </div>
         {s.screenshotId && (
+          // D88: one screenshot viewer (compares when the step was compared); the visual mark sits in the top-right corner.
           <ScreenshotPlaceholder
             size={open ? 'preview' : 'thumb'}
             caption={open ? `[Screenshot · step ${s.index} · click for full viewer]` : `Screenshot of step ${s.index}`}
-            openLabel={`Open screenshot of step ${s.index}`}
-            onOpen={() => onOpenScreenshot(s)}
-          />
+            openLabel={`Open screenshot of step ${s.index}${markText ? `, ${markText}` : ''}`}
+            onOpen={() => onOpenVisual(s.index)}
+          >
+            {mark && <VisualMarkBadge mark={mark} size={open ? 'preview' : 'thumb'} />}
+          </ScreenshotPlaceholder>
         )}
       </div>
     </li>

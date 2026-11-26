@@ -70,6 +70,23 @@ describe('a simulated run (BR-RUN-01/03/05, BR-SCRIPT-01)', () => {
     await waitFor(() => runState(run.id) === 'completed');
     expect((await api.getTest('t-cnt-03')).script).toEqual({ state: 'recorded', fromRunId: run.id });
     expect((await api.listResults(run.id))[0]!.dataRows).toHaveLength(5);
+    // D88: an AI run is not compared, and says so on every step with a screenshot.
+    const shots = (await api.listResults(run.id))[0]!.steps.filter((s) => s.screenshotId);
+    expect(shots.length).toBeGreaterThan(0);
+    expect(shots.every((s) => s.notCompared === 'ai_run' && !s.visual)).toBe(true);
+  });
+  it('D88: a replay is compared with the previous replay; with comparison off it records why not', async () => {
+    const opts = { projectId: 'p-qcfixer', testIds: ['t-nav-01'], environmentId: 'env-uat', browsers: ['chrome' as const], model: 'gpt-4.1', forceAi: false, advanced };
+    const first = await api.startRun(opts);
+    await waitFor(() => runState(first.id) === 'completed');
+    const steps = (await api.listResults(first.id))[0]!.steps;
+    expect(steps.every((s) => s.visual?.previousScreenshotId && !s.notCompared)).toBe(true);
+    expect(steps[1]!.visual!.ignoredAreas).toBe(3); // D89: NAV-01's 3 ignore areas on step 2, frozen with the comparison
+    getDb().projects.find((p) => p.id === 'p-qcfixer')!.settings.visualComparison = false;
+    const second = await api.startRun(opts);
+    await waitFor(() => runState(second.id) === 'completed');
+    expect((await api.listResults(second.id))[0]!.steps.every((s) => s.notCompared === 'comparison_off' && !s.visual)).toBe(true);
+    getDb().projects.find((p) => p.id === 'p-qcfixer')!.settings.visualComparison = true;
   });
   it('no allowed browser → Not run with the reason (D53)', async () => {
     getDb().tests.find((t) => t.id === 't-nav-01')!.browserPreference = ['chrome', 'webkit'];

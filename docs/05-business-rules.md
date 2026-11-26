@@ -67,7 +67,7 @@ Rules marked [DEV-CONFIRM] are built in the UI as specified, but the real engine
 
 ## Visual comparison (BR-VISUAL)
 - **BR-VISUAL-01** Project setting, default on: compares screenshots of script replays only.
-- **BR-VISUAL-02** Comparison point: end of each step. Compared with the **previous replay of the same test, environment, browser and viewport**. No previous replay → "No previous run to compare".
+- **BR-VISUAL-02** Comparison point: end of each step. Compared with the **previous replay of the same test, environment, browser and viewport**. No previous replay → not compared. Every step with a screenshot and no comparison records why when the result is created (`ResultStep.notCompared`: AI run · no earlier replay · test excluded · comparison off); the screenshot viewer shows it, and "Reason not recorded" when absent (D88).
 - **BR-VISUAL-03** A difference is a **flag**, never a failure. **Looks fine** dismisses a flag: stored with who and when, the change is kept, and dismissed flags are not counted; Undo restores it (D59).
 - **BR-VISUAL-04** Per test: Exclude this test; ignore areas. An ignore area is drawn on a step's screenshot (stored as a share of the screenshot); until drawn it shows "Not drawn yet" and leaves nothing out (D45).
 - **BR-VISUAL-05** Script reset (BR-SCRIPT-02) restarts visual history for that test.
